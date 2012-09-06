@@ -13,7 +13,7 @@ var ZERVER         = __dirname + '/zerver',
 function processFlags () {
 	var flags = require(__dirname + '/flags');
 
-	flags.add('d', function () {
+	flags.add(['d', 'debug'], function () {
 		DEBUG = true;
 	});
 

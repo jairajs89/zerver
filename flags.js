@@ -2,7 +2,7 @@ var path = require('path');
 
 
 
-var FLAG_MATCHER = /^(\w+)\=(\w*)$/,
+var FLAG_MATCHER = /^(\w+)(?:\=(\w*))?$/,
 	FUNC_MATCHER = /^[^\(]*\(([^\)]*)/;
 
 var flagHandlers = {};
@@ -10,6 +10,13 @@ var flagHandlers = {};
 
 
 exports.add = function (flag, handler) {
+	if ( Array.isArray(flag) ) {
+		flag.forEach(function (singleFlag) {
+			exports.add(singleFlag, handler);
+		});
+		return;
+	}
+
 	flagHandlers[flag] = handler;
 };
 
@@ -17,7 +24,11 @@ exports.add = function (flag, handler) {
 
 exports.run = function () {
 	process.argv.slice(2).forEach(function (arg) {
-		if (arg.substr(0, 2) === '--') {
+		if (arg[0] !== '-') {
+			usageError();
+		}
+
+		else if (arg[1] === '-') {
 			var match = FLAG_MATCHER.exec( arg.substr(2) );
 
 			if (match) {
@@ -33,7 +44,7 @@ exports.run = function () {
 			}
 		}
 
-		else if (arg[0] === '-') {
+		else {
 			Array.prototype.slice.call( arg.substr(1) ).forEach(function (flag) {
 				try {
 					flagHandlers[flag]();
@@ -42,11 +53,6 @@ exports.run = function () {
 					usageError();
 				}
 			});
-		}
-
-		else {
-			usageError();
-			return;
 		}
 	});
 };
@@ -60,8 +66,11 @@ function usageError () {
 	for (var flag in flagHandlers) {
 		match = FUNC_MATCHER.exec( flagHandlers[flag] );
 
-		if ((flag.length > 1) || (match && match[1])) {
+		if (match && match[1]) {
 			usage += ' [--' + flag + '=VALUE]';
+		}
+		else if (flag.length > 1) {
+			usage += ' [--' + flag + ']';
 		}
 		else {
 			usage += ' [-' + flag + ']';
