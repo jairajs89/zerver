@@ -86,6 +86,8 @@ function Handler (request, response) {
 	this.response = response;
 	this.pathname = pathname;
 	this.time     = process.hrtime();
+	this.status   = null;
+	this.type     = null;
 }
 
 Handler.prototype.respond = function (status, type, data, headers) {
@@ -94,6 +96,9 @@ Handler.prototype.respond = function (status, type, data, headers) {
 
 	this.response.writeHeader(status, headers);
 	this.response.end(data);
+
+	this.status = status;
+	this.logRequest();
 };
 
 Handler.prototype.respondBinary = function (type, data, headers) {
@@ -103,6 +108,9 @@ Handler.prototype.respondBinary = function (type, data, headers) {
 	this.response.writeHeader(200, headers);
 	this.response.write(data, 'binary');
 	this.response.end();
+
+	this.status = 200;
+	this.logRequest();
 };
 
 Handler.prototype.respondJSON = function (data, headers) {
@@ -121,6 +129,8 @@ Handler.prototype.respond500 = function (headers) {
 };
 
 Handler.prototype.pathRequest = function () {
+	this.type = 'file';
+
 	var pathname = this.pathname;
 
 	if (pathname.substr(0, 2) === '/.') {
@@ -167,6 +177,8 @@ Handler.prototype.fileRequest = function (fileName) {
 };
 
 Handler.prototype.APIRequest = function () {
+	this.type = 'api';
+
 	if (this.request.method !== 'POST') {
 		this.respond500();
 		return;
@@ -265,6 +277,8 @@ Handler.prototype.APIRequest = function () {
 };
 
 Handler.prototype.scriptRequest = function () {
+	this.type = 'script';
+
 	var match = API_SCRIPT_MATCH.exec(this.pathname);
 
 	if ( !match ) {
@@ -280,4 +294,24 @@ Handler.prototype.scriptRequest = function () {
 	}
 
 	this.respond(200, 'application/javascript', file);
+};
+
+Handler.prototype.logRequest = function () {
+	var status    = (this.status === 200) ? '' : '['+this.status+'] ',
+		pathname  = this.pathname,
+		timeParts = process.hrtime(this.time),
+		timeMs    = (timeParts[0] * 1000 + timeParts[1] / 1000000) + '',
+		time      = '[' + timeMs.substr(0, timeMs.indexOf('.')+3) + 'ms] ';
+
+	switch (this.type) {
+		case 'file':
+		case 'script':
+			console.log('FILE : ' + time + status + pathname);
+			break;
+
+		case 'api':
+			pathname = pathname.substr(2 + API_DIR_LENGTH).replace('/', '.') + '()';
+			console.log('API  : ' + time + status + pathname);
+			break;
+	}
 };
