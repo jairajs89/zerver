@@ -1,0 +1,23 @@
+{
+  "author": "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
+  "name": "zerver",
+  "description": "client-integrated webapp server",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jairajs89/zerver.git"
+  },
+  "main": "empty.js",
+  "engines": {
+    "node": "0.8.6"
+  },
+  "dependencies": {
+    "mime": "1" ,
+    "stalker" : "0.0.17" ,
+    "findit" : "0.1.2"
+  },
+  "bin": {
+    "zerver": "run.js"
+  },
+  "license": "MIT"
+}
