@@ -1,8 +1,12 @@
 #!/usr/bin/env node --no-deprecation
 
+var path = require('path'),
+	fork = require('child_process').fork;
+
 var ZERVER         = __dirname + '/zerver',
 	WATCHER        = __dirname + '/watcher',
 	API_DIR        = 'zerver',
+	CWD            = process.cwd(),
 	CHANGE_TIMEOUT = 1000,
 	DEBUG          = false,
 	PORT           = 8888;
@@ -26,8 +30,12 @@ function processFlags () {
 		PORT = port;
 	});
 
-	flags.add('dir', function (dir) {
+	flags.add('zerver-dir', function (dir) {
 		API_DIR = dir;
+	});
+
+	flags.arg('dir', function (dir) {
+		CWD = path.join(process.cwd(), dir);
 	});
 
 	flags.run();
@@ -38,20 +46,25 @@ function processFlags () {
 function main () {
 	processFlags();
 
+	var apiDir = CWD + '/' + API_DIR,
+		args   = [ PORT, API_DIR, (DEBUG ? '1' : '') ],
+		opts   = { cwd : CWD },
+		child;
+
+	function runServer () {
+		child = fork(ZERVER, args, opts);
+	}
+
 	if ( !DEBUG ) {
-		var zerver = require(ZERVER);
-		zerver.run(PORT, API_DIR, DEBUG);
+		runServer();
 		return;
 	}
 
-	var fork    = require('child_process').fork,
-		watcher = require(WATCHER);
+	var watcher = require(WATCHER);
 
-	var apiDir = process.cwd() + '/' + API_DIR,
-		args   = [ PORT, API_DIR ];
+	var lastChange = null;
 
-	var child      = fork(ZERVER, args),
-		lastChange = null;
+	runServer();
 
 	watcher.watch(apiDir, function () {
 		if (lastChange === null) {
@@ -70,7 +83,7 @@ function main () {
 			console.log('reloading debug server');
 
 			child.kill();
-			child = fork(ZERVER, args);
+			runServer();
 		}, CHANGE_TIMEOUT);
 	});
 

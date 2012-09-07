@@ -5,7 +5,8 @@ var path = require('path');
 var FLAG_MATCHER = /^(\w+)(?:\=(\w*))?$/,
 	FUNC_MATCHER = /^[^\(]*\(([^\)]*)/;
 
-var flagHandlers = {};
+var flagHandlers = {},
+	argHandlers  = [];
 
 
 
@@ -22,10 +23,23 @@ exports.add = function (flag, handler) {
 
 
 
+exports.arg = function (arg, handler) {
+	argHandlers.push([arg, handler]);
+};
+
+
+
 exports.run = function () {
+	var args = 0;
+
 	process.argv.slice(2).forEach(function (arg) {
 		if (arg[0] !== '-') {
-			usageError();
+			try {
+				argHandlers[args++][1](arg);
+			}
+			catch (err) {
+				usageError();
+			}
 		}
 
 		else if (arg[1] === '-') {
@@ -75,6 +89,10 @@ function usageError () {
 		else {
 			usage += ' [-' + flag + ']';
 		}
+	}
+
+	for (var i=0, len=argHandlers.length; i<len; i++) {
+		usage += ' ['+argHandlers[i][0]+']';
 	}
 
 	console.error(usage);

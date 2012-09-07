@@ -29,6 +29,10 @@ exports.run = function (port, apiDir, debug) {
 	fetchAPIs();
 	startServer();
 
+	if (debug) {
+		console.log('[debug mode]');
+	}
+
 	console.log('zerver running on port ' + PORT);
 
 	var apiNames = apis.getNames();
@@ -319,5 +323,5 @@ Handler.prototype.logRequest = function () {
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], true);
+	exports.run(parseInt(process.argv[2]), process.argv[3], !!process.argv[4]);
 }
