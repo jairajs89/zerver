@@ -1,9 +1,3 @@
-//TODO
-//	cacheing
-//	logging
-
-
-
 /* Imports and static vars */
 
 var fs   = require('fs'),
@@ -171,7 +165,9 @@ Handler.prototype.fileRequest = function (fileName) {
 				return;
 			}
 
-			handler.respondBinary(fileMime, file);
+			handler.respondBinary(fileMime, file, {
+				'Cache-Control' : 'max-age='+(DEBUG ? 0 : 4*60*60)
+			});
 		});
 	});
 };
@@ -293,7 +289,9 @@ Handler.prototype.scriptRequest = function () {
 		return;
 	}
 
-	this.respond(200, 'application/javascript', file);
+	this.respond(200, 'application/javascript', file, {
+		'Cache-Control' : 'max-age='+(DEBUG ? 0 : 4*60*60)
+	});
 };
 
 Handler.prototype.logRequest = function () {
@@ -315,3 +313,11 @@ Handler.prototype.logRequest = function () {
 			break;
 	}
 };
+
+
+
+/* Run in debug mode */
+
+if (require.main === module) {
+	exports.run(parseInt(process.argv[2]), process.argv[3], true);
+}

@@ -1,7 +1,6 @@
 #!/usr/bin/env node --no-deprecation
 
 var ZERVER         = __dirname + '/zerver',
-	RUNNER         = __dirname + '/run',
 	WATCHER        = __dirname + '/watcher',
 	API_DIR        = 'zerver',
 	CHANGE_TIMEOUT = 1000,
@@ -49,9 +48,9 @@ function main () {
 		watcher = require(WATCHER);
 
 	var apiDir = process.cwd() + '/' + API_DIR,
-		args   = [ '--dir='+API_DIR, '--port='+PORT ];
+		args   = [ PORT, API_DIR ];
 
-	var child      = fork(RUNNER, args),
+	var child      = fork(ZERVER, args),
 		lastChange = null;
 
 	watcher.watch(apiDir, function () {
@@ -71,7 +70,7 @@ function main () {
 			console.log('reloading debug server');
 
 			child.kill();
-			child = fork(RUNNER, args);
+			child = fork(ZERVER, args);
 		}, CHANGE_TIMEOUT);
 	});
 
