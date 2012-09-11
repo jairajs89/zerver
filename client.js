@@ -16,20 +16,22 @@
 			value = functions[key];
 
 			if (value === true) {
-				obj[key] = function () {
-					var args     = Array.prototype.slice.call(arguments),
-						numArgs  = args.length,
-						callback = args[numArgs - 1];
+				obj[key] = function (key) {
+					return function () {
+						var args     = Array.prototype.slice.call(arguments),
+							numArgs  = args.length,
+							callback = args[numArgs - 1];
 
-					if (typeof callback === 'function') {
-						args.pop();
-					}
-					else {
-						callback = function () {};
-					}
+						if (typeof callback === 'function') {
+							args.pop();
+						}
+						else {
+							callback = function () {};
+						}
 
-					apiCall(tree.concat(key), args, callback);
-				};
+						apiCall(tree.concat(key), args, callback);
+					};
+				}(key);
 			}
 
 			else if ((typeof value === 'object') && (typeof obj[key] === 'object')) {
