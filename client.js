@@ -18,7 +18,8 @@
 			if (value === true) {
 				obj[key] = function (key) {
 					return function () {
-						var args     = Array.prototype.slice.call(arguments),
+						var data     = {},
+							args     = Array.prototype.slice.call(arguments),
 							numArgs  = args.length,
 							callback = args[numArgs - 1];
 
@@ -26,10 +27,13 @@
 							args.pop();
 						}
 						else {
+							data.noResponse = true;
 							callback = function () {};
 						}
 
-						apiCall(tree.concat(key), args, callback);
+						data.args = args;
+
+						apiCall(tree.concat(key), data, callback);
 					};
 				}(key);
 			}

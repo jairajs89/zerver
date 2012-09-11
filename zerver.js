@@ -225,9 +225,10 @@ Handler.prototype.APIRequest = function () {
 	});
 
 	this.request.on('end', function () {
-		var args;
+		var data, args;
 		try {
-			args = JSON.parse(rawData);
+			data = JSON.parse(rawData);
+			args = data.args;
 		}
 		catch (err) {
 			handler.respond500();
@@ -237,14 +238,27 @@ Handler.prototype.APIRequest = function () {
 			handler.respond500();
 			return;
 		}
-		args.push(successCallback);
+
+		if ( !data.noResponse ) {
+			args.push(successCallback);
+		}
+
+		var val;
 
 		try {
-			api.apply(api, args);
+			val = api.apply(api, args);
 		}
 		catch (err) {
 			console.error(err);
 			errorCallback(err);
+			return;
+		}
+
+		if (data.noResponse) {
+			successCallback();
+		}
+		else if (typeof val !== 'undefined') {
+			successCallback(val);
 		}
 	});
 
