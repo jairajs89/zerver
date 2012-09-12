@@ -326,7 +326,7 @@ Handler.prototype.logRequest = function () {
 			break;
 
 		case 'api':
-			pathname = pathname.substr(2 + API_DIR_LENGTH).replace('/', '.') + '()';
+			pathname = pathname.substr(2 + API_DIR_LENGTH).replace(/\//g, '.') + '()';
 			console.log('API  : ' + time + status + pathname);
 			break;
 	}
