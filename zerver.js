@@ -156,7 +156,7 @@ Handler.prototype.fileRequest = function (fileName) {
 		}
 
 		if ( stats.isDirectory() ) {
-			var pathname = this.pathname;
+			var pathname = handler.pathname;
 			if (pathname[pathname.length - 1] !== '/') {
 				handler.respondRedirect(pathname + '/');
 			}
