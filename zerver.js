@@ -116,6 +116,12 @@ Handler.prototype.respondJSON = function (data, headers) {
 	this.respond(200, 'application/json', stringData, headers);
 };
 
+Handler.prototype.respondRedirect = function (pathname, headers) {
+	this.respond(301, 'text/plain', '', {
+		'Location' : pathname
+	});
+};
+
 Handler.prototype.respond404 = function (headers) {
 	//TODO: custom pages
 	this.respond(404, 'text/plain', '404\n', headers);
@@ -136,14 +142,7 @@ Handler.prototype.pathRequest = function () {
 		return;
 	}
 
-	var pathLength = pathname.length;
-
-	if (pathname[pathLength - 1] === '/') {
-		pathname = pathname.substr(0, pathLength-1);
-	}
-
 	var fileName = path.join(ROOT_DIR, pathname);
-
 	this.fileRequest(fileName);
 };
 
@@ -157,7 +156,13 @@ Handler.prototype.fileRequest = function (fileName) {
 		}
 
 		if ( stats.isDirectory() ) {
-			handler.fileRequest(fileName + '/index.html');
+			var pathname = this.pathname;
+			if (pathname[pathname.length - 1] !== '/') {
+				handler.respondRedirect(pathname + '/');
+			}
+			else {
+				handler.fileRequest(fileName + 'index.html');
+			}
 			return;
 		}
 
