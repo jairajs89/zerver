@@ -2,7 +2,7 @@ var path = require('path');
 
 
 
-var FLAG_MATCHER = /^(\w+)(?:\=(\w*))?$/,
+var FLAG_MATCHER = /^(\w+)(?:\=(\S*))?$/,
 	FUNC_MATCHER = /^[^\(]*\(([^\)]*)/;
 
 var flagHandlers = {},
