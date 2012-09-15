@@ -27,6 +27,7 @@ exports.run = function (port, apiDir, debug, manifests) {
 	API_DIR_LENGTH   = apiDir.length;
 	DEBUG            = debug;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_DIR+'\\/([^\\/]+)\\.js');
+	MANIFESTS        = {};
 
 	startTimestamp = new Date();
 
@@ -39,16 +40,19 @@ exports.run = function (port, apiDir, debug, manifests) {
 
 	console.log('zerver running on port ' + PORT);
 
-	MANIFESTS = {};
 	if (manifests) {
 		console.log('\nmanifest files:');
-		manifests.split(',').forEach(function(path){
+
+		manifests.split(',').forEach(function (path) {
 			if (!path[0] !== '/') {
-				path = "/" + path;
+				path = '/' + path;
 			}
+
 			console.log('\t' + path);
+
 			MANIFESTS[path] = true;
 		});
+
 		console.log('');
 	}
 
@@ -73,14 +77,13 @@ function fetchAPIs () {
 
 function startServer () {
 	http.createServer(function (request, response) {
-
 		var handler   	= new Handler(request, response),
 			pathname  	= handler.pathname,
 			isApiCall 	= pathname.substr(0, API_DIR_LENGTH + 2) === '/'+API_DIR+'/',
 			isManifest	= !!MANIFESTS[pathname];
 
 		if (isManifest) {
-			handler.manifestRequest(path.join(ROOT_DIR, pathname));
+			handler.manifestRequest();
 		}
 		else if ( !isApiCall ) {
 			handler.pathRequest();
@@ -194,7 +197,7 @@ Handler.prototype.fileRequest = function (fileName) {
 
 		fs.readFile(fileName, 'binary', function (err, file) {
 			if (err) {
-				handler.respond404();
+				handler.respond500();
 				return;
 			}
 
@@ -205,27 +208,28 @@ Handler.prototype.fileRequest = function (fileName) {
 	});
 };
 
-Handler.prototype.manifestRequest = function(fileName) {
-	var handler = this;
+Handler.prototype.manifestRequest = function () {
 	this.type = 'manifest';
 
+	var handler  = this,
+		fileName = path.join(ROOT_DIR, this.pathname);
+
 	fs.stat(fileName, function (err, stats) {
-		if (err || !stats.isFile())
-		{
+		if (err || !stats.isFile()) {
 			handler.respond404();
 			return;
 		}
 
-		fs.readFile(fileName, "utf8", function (err, data) {
-			if (err || !data)
-			{
+		fs.readFile(fileName, 'utf8', function (err, data) {
+			if (err || !data) {
 				handler.respond500();
 				return;
 			}
-			var timestamp = DEBUG ? new Date() : startTimestamp;
-			data += "\n# Zerver: updated at " + timestamp + "\n";
 
-			handler.respond(200, "text/cache-manifest", data);
+			var timestamp = DEBUG ? new Date() : startTimestamp;
+			data += '\n# Zerver: updated at ' + timestamp + '\n';
+
+			handler.respond(200, 'text/cache-manifest', data);
 		});
 	});
 }
@@ -379,7 +383,7 @@ Handler.prototype.logRequest = function () {
 			console.log('FILE     : ' + time + status + pathname);
 			break;
 		case 'manifest':
-			console.log("MANIFEST : "  + time + status + pathname);
+			console.log('MANIFEST : ' + time + status + pathname);
 			break;
 		case 'api':
 			pathname = pathname.substr(2 + API_DIR_LENGTH).replace(/\//g, '.') + '()';
@@ -393,5 +397,5 @@ Handler.prototype.logRequest = function () {
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], process.argv[4]==='1', process.argv[5]);
+	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), process.argv[5]);
 }
