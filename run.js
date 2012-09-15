@@ -10,6 +10,7 @@ var ZERVER         = __dirname + '/zerver',
 	CHANGE_TIMEOUT = 1000,
 	DEBUG          = false,
 	PORT           = 8888;
+	MANIFESTS	   = [];
 
 
 
@@ -38,6 +39,10 @@ function processFlags () {
 		CWD = path.join(process.cwd(), dir);
 	});
 
+	flags.add('manifest', function (manifest) {
+		MANIFESTS.push(manifest);
+	});
+
 	flags.run();
 }
 
@@ -47,7 +52,7 @@ function main () {
 	processFlags();
 
 	var apiDir = CWD + '/' + API_DIR,
-		args   = [ PORT, API_DIR, (DEBUG ? '1' : '') ],
+		args   = [ PORT, API_DIR, (DEBUG ? '1' : '0'), MANIFESTS.join(',')],
 		opts   = { cwd : CWD },
 		child;
 
