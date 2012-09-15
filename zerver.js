@@ -40,7 +40,7 @@ exports.run = function (port, apiDir, debug, manifests) {
 	console.log('zerver running on port ' + PORT);
 
 	MANIFESTS = {};
-	if (manifests.length) {
+	if (manifests) {
 		console.log('\nmanifest files:');
 		manifests.split(',').forEach(function(path){
 			if (!path[0] !== '/') {
@@ -376,14 +376,14 @@ Handler.prototype.logRequest = function () {
 	switch (this.type) {
 		case 'file':
 		case 'script':
-			console.log('FILE : ' + time + status + pathname);
+			console.log('FILE     : ' + time + status + pathname);
 			break;
 		case 'manifest':
 			console.log("MANIFEST : "  + time + status + pathname);
 			break;
 		case 'api':
 			pathname = pathname.substr(2 + API_DIR_LENGTH).replace(/\//g, '.') + '()';
-			console.log('API  : ' + time + status + pathname);
+			console.log('API      : ' + time + status + pathname);
 			break;
 	}
 };
