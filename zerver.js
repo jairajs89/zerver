@@ -156,6 +156,12 @@ Handler.prototype.respond404 = function (headers) {
 
 Handler.prototype.respond500 = function (headers) {
 	//TODO: custom pages
+	headers = headers || {};
+
+	if ( !headers['Cache-Control'] ) {
+		headers['Cache-Control'] = 'no-cache';
+	}
+
 	this.respond(500, 'text/plain', '500\n', headers);
 };
 
@@ -202,7 +208,7 @@ Handler.prototype.fileRequest = function (fileName) {
 			}
 
 			handler.respondBinary(fileMime, file, {
-				'Cache-Control' : 'max-age='+(DEBUG ? 0 : 4*60*60)
+				'Cache-Control' : (DEBUG ? 'no-cache' : 'max-age=14400')
 			});
 		});
 	});
@@ -338,7 +344,7 @@ Handler.prototype.APIRequest = function () {
 
 		try {
 			handler.respondJSON(data, {
-				'Cache-Control' : 'max-age=0'
+				'Cache-Control' : 'no-cache'
 			});
 		}
 		catch (err) {
@@ -366,7 +372,7 @@ Handler.prototype.scriptRequest = function () {
 	}
 
 	this.respond(200, 'application/javascript', file, {
-		'Cache-Control' : 'max-age='+(DEBUG ? 0 : 4*60*60)
+		'Cache-Control' : (DEBUG ? 'no-cache' : 'max-age=14400')
 	});
 };
 
