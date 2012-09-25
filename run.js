@@ -9,7 +9,7 @@ var ZERVER         = __dirname + '/zerver',
 	CWD            = process.cwd(),
 	CHANGE_TIMEOUT = 1000,
 	DEBUG          = false,
-	PORT           = 8888;
+	PORT           = process.env.PORT || 8888;
 	MANIFESTS	   = [];
 
 
