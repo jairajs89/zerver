@@ -12,7 +12,8 @@ var ROOT_DIR = process.cwd(),
 	API_DIR,
 	API_DIR_LENGTH,
 	API_SCRIPT_MATCH,
-	MANIFESTS;
+	MANIFESTS,
+	HAS_MANIFEST = false;
 
 var apis;
 
@@ -51,6 +52,7 @@ exports.run = function (port, apiDir, debug, manifests) {
 			console.log('\t' + path);
 
 			MANIFESTS[path] = true;
+			HAS_MANIFEST = true;
 		});
 
 		console.log('');
@@ -208,7 +210,7 @@ Handler.prototype.fileRequest = function (fileName) {
 			}
 
 			handler.respondBinary(fileMime, file, {
-				'Cache-Control' : (DEBUG ? 'no-cache' : 'max-age=14400')
+				'Cache-Control' : (DEBUG || HAS_MANIFEST ? 'no-cache' : 'max-age=14400')
 			});
 		});
 	});
@@ -372,7 +374,7 @@ Handler.prototype.scriptRequest = function () {
 	}
 
 	this.respond(200, 'application/javascript', file, {
-		'Cache-Control' : (DEBUG ? 'no-cache' : 'max-age=14400')
+		'Cache-Control' : (DEBUG || HAS_MANIFEST ? 'no-cache' : 'max-age=14400')
 	});
 };
 
