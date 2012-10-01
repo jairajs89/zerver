@@ -366,7 +366,7 @@ Handler.prototype.scriptRequest = function () {
 		return;
 	}
 
-	var file = apis.getScript( match[1] );
+	var file = apis.getScript(match[1], this.request.headers.host);
 
 	if ( !file ) {
 		this.respond404();

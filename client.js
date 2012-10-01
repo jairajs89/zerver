@@ -3,7 +3,8 @@
 (function (window) {
 	var API_DIR = 'zerver';
 
-	var apiName      = {{__API_NAME__}},
+	var apiHost      = {{__API_HOST__}},
+		apiName      = {{__API_NAME__}},
 		apiObj       = {{__API_OBJ__}},
 		apiFunctions = {{__API_FUNCTIONS__}};
 
@@ -47,7 +48,7 @@
 	}
 
 	function apiCall (tree, args, callback) {
-		var url  = '/' + API_DIR,
+		var url  = '//' + apiHost + '/' + API_DIR,
 			data = JSON.stringify(args),
 			done = false,
 			xhr;

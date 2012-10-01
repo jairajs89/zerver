@@ -3,6 +3,7 @@ var fs = require('fs');
 var CHANGE_TIMEOUT   = 1000,
 	ROOT_DIR         = process.cwd(),
 	CLIENT_JS        = 'client.js',
+	INSERT_HOST      = '{{__API_HOST__}}',
 	INSERT_NAME      = '{{__API_NAME__}}',
 	INSERT_API       = '{{__API_OBJ__}}',
 	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
@@ -63,8 +64,13 @@ exports.get = function (apiName) {
 
 
 
-exports.getScript = function (apiName) {
-	return apiScripts[apiName];
+exports.getScript = function (apiName, apiHost) {
+	if ( !(apiName in apiScripts) ) {
+		return;
+	}
+
+	apiHost = apiHost || 'localhost:8888';
+	return apiScripts[apiName].replace(INSERT_HOST, JSON.stringify(apiHost));
 };
 
 
