@@ -13,7 +13,8 @@ var setupComplete  = false,
 	scriptTemplate = fs.readFileSync(__dirname + '/' + CLIENT_JS) + '',
 	apiNames       = [],
 	apis           = {},
-	apiScripts     = {};
+	apiScripts     = {},
+	cors           = {};
 
 
 
@@ -46,6 +47,11 @@ exports.setup = function (apiDir) {
 		var apiObj       = {},
 			apiFunctions = {},
 			file         = scriptTemplate;
+
+		if (typeof api._crossOrigin === 'string') {
+			cors[apiName] = api._crossOrigin;
+			delete api._crossOrigin;
+		}
 
 		setupAPIObj(api, apiObj, apiFunctions);
 
@@ -90,6 +96,12 @@ exports.getNames = function () {
 	}
 
 	return names;
+};
+
+
+
+exports.getCORS = function (apiName) {
+	return cors[apiName];
 };
 
 

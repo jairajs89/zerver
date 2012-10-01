@@ -167,6 +167,14 @@ Handler.prototype.respond500 = function (headers) {
 	this.respond(500, 'text/plain', '500\n', headers);
 };
 
+Handler.prototype.optionsRequest = function (methods, host, headers) {
+	headers = headers || {};
+
+	addCORSHeaders(headers, methods, host);
+
+	this.respond(200, 'text/plain', '\n', headers);
+};
+
 Handler.prototype.pathRequest = function () {
 	this.type = 'file';
 
@@ -245,11 +253,6 @@ Handler.prototype.manifestRequest = function () {
 Handler.prototype.APIRequest = function () {
 	this.type = 'api';
 
-	if (this.request.method !== 'POST') {
-		this.respond500();
-		return;
-	}
-
 	var pathname = this.pathname.substr(API_DIR_LENGTH + 1),
 		apiParts = pathname.substr(1).split('/');
 
@@ -258,7 +261,8 @@ Handler.prototype.APIRequest = function () {
 		return;
 	}
 
-	var api = apis.get( apiParts[0] );
+	var apiName = apiParts[0],
+		api     = apis.get(apiName);
 
 	if ( !api ) {
 		this.respond404();
@@ -279,6 +283,16 @@ Handler.prototype.APIRequest = function () {
 	});
 
 	if (typeof api !== 'function') {
+		this.respond500();
+		return;
+	}
+
+	if (this.request.method === 'OPTIONS') {
+		this.optionsRequest(['POST'], apis.getCORS(apiName));
+		return;
+	}
+
+	if (this.request.method !== 'POST') {
 		this.respond500();
 		return;
 	}
@@ -344,10 +358,17 @@ Handler.prototype.APIRequest = function () {
 		}
 		called = true;
 
-		try {
-			handler.respondJSON(data, {
+		var cors    = apis.getCORS(apiName),
+			headers = {
 				'Cache-Control' : 'no-cache'
-			});
+			};
+
+		if (cors) {
+			addCORSHeaders(headers, ['POST'], cors);
+		}
+
+		try {
+			handler.respondJSON(data, headers);
 		}
 		catch (err) {
 			console.error(err);
@@ -366,7 +387,8 @@ Handler.prototype.scriptRequest = function () {
 		return;
 	}
 
-	var apiName = match[1];
+	var apiRoot = match[1],
+		apiName = apiRoot;
 
 	if (this.query) {
 		var query = parseQueryString( this.query.substr(1) );
@@ -376,7 +398,7 @@ Handler.prototype.scriptRequest = function () {
 		}
 	}
 
-	var file = apis.getScript(match[1], apiName, this.request.headers.host);
+	var file = apis.getScript(apiRoot, apiName, this.request.headers.host);
 
 	if ( !file ) {
 		this.respond404();
@@ -431,6 +453,26 @@ var parseQueryString = function () {
 		return result;
 	};
 }();
+
+function addCORSHeaders (headers, methods, host) {
+	methods.push('OPTIONS');
+
+	if ( !headers['Access-Control-Allow-Origin'] ) {
+		headers['Access-Control-Allow-Origin'] = host;
+	}
+
+	if ( !headers['Access-Control-Allow-Methods'] ) {
+		headers['Access-Control-Allow-Methods'] = methods.map(function (m) { return m.toUpperCase() }).join(', ');
+	}
+
+	if ( !headers['Access-Control-Max-Age'] ) {
+		headers['Access-Control-Max-Age'] = 21600;
+	}
+
+	if ( !headers['Access-Control-Allow-Headers'] ) {
+		headers['Access-Control-Allow-Headers'] = 'Content-Type';
+	}
+}
 
 
 
