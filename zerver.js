@@ -366,7 +366,17 @@ Handler.prototype.scriptRequest = function () {
 		return;
 	}
 
-	var file = apis.getScript(match[1], this.request.headers.host);
+	var apiName = match[1];
+
+	if (this.query) {
+		var query = parseQueryString( this.query.substr(1) );
+
+		if (query.name) {
+			apiName = query.name;
+		}
+	}
+
+	var file = apis.getScript(match[1], apiName, this.request.headers.host);
 
 	if ( !file ) {
 		this.respond404();
@@ -399,6 +409,28 @@ Handler.prototype.logRequest = function () {
 			break;
 	}
 };
+
+var parseQueryString = function () {
+	var re           = /([^&=]+)=([^&]+)/g,
+		decodedSpace = /\+/g;
+
+	return function (queryString) {
+		var result = {},
+			m, key, value;
+
+		if (queryString) {
+			queryString = queryString.replace(decodedSpace, '%20');
+
+			while ((m = re.exec(queryString))) {
+				key   = decodeURIComponent( m[1] );
+				value = decodeURIComponent( m[2] );
+				result[ key ] = value;
+			}
+		}
+
+		return result;
+	};
+}();
 
 
 

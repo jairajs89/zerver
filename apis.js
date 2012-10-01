@@ -5,6 +5,7 @@ var CHANGE_TIMEOUT   = 1000,
 	CLIENT_JS        = 'client.js',
 	INSERT_HOST      = '{{__API_HOST__}}',
 	INSERT_NAME      = '{{__API_NAME__}}',
+	INSERT_ROOT      = '{{__API_ROOT__}}',
 	INSERT_API       = '{{__API_OBJ__}}',
 	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
 
@@ -48,7 +49,7 @@ exports.setup = function (apiDir) {
 
 		setupAPIObj(api, apiObj, apiFunctions);
 
-		file = file.replace(INSERT_NAME     , JSON.stringify(apiName)     );
+		file = file.replace(INSERT_ROOT     , JSON.stringify(apiName)     );
 		file = file.replace(INSERT_API      , JSON.stringify(apiObj)      );
 		file = file.replace(INSERT_FUNCTIONS, JSON.stringify(apiFunctions));
 
@@ -64,13 +65,19 @@ exports.get = function (apiName) {
 
 
 
-exports.getScript = function (apiName, apiHost) {
-	if ( !(apiName in apiScripts) ) {
+exports.getScript = function (apiRoot, apiName, apiHost) {
+	if ( !(apiRoot in apiScripts) ) {
 		return;
 	}
 
 	apiHost = apiHost || 'localhost:8888';
-	return apiScripts[apiName].replace(INSERT_HOST, JSON.stringify(apiHost));
+
+	var script = apiScripts[apiRoot];
+
+	script = script.replace(INSERT_NAME, JSON.stringify(apiName));
+	script = script.replace(INSERT_HOST, JSON.stringify(apiHost));
+
+	return script;
 };
 
 

@@ -5,10 +5,11 @@
 
 	var apiHost      = {{__API_HOST__}},
 		apiName      = {{__API_NAME__}},
+		apiRoot      = {{__API_ROOT__}},
 		apiObj       = {{__API_OBJ__}},
 		apiFunctions = {{__API_FUNCTIONS__}};
 
-	window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiName ]);
+	window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiRoot ]);
 
 	function setupFunctions (obj, functions, tree) {
 		var value;
