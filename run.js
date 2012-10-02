@@ -51,25 +51,38 @@ function processFlags () {
 function main () {
 	processFlags();
 
-	var apiDir = CWD + '/' + API_DIR,
+	var death  = false,
+		apiDir = CWD + '/' + API_DIR,
 		args   = [ PORT, API_DIR, (DEBUG ? '1' : '0'), MANIFESTS.join(',')],
 		opts   = { cwd : CWD },
 		child;
 
-	function runServer () {
+	function runServer (noRestart) {
 		child = fork(ZERVER, args, opts);
+
+		child.on('exit', function () {
+			if ( !death ) {
+				noRestart ? process.exit() : runServer();
+			}
+		});
 	}
 
+	process.on('exit', function () {
+		death = true;
+
+		try {
+			child.kill();
+		}
+		catch (err) {}
+	});
+
 	if ( !DEBUG ) {
-		runServer();
+		runServer(true);
 		return;
 	}
 
-	var watcher = require(WATCHER);
-
-	var lastChange = null;
-
-	runServer();
+	var watcher    = require(WATCHER),
+		lastChange = null;
 
 	watcher.watch(apiDir, function () {
 		if (lastChange === null) {
@@ -88,7 +101,6 @@ function main () {
 			console.log('reloading debug server');
 
 			child.kill();
-			runServer();
 		}, CHANGE_TIMEOUT);
 	});
 
@@ -96,12 +108,7 @@ function main () {
 		lastChange = new Date();
 	}, 500);
 
-	process.on('exit', function () {
-		try {
-			child.kill();
-		}
-		catch (err) {}
-	});
+	runServer();
 }
 
 
