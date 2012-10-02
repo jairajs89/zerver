@@ -76,21 +76,21 @@
 			url += '/' + encodeURIComponent( tree[i] );
 		}
 
-		if ((apiHost !== window.location.host) && window.XDomainRequest) {
-			xhr = new window.XDomainRequest();
+		if ((apiHost !== window.location.host) && (typeof XDomainRequest !== 'undefined')) {
+			xhr = new XDomainRequest();
 
 			xhr.onload = function () {
 				xhrComplete(200);
 			};
 			xhr.onerror = function () {
-				xhrComplete(404);
+				xhrComplete(0);
 			};
 			xhr.ontimeout = function () {
-				xhrComplete(404);
+				xhrComplete(0);
 			};
 		}
 		else {
-			if (window.XMLHttpRequest) {
+			if (typeof XMLHttpRequest !== 'undefined') {
 				xhr = new XMLHttpRequest();
 			}
 			else {
