@@ -93,8 +93,11 @@
 			if (typeof XMLHttpRequest !== 'undefined') {
 				xhr = new XMLHttpRequest();
 			}
-			else {
+			else if (typeof ActiveXObject !== 'undefined') {
 				xhr = new ActiveXObject('Microsoft.XMLHTTP');
+			}
+			else {
+				throw Error('browser does not support ajax');
 			}
 
 			xhr.onreadystatechange = function () {

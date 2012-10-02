@@ -2,7 +2,7 @@
   "author": "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name": "zerver",
   "description": "client-integrated webapp server",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "repository": {
     "type": "git",
     "url": "git://github.com/jairajs89/zerver.git"

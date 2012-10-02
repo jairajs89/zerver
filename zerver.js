@@ -327,7 +327,7 @@ Handler.prototype.APIRequest = function () {
 		var val;
 
 		try {
-			val = api.apply(api, args);
+			val = api.apply(handler, args);
 		}
 		catch (err) {
 			console.error(err);
