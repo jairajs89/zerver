@@ -5,6 +5,7 @@ var CHANGE_TIMEOUT   = 1000,
 	CLIENT_JS        = 'client.js',
 	INSERT_HOST      = '{{__API_HOST__}}',
 	INSERT_NAME      = '{{__API_NAME__}}',
+	INSERT_APIS      = '{{__API_APIS__}}',
 	INSERT_ROOT      = '{{__API_ROOT__}}',
 	INSERT_API       = '{{__API_OBJ__}}',
 	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
@@ -14,7 +15,8 @@ var setupComplete  = false,
 	apiNames       = [],
 	apis           = {},
 	apiScripts     = {},
-	cors           = {};
+	cors           = {},
+	requireScript;
 
 
 
@@ -30,6 +32,8 @@ exports.setup = function (apiDir) {
 		apiNames = fs.readdirSync('./' + apiDir);
 	}
 	catch (err) {}
+
+	var templateData = {};
 
 	apiNames.forEach(function (fileName) {
 		var len = fileName.length;
@@ -55,12 +59,21 @@ exports.setup = function (apiDir) {
 
 		setupAPIObj(api, apiObj, apiFunctions);
 
+		templateData[apiName] = [apiObj, apiFunctions];
+
 		file = file.replace(INSERT_ROOT     , JSON.stringify(apiName)     );
 		file = file.replace(INSERT_API      , JSON.stringify(apiObj)      );
 		file = file.replace(INSERT_FUNCTIONS, JSON.stringify(apiFunctions));
+		file = file.replace(INSERT_APIS     , JSON.stringify(null)        );
 
 		apiScripts[apiName] = file;
 	});
+
+	requireScript = scriptTemplate;
+	requireScript = requireScript.replace(INSERT_ROOT     , JSON.stringify(null)        );
+	requireScript = requireScript.replace(INSERT_API      , JSON.stringify(null)        );
+	requireScript = requireScript.replace(INSERT_FUNCTIONS, JSON.stringify(null)        );
+	requireScript = requireScript.replace(INSERT_APIS     , JSON.stringify(templateData));
 };
 
 
@@ -72,13 +85,23 @@ exports.get = function (apiName) {
 
 
 exports.getScript = function (apiRoot, apiName, apiHost) {
-	if ( !(apiRoot in apiScripts) ) {
+	var isRequire = (apiRoot === 'require'),
+		isAPI     = (apiRoot in apiScripts);
+
+	if (!isRequire && !isAPI) {
 		return;
 	}
 
 	apiHost = apiHost || 'localhost:8888';
 
-	var script = apiScripts[apiRoot];
+	var script;
+
+	if (isAPI) {
+		script = apiScripts[apiRoot];
+	}
+	else {
+		script = requireScript;
+	}
 
 	script = script.replace(INSERT_NAME, JSON.stringify(apiName));
 	script = script.replace(INSERT_HOST, JSON.stringify(apiHost));

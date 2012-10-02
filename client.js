@@ -7,9 +7,27 @@
 		apiName      = {{__API_NAME__}},
 		apiRoot      = {{__API_ROOT__}},
 		apiObj       = {{__API_OBJ__}},
-		apiFunctions = {{__API_FUNCTIONS__}};
+		apiFunctions = {{__API_FUNCTIONS__}},
+		apiData      = {{__API_APIS__}},
+		apis         = {};
 
-	window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiRoot ]);
+	if (apiData) {
+		for (var apiRoot in apiData) {
+			apis[apiRoot] = setupFunctions(apiData[apiRoot][0], apiData[apiRoot][1], [ apiRoot ]);
+		}
+
+		window[apiName] = function (apiRoot) {
+			if (apiRoot in apis) {
+				return apis[apiRoot];
+			}
+			else {
+				throw TypeError(apiRoot + ' is not a known Zerver API');
+			}
+		};
+	}
+	else {
+		window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiRoot ]);
+	}
 
 	function setupFunctions (obj, functions, tree) {
 		var value;
