@@ -58,18 +58,39 @@
 			url += '/' + encodeURIComponent( tree[i] );
 		}
 
-		if (window.XMLHttpRequest) {
-			xhr = new XMLHttpRequest();
+		if ((apiHost !== window.location.host) && window.XDomainRequest) {
+			xhr = new window.XDomainRequest();
+
+			xhr.onload = function () {
+				xhrComplete(200);
+			};
+			xhr.onerror = function () {
+				xhrComplete(404);
+			};
+			xhr.ontimeout = function () {
+				xhrComplete(404);
+			};
 		}
 		else {
-			xhr = new ActiveXObject('Microsoft.XMLHTTP');
+			if (window.XMLHttpRequest) {
+				xhr = new XMLHttpRequest();
+			}
+			else {
+				xhr = new ActiveXObject('Microsoft.XMLHTTP');
+			}
+
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState === 4) {
+					xhrComplete(xhr.status);
+				}
+			};
 		}
 
 		xhr.open('POST', url, true);
 		xhr.send(data);
 
-		xhr.onreadystatechange = function () {
-			if (done || (xhr.readyState !== 4)) {
+		function xhrComplete (status) {
+			if (done) {
 				return;
 			}
 			done = true;
@@ -77,7 +98,7 @@
 			var data = [],
 				errorType, errorString;
 
-			if (xhr.status === 200) {
+			if (status === 200) {
 				try {
 					var response = JSON.parse(xhr.responseText);
 
@@ -96,7 +117,7 @@
 			}
 			else {
 				errorType = 'zerver';
-				errorString = 'http error, ' + xhr.status;
+				errorString = 'http error, ' + status;
 			}
 
 			var context = {
@@ -106,6 +127,6 @@
 			};
 
 			callback.apply(context, data);
-		};
+		}
 	}
 })(window);
