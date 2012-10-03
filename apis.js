@@ -16,7 +16,7 @@ var setupComplete  = false,
 	apis           = {},
 	apiScripts     = {},
 	cors           = {},
-	requireScript;
+	apiScheme, requireScript;
 
 
 
@@ -74,6 +74,14 @@ exports.setup = function (apiDir) {
 	requireScript = requireScript.replace(INSERT_API      , JSON.stringify(null)        );
 	requireScript = requireScript.replace(INSERT_FUNCTIONS, JSON.stringify(null)        );
 	requireScript = requireScript.replace(INSERT_APIS     , JSON.stringify(templateData));
+
+	apiScheme = templateData;
+};
+
+
+
+exports.getScheme = function () {
+	return apiScheme;
 };
 
 

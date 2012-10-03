@@ -257,6 +257,11 @@ Handler.prototype.APIRequest = function () {
 	var pathname = this.pathname.substr(API_DIR_LENGTH + 1),
 		apiParts = pathname.substr(1).split('/');
 
+	if (pathname === '/') {
+		this.APISchemeRequest();
+		return;
+	}
+
 	if (apiParts.length < 2) {
 		this.respond500();
 		return;
@@ -378,6 +383,16 @@ Handler.prototype.APIRequest = function () {
 	}
 };
 
+Handler.prototype.APISchemeRequest = function () {
+	this.type = 'scheme';
+
+	var scheme = apis.getScheme();
+
+	this.respondJSON(scheme, {
+		'Cache-Control' : 'no-cache'
+	});
+};
+
 Handler.prototype.scriptRequest = function () {
 	this.type = 'script';
 
@@ -412,7 +427,8 @@ Handler.prototype.scriptRequest = function () {
 };
 
 Handler.prototype.logRequest = function () {
-	var status    = (this.status === 200) ? '' : '['+this.status+'] ',
+	var logType   = 'ZERVER  ',
+		status    = (this.status === 200) ? '' : '['+this.status+'] ',
 		pathname  = this.pathname,
 		timeParts = process.hrtime(this.time),
 		timeMs    = (timeParts[0] * 1000 + timeParts[1] / 1000000) + '',
@@ -421,16 +437,21 @@ Handler.prototype.logRequest = function () {
 	switch (this.type) {
 		case 'file':
 		case 'script':
-			console.log('FILE     : ' + time + status + pathname);
+			logType = 'FILE    ';
 			break;
 		case 'manifest':
-			console.log('MANIFEST : ' + time + status + pathname);
+			logType = 'MANIFEST';
+			break;
+		case 'scheme':
+			logType = 'SCHEME  ';
 			break;
 		case 'api':
+			logType = 'API     ';
 			pathname = pathname.substr(2 + API_DIR_LENGTH).replace(/\//g, '.') + '()';
-			console.log('API      : ' + time + status + pathname);
 			break;
 	}
+
+	console.log(logType + ' : ' + time + status + pathname);
 };
 
 var parseQueryString = function () {
