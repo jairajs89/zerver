@@ -4,6 +4,7 @@ var CHANGE_TIMEOUT   = 1000,
 	ROOT_DIR         = process.cwd(),
 	CLIENT_JS        = 'client.js',
 	INSERT_HOST      = '{{__API_HOST__}}',
+	INSERT_DIR       = '{{__API_DIR__}}',
 	INSERT_NAME      = '{{__API_NAME__}}',
 	INSERT_APIS      = '{{__API_APIS__}}',
 	INSERT_ROOT      = '{{__API_ROOT__}}',
@@ -92,7 +93,7 @@ exports.get = function (apiName) {
 
 
 
-exports.getScript = function (apiRoot, apiName, apiHost) {
+exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
 	var isRequire = (apiRoot === 'require'),
 		isAPI     = (apiRoot in apiScripts);
 
@@ -113,6 +114,7 @@ exports.getScript = function (apiRoot, apiName, apiHost) {
 
 	script = script.replace(INSERT_NAME, JSON.stringify(apiName));
 	script = script.replace(INSERT_HOST, JSON.stringify(apiHost));
+	script = script.replace(INSERT_DIR , JSON.stringify(apiDir));
 
 	return script;
 };

@@ -1,10 +1,40 @@
-exports.get = createRemoteZerver;
+exports.middleware = createMiddlewareClient;
+exports.get        = createRemoteZerver;
 
 
 
 var urllib   = require('url'),
 	http     = require('http'),
+	zerver   = require(__dirname + '/zerver'),
 	globalServer;
+
+function createMiddlewareClient (apiDir, apiURL) {
+	switch (typeof apiDir) {
+		case 'undefined':
+			apiDir = 'zerver';
+			break;
+
+		case 'string':
+			break;
+
+		default:
+			throw TypeError('zerver directory must be a string, got ' + apiDir);
+	}
+
+	switch (typeof apiURL) {
+		case 'undefined':
+			apiURL = apiDir;
+			break;
+
+		case 'string':
+			break;
+
+		default:
+			throw TypeError('zerver url must be a string, got ' + apiURL);
+	}
+
+	return zerver.middleware(apiDir, apiURL);
+}
 
 function createRemoteZerver (url, callback) {
 	if (typeof url !== 'string') {

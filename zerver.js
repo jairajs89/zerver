@@ -10,7 +10,8 @@ var ROOT_DIR = process.cwd(),
 	DEBUG,
 	PORT,
 	API_DIR,
-	API_DIR_LENGTH,
+	API_URL,
+	API_URL_LENGTH,
 	API_SCRIPT_MATCH,
 	MANIFESTS,
 	HAS_MANIFEST = false;
@@ -23,41 +24,21 @@ var startTimestamp;
 
 /* Run server */
 
+exports.middleware = function (apiDir, apiURL) {
+	configureZerver(8888, apiDir, apiURL, false, '');
+	return handleMiddlewareRequest;
+};
+
 exports.run = function (port, apiDir, debug, manifests) {
-	PORT             = port;
-	API_DIR          = apiDir;
-	API_DIR_LENGTH   = apiDir.length;
-	DEBUG            = debug;
-	API_SCRIPT_MATCH = new RegExp('\\/'+API_DIR+'\\/([^\\/]+)\\.js');
-	MANIFESTS        = {};
+	configureZerver(port, apiDir, apiDir, debug, manifests);
 
-	startTimestamp = new Date();
-
-	fetchAPIs();
-	startServer();
+	http.createServer(handleRequest).listen(PORT);
 
 	if (debug) {
 		console.log('[debug mode]');
 	}
 
 	console.log('zerver running on port ' + PORT);
-
-	if (manifests) {
-		console.log('\nmanifest files:');
-
-		manifests.split(',').forEach(function (path) {
-			if (!path[0] !== '/') {
-				path = '/' + path;
-			}
-
-			console.log('\t' + path);
-
-			MANIFESTS[path] = true;
-			HAS_MANIFEST = true;
-		});
-
-		console.log('');
-	}
 
 	var apiNames = apis.getNames();
 	if ( apiNames.length ) {
@@ -70,34 +51,76 @@ exports.run = function (port, apiDir, debug, manifests) {
 		console.log('no available apis');
 	}
 
+	if (manifests) {
+		console.log('manifest files:');
+		for (var path in MANIFESTS) {
+			console.log('\t' + path);
+		}
+	}
+
 	console.log('');
 };
+
+function configureZerver (port, apiDir, apiURL, debug, manifests) {
+	PORT             = port;
+	API_DIR          = apiDir;
+	API_URL          = apiURL;
+	API_URL_LENGTH   = apiURL.length;
+	DEBUG            = debug;
+	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
+	MANIFESTS        = {};
+
+	startTimestamp = new Date();
+
+	if (manifests) {
+		manifests.split(',').forEach(function (path) {
+			if (!path[0] !== '/') {
+				path = '/' + path;
+			}
+
+			MANIFESTS[path] = true;
+			HAS_MANIFEST = true;
+		});
+	}
+
+	fetchAPIs();
+}
 
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
 	apis.setup(API_DIR, DEBUG);
 }
 
-function startServer () {
-	http.createServer(function (request, response) {
-		var handler   	= new Handler(request, response),
-			pathname  	= handler.pathname,
-			isApiCall 	= pathname.substr(0, API_DIR_LENGTH + 2) === '/'+API_DIR+'/',
-			isManifest	= !!MANIFESTS[pathname];
+function handleRequest (request, response) {
+	var handler   	= new Handler(request, response),
+		pathname  	= handler.pathname,
+		isApiCall 	= pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/',
+		isManifest	= !!MANIFESTS[pathname];
 
-		if (isManifest) {
-			handler.manifestRequest();
-		}
-		else if ( !isApiCall ) {
-			handler.pathRequest();
-		}
-		else if ( API_SCRIPT_MATCH.test(pathname) ) {
-			handler.scriptRequest();
-		}
-		else {
-			handler.APIRequest();
-		}
-	}).listen(PORT);
+	if (isManifest) {
+		handler.manifestRequest();
+	}
+	else if ( !isApiCall ) {
+		handler.pathRequest();
+	}
+	else if ( API_SCRIPT_MATCH.test(pathname) ) {
+		handler.scriptRequest();
+	}
+	else {
+		handler.APIRequest();
+	}
+}
+
+function handleMiddlewareRequest (request, response, next) {
+	var urlParts = url.parse(request.url),
+		pathname = decodeURI(urlParts.pathname);
+
+	if (pathname.substr(0, API_URL_LENGTH + 2) !== '/'+API_URL+'/') {
+		next();
+		return;
+	}
+
+	handleRequest(request, response);
 }
 
 
@@ -254,7 +277,7 @@ Handler.prototype.manifestRequest = function () {
 Handler.prototype.APIRequest = function () {
 	this.type = 'api';
 
-	var pathname = this.pathname.substr(API_DIR_LENGTH + 1),
+	var pathname = this.pathname.substr(API_URL_LENGTH + 1),
 		apiParts = pathname.substr(1).split('/');
 
 	if (pathname === '/') {
@@ -414,7 +437,7 @@ Handler.prototype.scriptRequest = function () {
 		}
 	}
 
-	var file = apis.getScript(apiRoot, apiName, this.request.headers.host);
+	var file = apis.getScript(apiRoot, apiName, this.request.headers.host, API_URL);
 
 	if ( !file ) {
 		this.respond404();
@@ -447,7 +470,7 @@ Handler.prototype.logRequest = function () {
 			break;
 		case 'api':
 			logType = 'API     ';
-			pathname = pathname.substr(2 + API_DIR_LENGTH).replace(/\//g, '.') + '()';
+			pathname = pathname.substr(2 + API_URL_LENGTH).replace(/\//g, '.') + '()';
 			break;
 	}
 

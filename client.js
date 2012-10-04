@@ -1,9 +1,8 @@
 //TODO: remove dependency on JSON
 
 (function (window) {
-	var API_DIR = 'zerver';
-
 	var apiHost      = {{__API_HOST__}},
+		apiDir       = {{__API_DIR__}},
 		apiName      = {{__API_NAME__}},
 		apiRoot      = {{__API_ROOT__}},
 		apiObj       = {{__API_OBJ__}},
@@ -67,7 +66,7 @@
 	}
 
 	function apiCall (tree, args, callback) {
-		var url  = '//' + apiHost + '/' + API_DIR,
+		var url  = '//' + apiHost + '/' + apiDir,
 			data = JSON.stringify(args),
 			done = false,
 			xhr;
