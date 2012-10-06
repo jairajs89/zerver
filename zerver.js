@@ -8,6 +8,7 @@ var fs   = require('fs'),
 
 var ROOT_DIR = process.cwd(),
 	DEBUG,
+	REFRESH,
 	PORT,
 	API_DIR,
 	API_URL,
@@ -16,7 +17,7 @@ var ROOT_DIR = process.cwd(),
 	MANIFESTS,
 	HAS_MANIFEST = false;
 
-var apis;
+var app, apis;
 
 var startTimestamp;
 
@@ -25,14 +26,14 @@ var startTimestamp;
 /* Run server */
 
 exports.middleware = function (apiDir, apiURL) {
-	configureZerver(8888, apiDir, apiURL, false, '');
+	configureZerver(8888, apiDir, apiURL, false, false, '');
 	return handleMiddlewareRequest;
 };
 
-exports.run = function (port, apiDir, debug, manifests) {
-	configureZerver(port, apiDir, apiDir, debug, manifests);
+exports.run = function (port, apiDir, debug, refresh, manifests) {
+	configureZerver(port, apiDir, apiDir, debug, refresh, manifests);
 
-	http.createServer(handleRequest).listen(PORT);
+	app = http.createServer(handleRequest).listen(PORT);
 
 	if (debug) {
 		console.log('[debug mode]');
@@ -61,12 +62,13 @@ exports.run = function (port, apiDir, debug, manifests) {
 	console.log('');
 };
 
-function configureZerver (port, apiDir, apiURL, debug, manifests) {
+function configureZerver (port, apiDir, apiURL, debug, refresh, manifests) {
 	PORT             = port;
 	API_DIR          = apiDir;
 	API_URL          = apiURL;
 	API_URL_LENGTH   = apiURL.length;
 	DEBUG            = debug;
+	REFRESH          = refresh;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
 
@@ -88,7 +90,7 @@ function configureZerver (port, apiDir, apiURL, debug, manifests) {
 
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
-	apis.setup(API_DIR, DEBUG);
+	apis.setup(API_DIR, REFRESH);
 }
 
 function handleRequest (request, response) {
@@ -521,8 +523,29 @@ function addCORSHeaders (headers, methods, host) {
 
 
 
+function setupAutoRefresh () {
+	if ( !app ) {
+		return;
+	}
+
+	var io      = require('socket.io').listen(app, { log: false }),
+		sockets = io.of('/'+API_URL+'/_refresh');
+
+	process.on('message', function (data) {
+		if (data && data.debugRefresh) {
+			sockets.emit('refresh');
+		}
+	});
+}
+
+
+
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), process.argv[5]);
+	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), process.argv[6]);
+
+	if (DEBUG && REFRESH) {
+		setupAutoRefresh();
+	}
 }

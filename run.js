@@ -9,6 +9,7 @@ var ZERVER         = __dirname + '/zerver',
 	CWD            = process.cwd(),
 	CHANGE_TIMEOUT = 1000,
 	DEBUG          = false,
+	REFRESH        = false,
 	PORT           = process.env.PORT || 8888;
 	MANIFESTS	   = [];
 
@@ -19,6 +20,10 @@ function processFlags () {
 
 	flags.add(['d', 'debug'], function () {
 		DEBUG = true;
+	});
+
+	flags.add(['r', 'refresh'], function () {
+		REFRESH = true;
 	});
 
 	flags.add('port', function (port) {
@@ -51,10 +56,11 @@ function processFlags () {
 function main () {
 	processFlags();
 
-	var death  = false,
-		apiDir = CWD + '/' + API_DIR,
-		args   = [ PORT, API_DIR, (DEBUG ? '1' : '0'), MANIFESTS.join(',')],
-		opts   = { cwd : CWD },
+	var death    = false,
+		apiDir   = CWD + '/' + API_DIR,
+		apiCheck = new RegExp('^' + CWD + '/' + API_DIR),
+		args     = [ PORT, API_DIR, (DEBUG ? '1' : '0'), (REFRESH ? '1' : '0'), MANIFESTS.join(',')],
+		opts     = { cwd : CWD },
 		child;
 
 	function runServer (noRestart) {
@@ -82,10 +88,16 @@ function main () {
 	}
 
 	var watcher    = require(WATCHER),
+		socket    = require(WATCHER),
 		lastChange = null;
 
-	watcher.watch(apiDir, function () {
+	watcher.watch(CWD, function (fileName) {
 		if (lastChange === null) {
+			return;
+		}
+
+		if ( !apiCheck.test(fileName) ) {
+			child.send({ debugRefresh: true });
 			return;
 		}
 

@@ -17,11 +17,11 @@ exports.watch = function (dir, callback) {
 		dir,
 		function (err, fileName) {
 			setupWatcher(fileName);
-			changeDetected();
+			changeDetected(fileName);
 		},
 		function (err, fileName) {
 			destroyWatcher(fileName);
-			changeDetected();
+			changeDetected(fileName);
 		}
 	);
 
@@ -33,10 +33,14 @@ exports.watch = function (dir, callback) {
 		var watcher;
 
 		if (fs.watch) {
-			watcher = fs.watch(fileName, changeDetected);
+			watcher = fs.watch(fileName, function () {
+				changeDetected(fileName);
+			});
 		}
 		else {
-			fs.watchFile(fileName, changeDetected);
+			fs.watchFile(fileName, function () {
+				changeDetected(fileName);
+			});
 			watcher = true;
 		}
 
@@ -60,7 +64,7 @@ exports.watch = function (dir, callback) {
 		delete files[fileName];
 	}
 
-	function changeDetected () {
-		callback();
+	function changeDetected (fileName) {
+		callback(fileName);
 	}
 };

@@ -1,7 +1,8 @@
 //TODO: remove dependency on JSON
 
 (function (window) {
-	var apiHost      = {{__API_HOST__}},
+	var apiRefresh   = {{__API_REFRESH__}},
+		apiHost      = {{__API_HOST__}},
 		apiDir       = {{__API_DIR__}},
 		apiName      = {{__API_NAME__}},
 		apiRoot      = {{__API_ROOT__}},
@@ -10,7 +11,22 @@
 		apiData      = {{__API_APIS__}},
 		apis         = {};
 
-	if (apiData) {
+	main();
+
+	function main () {
+		if (apiData) {
+			setupRequire();
+		}
+		else {
+			setupSingleAPI();
+		}
+
+		if (apiRefresh) {
+			setupAutoRefresh();
+		}
+	}
+
+	function setupRequire () {
 		for (var apiRoot in apiData) {
 			apis[apiRoot] = setupFunctions(apiData[apiRoot][0], apiData[apiRoot][1], [ apiRoot ]);
 		}
@@ -24,7 +40,8 @@
 			}
 		};
 	}
-	else {
+
+	function setupSingleAPI () {
 		window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiRoot ]);
 	}
 
@@ -147,6 +164,42 @@
 			};
 
 			callback.apply(context, data);
+		}
+	}
+
+	function setupAutoRefresh () {
+		var REFRESH_FLAG = '__ZERVER_REFRESH_FLAG';
+
+		if ( window[REFRESH_FLAG] ) {
+			return;
+		}
+		window[REFRESH_FLAG] = true;
+
+		var done   = false,
+			head   = document.getElementsByTagName('head')[0],
+			script = document.createElement('script');
+
+		script.src = '//'+apiHost+'/socket.io/socket.io.js';
+		script.async = true;
+		script.onload = script.onreadystatechange = function(){
+			if (done) {
+				return;
+			}
+
+			if (!this.readyState || (this.readyState == 'loaded') || (this.readyState == 'complete')) {
+				done = true;
+				setTimeout(setupRefreshListener, 0);
+				script.onload = script.onreadystatechange = null;
+				head.removeChild(script);
+			}
+		};
+		head.appendChild(script);
+
+		function setupRefreshListener () {
+			io.connect('//'+apiHost+'/'+apiDir+'/_refresh')
+				.on('refresh', function () {
+					window.location.reload();
+				});
 		}
 	}
 })(window);
