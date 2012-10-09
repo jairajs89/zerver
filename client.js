@@ -168,12 +168,19 @@
 	}
 
 	function setupAutoRefresh () {
-		var REFRESH_FLAG = '__ZERVER_REFRESH_FLAG';
+		var REFRESH_FLAG = '__ZERVER_REFRESH_FLAG',
+			REFRESH_FUNC = 'ZERVER_REFRESH';
 
 		if ( window[REFRESH_FLAG] ) {
 			return;
 		}
 		window[REFRESH_FLAG] = true;
+
+		if (typeof window[REFRESH_FUNC] !== 'function') {
+			window[REFRESH_FUNC] = function () {
+				window.location.reload();
+			};
+		}
 
 		var done   = false,
 			head   = document.getElementsByTagName('head')[0],
@@ -198,7 +205,11 @@
 		function setupRefreshListener () {
 			io.connect('//'+apiHost+'/'+apiDir+'/_refresh')
 				.on('refresh', function () {
-					window.location.reload();
+					var refresher = window[REFRESH_FUNC];
+
+					if (typeof refresher === 'function') {
+						refresher();
+					}
 				});
 		}
 	}
