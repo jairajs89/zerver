@@ -23,6 +23,7 @@ function processFlags () {
 	});
 
 	flags.add(['r', 'refresh'], function () {
+		DEBUG   = true;
 		REFRESH = true;
 	});
 
