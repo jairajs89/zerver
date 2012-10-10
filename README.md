@@ -20,6 +20,7 @@ Everything in `website-dir` will be served as static content except for code in 
 
 ```js
 // in website-dir/zerver/MyAPI.js
+// this runs on the server
 exports.logStuff = function (str) {
     console.log(str); // 'hi from client'
     callback('hi from server');
@@ -28,6 +29,7 @@ exports.logStuff = function (str) {
 
 ```html
 <!-- in website-dir/index.html -->
+<!-- this runs in the browser -->
 <script src="zerver/MyAPI.js"></script>
 <script>
     MyAPI.logStuff('hi from client', function (str) {
