@@ -179,7 +179,7 @@ Zerver scripts can be globalised on the client under whatever name you please. I
 
 # Example apps
 
-[Basic app](https://github.com/jairajs89/zerver/tree/master/examples/basic-app)
+(Basic app)[https://github.com/jairajs89/zerver/tree/master/examples/basic-app]
 
-[Express app](https://github.com/jairajs89/zerver/tree/master/examples/express-app)
+(Express app)[https://github.com/jairajs89/zerver/tree/master/examples/express-app]
 ```
