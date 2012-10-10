@@ -176,4 +176,10 @@ Zerver scripts can be globalised on the client under whatever name you please. I
         console.log(str); // "hi from server"
     });
 </script>
+
+# Example apps
+
+[Basic app](https://github.com/jairajs89/zerver/tree/master/examples/basic-app)
+
+[Express app](https://github.com/jairajs89/zerver/tree/master/examples/express-app)
 ```
