@@ -3,7 +3,7 @@ var express = require('express'),
 
 var app = express();
 
-app.use( zerver.middleware('src/zerver', 'zerver') );
+app.use( zerver.middleware() );
 app.use( express.static(__dirname + '/src') );
 
 app.get('/', function (req, res) {
