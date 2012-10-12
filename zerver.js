@@ -15,6 +15,7 @@ var ROOT_DIR = process.cwd(),
 	API_URL_LENGTH,
 	API_SCRIPT_MATCH,
 	MANIFESTS,
+	CACHE_CONTROL,
 	HAS_MANIFEST = false;
 
 var app, apis;
@@ -83,6 +84,16 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests) {
 			MANIFESTS[path] = true;
 			HAS_MANIFEST = true;
 		});
+	}
+
+	if (DEBUG) {
+		CACHE_CONTROL = 'no-cache';
+	}
+	else if (HAS_MANIFEST) {
+		CACHE_CONTROL = 'max-age=0';
+	}
+	else {
+		CACHE_CONTROL = 'max-age=14400';
 	}
 
 	fetchAPIs();
@@ -244,7 +255,7 @@ Handler.prototype.fileRequest = function (fileName) {
 			}
 
 			handler.respondBinary(fileMime, file, {
-				'Cache-Control' : (DEBUG || HAS_MANIFEST ? 'no-cache' : 'max-age=14400')
+				'Cache-Control' : CACHE_CONTROL
 			});
 		});
 	});
@@ -447,7 +458,7 @@ Handler.prototype.scriptRequest = function () {
 	}
 
 	this.respond(200, 'application/javascript', file, {
-		'Cache-Control' : (DEBUG || HAS_MANIFEST ? 'no-cache' : 'max-age=14400')
+		'Cache-Control' : CACHE_CONTROL
 	});
 };
 
