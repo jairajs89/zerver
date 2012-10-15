@@ -290,13 +290,14 @@ Handler.prototype.manifestRequest = function () {
 Handler.prototype.APIRequest = function () {
 	this.type = 'api';
 
-	var pathname = this.pathname.substr(API_URL_LENGTH + 1),
-		apiParts = pathname.substr(1).split('/');
+	var pathname = this.pathname.substr(API_URL_LENGTH + 1);
 
 	if (pathname === '/') {
 		this.APISchemeRequest();
 		return;
 	}
+
+	var apiParts = pathname.substr(1).split('/');
 
 	if (apiParts.length < 2) {
 		this.respond500();

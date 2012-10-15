@@ -19,7 +19,7 @@ var setupComplete  = false,
 	apis           = {},
 	apiScripts     = {},
 	cors           = {},
-	apiScheme, requireScript;
+	apiScheme, requireScript, refreshScript;
 
 
 
@@ -80,6 +80,12 @@ exports.setup = function (apiDir, refresh) {
 	requireScript = requireScript.replace(INSERT_FUNCTIONS, JSON.stringify(null)        );
 	requireScript = requireScript.replace(INSERT_APIS     , JSON.stringify(templateData));
 
+	refreshScript = scriptTemplate;
+	refreshScript = requireScript.replace(INSERT_ROOT     , JSON.stringify(null)        );
+	refreshScript = requireScript.replace(INSERT_API      , JSON.stringify(null)        );
+	refreshScript = requireScript.replace(INSERT_FUNCTIONS, JSON.stringify(null)        );
+	refreshScript = requireScript.replace(INSERT_APIS     , JSON.stringify(null)        );
+
 	apiScheme = templateData;
 };
 
@@ -99,11 +105,8 @@ exports.get = function (apiName) {
 
 exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
 	var isRequire = (apiRoot === 'require'),
+		isRefresh = (apiRoot === 'refresh'),
 		isAPI     = (apiRoot in apiScripts);
-
-	if (!isRequire && !isAPI) {
-		return;
-	}
 
 	apiHost = apiHost || 'localhost:8888';
 
@@ -112,8 +115,14 @@ exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
 	if (isAPI) {
 		script = apiScripts[apiRoot];
 	}
-	else {
+	else if (isRequire) {
 		script = requireScript;
+	}
+	else if (isRefresh) {
+		script = refreshScript;
+	}
+	else {
+		return;
 	}
 
 	script = script.replace(INSERT_REFRESH, JSON.stringify(REFRESH));

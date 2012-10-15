@@ -17,7 +17,7 @@
 		if (apiData) {
 			setupRequire();
 		}
-		else {
+		else if (apiObj) {
 			setupSingleAPI();
 		}
 

@@ -6,7 +6,7 @@
 
 <script src="/zerver/MyAPI.js"></script>
 <script>
-	MyAPI.getStuff(function (str) {
-		console.log(str);
+	MyAPI.getStuff('Hello from browser', function (str) {
+		document.write(str);
 	});
 </script>
