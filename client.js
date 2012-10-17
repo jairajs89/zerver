@@ -98,16 +98,21 @@
 
 			apiCall(tree.concat(key), data, function (error, response) {
 				if (error) {
-					errorHandlers.forEach(function (handler) {
-						try {
-							handler.call(obj, error);
-						}
-						catch (err) {
-							if (window.console && window.console.error) {
-								window.console.error(err);
+					if (errorHandlers.length) {
+						errorHandlers.forEach(function (handler) {
+							try {
+								handler.call(obj, error);
 							}
-						}
-					});
+							catch (err) {
+								if (window.console && window.console.error) {
+									window.console.error(err);
+								}
+							}
+						});
+					}
+					else if (window.console && window.console.error) {
+						window.console.error(error);
+					}
 					return;
 				}
 
