@@ -52,34 +52,70 @@
 			value = functions[key];
 
 			if (value === true) {
-				obj[key] = function (key) {
-					return function () {
-						var data     = {},
-							args     = Array.prototype.slice.call(arguments),
-							numArgs  = args.length,
-							callback = args[numArgs - 1];
-
-						if (typeof callback === 'function') {
-							args.pop();
-						}
-						else {
-							data.noResponse = true;
-							callback = function () {};
-						}
-
-						data.args = args;
-
-						apiCall(tree.concat(key), data, callback);
-					};
-				}(key);
+				obj[key] = setupFunction(obj, key, tree);
 			}
-
 			else if ((typeof value === 'object') && (typeof obj[key] === 'object')) {
 				obj[key] = setupFunctions(obj[key], value, tree.concat([ key ]));
 			}
 		}
 
 		return obj;
+	}
+
+	function setupFunction (obj, key, tree) {
+		return function () {
+			var errorHandlers = [],
+				defered       = {
+					error : handleError
+				};
+
+			function handleError (handler) {
+				if (typeof handler !== 'function') {
+					throw TypeError('error handler must be a function, got ' + handler);
+				}
+
+				errorHandlers.push(handler);
+
+				return defered;
+			}
+
+			var data          = {},
+				args          = Array.prototype.slice.call(arguments),
+				numArgs       = args.length,
+				callback      = args[numArgs - 1];
+
+			if (typeof callback === 'function') {
+				args.pop();
+			}
+			else {
+				data.noResponse = true;
+				callback = function () {};
+			}
+
+			data.args = args;
+
+			apiCall(tree.concat(key), data, function (error, response) {
+				if (error) {
+					errorHandlers.forEach(function (handler) {
+						try {
+							handler.call(obj, error);
+						}
+						catch (err) {
+							if (window.console && window.console.error) {
+								window.console.error(err);
+							}
+						}
+					});
+					return;
+				}
+
+				callback.apply(obj, response);
+			});
+
+			return {
+				error : handleError
+			};
+		};
 	}
 
 	function apiCall (tree, args, callback) {
@@ -133,7 +169,7 @@
 			done = true;
 
 			var data = [],
-				errorType, errorString;
+				error, errorString;
 
 			if (status === 200) {
 				try {
@@ -143,27 +179,18 @@
 						data = response.data;
 					}
 					else {
-						errorType = 'library';
-						errorString = response.error;
+						error = response.error;
 					}
 				}
 				catch (err) {
-					errorType = 'zerver';
-					errorString = 'failed to parse response';
+					error = 'zerver failed to parse response';
 				}
 			}
 			else {
-				errorType = 'zerver';
-				errorString = 'http error, ' + status;
+				error = 'zerver http error, ' + status;
 			}
 
-			var context = {
-				error       : !!errorType ,
-				errorType   : errorType   ,
-				errorString : errorString
-			};
-
-			callback.apply(context, data);
+			callback(error, data);
 		}
 	}
 
@@ -188,7 +215,7 @@
 
 		script.src = '//'+apiHost+'/socket.io/socket.io.js';
 		script.async = true;
-		script.onload = script.onreadystatechange = function(){
+		script.onload = script.onreadystatechange = function () {
 			if (done) {
 				return;
 			}

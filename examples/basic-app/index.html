@@ -8,5 +8,7 @@
 <script>
 	MyAPI.getStuff('Hello from browser', function (str) {
 		document.write(str);
+	}).error(function (err) {
+		document.write('ERROR: ' + err);
 	});
 </script>
