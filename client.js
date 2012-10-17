@@ -1,6 +1,8 @@
 //TODO: remove dependency on JSON
 
 (function (window) {
+	var XHR_TIMEOUT = 30000;
+
 	var apiRefresh   = {{__API_REFRESH__}},
 		apiHost      = {{__API_HOST__}},
 		apiDir       = {{__API_DIR__}},
@@ -137,9 +139,6 @@
 			xhr.onerror = function () {
 				xhrComplete(0);
 			};
-			xhr.ontimeout = function () {
-				xhrComplete(0);
-			};
 		}
 		else {
 			if (typeof XMLHttpRequest !== 'undefined') {
@@ -158,6 +157,18 @@
 				}
 			};
 		}
+
+		xhr.timeout = XHR_TIMEOUT;
+		xhr.ontimeout = function () {
+			xhrComplete(0);
+		};
+
+		setTimeout(function () {
+			if ( !done ) {
+				xhr.abort();
+				xhrComplete(0);
+			}
+		}, XHR_TIMEOUT);
 
 		xhr.open('POST', url, true);
 		xhr.send(data);
