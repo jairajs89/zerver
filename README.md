@@ -161,8 +161,10 @@ Zerver scripts can be globalised on the client under whatever name you please. I
 <script src="zerver/MyAPI.js"></script>
 <script>
     MyAPI.logStuff('hi from client', function (str) {
+        // this === MyAPI
         console.log(str); // "hi from server"
     }).error(function (err) {
+        // this === MyAPI
         console.log(err); // error string explaining failure
     });
 </script>
