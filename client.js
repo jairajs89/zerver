@@ -163,7 +163,9 @@
 			};
 		}
 
-		xhr.timeout = XHR_TIMEOUT;
+		var timeout = window['ZERVER_TIMEOUT'] || XHR_TIMEOUT;
+
+		xhr.timeout = timeout;
 		xhr.ontimeout = function () {
 			xhrComplete(0);
 		};
@@ -173,7 +175,7 @@
 				xhr.abort();
 				xhrComplete(0);
 			}
-		}, XHR_TIMEOUT);
+		}, timeout);
 
 		xhr.open('POST', url, true);
 		xhr.send(data);
