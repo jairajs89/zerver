@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "mime": ">=1" ,
+    "uglify-js" : ">=1.3.4" ,
+    "clean-css" : ">=0.8.0" ,
     "stalker" : ">=0.0.17" ,
     "findit" : ">=0.1.2" ,
     "socket.io" : ">=0.9.0"

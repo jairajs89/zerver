@@ -1,13 +1,17 @@
 /* Imports and static vars */
 
-var fs   = require('fs'  ),
-	http = require('http'),
-	mime = require('mime'),
-	path = require('path'),
-	url  = require('url' ),
-	zlib = require('zlib');
+var cleanCSS = require('clean-css'),
+	fs       = require('fs'  ),
+	http     = require('http'),
+	mime     = require('mime'),
+	path     = require('path'),
+	uglify   = require('uglify-js'),
+	url      = require('url' ),
+	zlib     = require('zlib');
 
 var ROOT_DIR  = process.cwd(),
+	GZIP_ENABLED = false,
+	COMPILATION_ENABLED = false,
 	GZIPPABLE = {
 		'application/json'       : true ,
 		'application/javascript' : true ,
@@ -148,40 +152,94 @@ function handleMiddlewareRequest (request, response, next) {
 	handleRequest(request, response);
 }
 
-function setupGZipOutput (type, data, headers, callback) {
-	if ( !(type in GZIPPABLE) ) {
-		callback(data, headers);
+function compileOutput (type, data, headers, callback) {
+	var handler = this;
+
+	if (!COMPILATION_ENABLED || DEBUG) {
+		callback.call(handler, data, headers);
 		return;
 	}
 
-	var acceptEncoding = this.request.headers['accept-encoding'] || '';
+	var args = handler.query && parseQueryString( handler.query.substr(1) ).compile;
+
+	if ( !args ) {
+		callback.call(handler, data, headers);
+		return;
+	}
+
+	switch (type) {
+		case 'application/javascript':
+		case 'text/javascript':
+			var code;
+			try {
+				var ast = uglify.parser.parse(data);
+				ast     = uglify.uglify.ast_mangle(ast);
+				ast     = uglify.uglify.ast_squeeze(ast);
+				code    = uglify.uglify.gen_code(ast);
+			}
+			catch (err) {}
+			if ( !code ) {
+				callback.call(handler, data, headers);
+			}
+			else {
+				callback.call(handler, code, headers);
+			}
+			break;
+
+		case 'text/css':
+			var code;
+			try {
+				code = cleanCSS.process(data);
+			}
+			catch (err) {}
+			if ( !code ) {
+				callback.call(handler, data, headers);
+			}
+			else {
+				callback.call(handler, code, headers);
+			}
+			break;
+	}
+
+	callback.call(handler, data, headers);
+}
+
+function setupGZipOutput (type, data, headers, callback) {
+	var handler = this;
+
+	if (!GZIP_ENABLED || DEBUG || !(type in GZIPPABLE)) {
+		callback.call(handler, data, headers);
+		return;
+	}
+
+	var acceptEncoding = handler.request.headers['accept-encoding'] || '';
 
 	if ( acceptEncoding.match(IS_DEFLATE) ) {
 		zlib.deflate(data, function (err, deflated) {
 			if (err) {
-				callback(data, headers);
+				callback.call(handler, data, headers);
 				return;
 			}
 
 			headers['content-encoding'] = 'deflate';
 
-			callback(deflated, headers);
+			callback.call(handler, deflated, headers);
 		});
 	}
 	else if (acceptEncoding.match(IS_GZIP)) {
 		zlib.gzip(data, function (err, gzipped) {
 			if (err) {
-				callback(data, headers);
+				callback.call(handler, data, headers);
 				return;
 			}
 
 			headers['content-encoding'] = 'gzip';
 
-			callback(gzipped, headers);
+			callback.call(handler, gzipped, headers);
 		});
 	}
 	else {
-		callback(data, headers);
+		callback.call(handler, data, headers);
 	}
 }
 
@@ -209,12 +267,14 @@ Handler.prototype.respond = function (status, type, data, headers) {
 	headers = headers || {};
 	headers['Content-Type'] = type;
 
-	setupGZipOutput.call(this, type, data, headers, function (data, headers) {
-		handler.response.writeHeader(status, headers);
-		handler.response.end(data);
+	compileOutput.call(this, type, data, headers, function (data, headers) {
+		setupGZipOutput.call(this, type, data, headers, function (data, headers) {
+			handler.response.writeHeader(status, headers);
+			handler.response.end(data);
 
-		handler.status = status;
-		handler.logRequest();
+			handler.status = status;
+			handler.logRequest();
+		});
 	});
 };
 
@@ -224,13 +284,15 @@ Handler.prototype.respondBinary = function (type, data, headers) {
 	headers = headers || {};
 	headers['Content-Type'] = type;
 
-	setupGZipOutput.call(this, type, data, headers, function (data, headers) {
-		handler.response.writeHeader(200, headers);
-		handler.response.write(data, 'binary');
-		handler.response.end();
+	compileOutput.call(this, type, data, headers, function (data, headers) {
+		setupGZipOutput.call(this, type, data, headers, function (data, headers) {
+			handler.response.writeHeader(200, headers);
+			handler.response.write(data, 'binary');
+			handler.response.end();
 
-		handler.status = 200;
-		handler.logRequest();
+			handler.status = 200;
+			handler.logRequest();
+		});
 	});
 };
 
