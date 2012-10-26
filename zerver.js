@@ -1,22 +1,34 @@
 /* Imports and static vars */
 
-var fs   = require('fs'),
+var fs   = require('fs'  ),
 	http = require('http'),
 	mime = require('mime'),
 	path = require('path'),
-	url  = require('url');
+	url  = require('url' ),
+	zlib = require('zlib');
 
-var ROOT_DIR = process.cwd(),
+var ROOT_DIR  = process.cwd(),
+	GZIPPABLE = {
+		'application/json'       : true ,
+		'application/javascript' : true ,
+		'text/javascript'        : true ,
+		'text/css'               : true ,
+		'text/html'              : true ,
+		'text/plain'             : true ,
+		'text/cache-manifest'    : true
+	},
+	IS_DEFLATE = /\bdeflate\b/,
+	IS_GZIP    = /\bgzip\b/,
+	HAS_MANIFEST = false,
+	MANIFESTS,
+	CACHE_CONTROL,
 	DEBUG,
 	REFRESH,
 	PORT,
 	API_DIR,
 	API_URL,
 	API_URL_LENGTH,
-	API_SCRIPT_MATCH,
-	MANIFESTS,
-	CACHE_CONTROL,
-	HAS_MANIFEST = false;
+	API_SCRIPT_MATCH;
 
 var app, apis;
 
@@ -136,6 +148,43 @@ function handleMiddlewareRequest (request, response, next) {
 	handleRequest(request, response);
 }
 
+function setupGZipOutput (type, data, headers, callback) {
+	if ( !(type in GZIPPABLE) ) {
+		callback(data, headers);
+		return;
+	}
+
+	var acceptEncoding = this.request.headers['accept-encoding'] || '';
+
+	if ( acceptEncoding.match(IS_DEFLATE) ) {
+		zlib.deflate(data, function (err, deflated) {
+			if (err) {
+				callback(data, headers);
+				return;
+			}
+
+			headers['content-encoding'] = 'deflate';
+
+			callback(deflated, headers);
+		});
+	}
+	else if (acceptEncoding.match(IS_GZIP)) {
+		zlib.gzip(data, function (err, gzipped) {
+			if (err) {
+				callback(data, headers);
+				return;
+			}
+
+			headers['content-encoding'] = 'gzip';
+
+			callback(gzipped, headers);
+		});
+	}
+	else {
+		callback(data, headers);
+	}
+}
+
 
 
 /* Request handler */
@@ -155,26 +204,34 @@ function Handler (request, response) {
 }
 
 Handler.prototype.respond = function (status, type, data, headers) {
+	var handler = this;
+
 	headers = headers || {};
 	headers['Content-Type'] = type;
 
-	this.response.writeHeader(status, headers);
-	this.response.end(data);
+	setupGZipOutput.call(this, type, data, headers, function (data, headers) {
+		handler.response.writeHeader(status, headers);
+		handler.response.end(data);
 
-	this.status = status;
-	this.logRequest();
+		handler.status = status;
+		handler.logRequest();
+	});
 };
 
 Handler.prototype.respondBinary = function (type, data, headers) {
+	var handler = this;
+
 	headers = headers || {};
 	headers['Content-Type'] = type;
 
-	this.response.writeHeader(200, headers);
-	this.response.write(data, 'binary');
-	this.response.end();
+	setupGZipOutput.call(this, type, data, headers, function (data, headers) {
+		handler.response.writeHeader(200, headers);
+		handler.response.write(data, 'binary');
+		handler.response.end();
 
-	this.status = 200;
-	this.logRequest();
+		handler.status = 200;
+		handler.logRequest();
+	});
 };
 
 Handler.prototype.respondJSON = function (data, headers) {
