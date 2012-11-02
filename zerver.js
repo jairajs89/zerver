@@ -154,6 +154,16 @@ function cacheFile (pathname, data) {
 		return;
 	}
 
+	if ( Buffer.isBuffer(data.data) ) {
+		var str = '';
+
+		for (var i=0, len=data.data.length; i<len; i++) {
+			str += String.fromCharCode( data.data[i] );
+		}
+
+		data.data = str;
+	}
+
 	memoryCache[pathname] = {
 		type     : data.type     ,
 		status   : data.status   ,
@@ -161,7 +171,7 @@ function cacheFile (pathname, data) {
 		isBinary : data.isBinary
 	};
 
-	redis.set(CACHE_PREFIX + pathname, data);
+	redis.set(CACHE_PREFIX + pathname, data.data);
 }
 
 function getCacheFile (pathname, isApiCall, callback) {
