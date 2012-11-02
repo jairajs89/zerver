@@ -128,6 +128,8 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 
 	fetchAPIs();
 	setupRedis();
+
+	http.globalAgent.maxSockets = 50;
 }
 
 function fetchAPIs () {
