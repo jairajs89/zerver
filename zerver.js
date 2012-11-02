@@ -13,6 +13,7 @@ var ROOT_DIR  = process.cwd(),
 	GZIP_ENABLED = false,
 	COMPILATION_ENABLED = false,
 	CACHE_ENABLED = false,
+	CACHE_PREFIX = 'ZERVER_FILE_',
 	GZIPPABLE = {
 		'application/json'       : true ,
 		'application/javascript' : true ,
@@ -34,7 +35,7 @@ var ROOT_DIR  = process.cwd(),
 	API_SCRIPT_MATCH;
 
 var memoryCache = {},
-	app, apis;
+	app, apis, redis;
 
 var startTimestamp;
 
@@ -126,6 +127,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 	}
 
 	fetchAPIs();
+	setupRedis();
 }
 
 function fetchAPIs () {
@@ -133,32 +135,88 @@ function fetchAPIs () {
 	apis.setup(API_DIR, REFRESH);
 }
 
-function handleRequest (request, response) {
-	var handler  = new Handler(request, response),
-		pathname = handler.pathname;
+function setupRedis () {
+	try {
+		require('redis-url')
+			.connect(process.env.REDISTOGO_URL)
+			.on('connect', function () {
+				redis = this;
+			})
+			.on('error', function () {
+				redis = null;
+			});
+	}
+	catch (err) {}
+}
 
-	if (pathname in memoryCache) {
-		var data = memoryCache[pathname];
-		handler.type = data.type;
-		handler.finishResponse(data.status, data.headers, data.data, data.isBinary);
+function cacheFile (pathname, data) {
+	if (!CACHE_ENABLED || !redis || (pathname in memoryCache)) {
 		return;
 	}
 
-	var isApiCall  = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/',
-		isManifest = !!MANIFESTS[pathname];
+	memoryCache[pathname] = {
+		type     : data.type     ,
+		status   : data.status   ,
+		headers  : data.headers  ,
+		isBinary : data.isBinary
+	};
 
-	if (isManifest) {
-		handler.manifestRequest();
+	redis.set(CACHE_PREFIX + pathname, data);
+}
+
+function getCacheFile (pathname, isApiCall, callback) {
+	if (!CACHE_ENABLED || isApiCall || !redis || !(pathname in memoryCache)) {
+		callback();
+		return;
 	}
-	else if ( !isApiCall ) {
-		handler.pathRequest();
-	}
-	else if ( API_SCRIPT_MATCH.test(pathname) ) {
-		handler.scriptRequest();
-	}
-	else {
-		handler.APIRequest();
-	}
+
+	redis.get(CACHE_PREFIX + pathname, function (err, data) {
+		if (err || !data) {
+			console.error('cache failure');
+			delete memoryCache[pathname];
+			callback();
+			return;
+		}
+
+		var args = memoryCache[pathname];
+
+		callback({
+			type     : args.type     ,
+			status   : args.status   ,
+			headers  : args.headers  ,
+			isBinary : args.isBinary ,
+			data     : data
+		});
+	});
+}
+
+function handleRequest (request, response) {
+	var handler   = new Handler(request, response),
+		pathname  = handler.pathname,
+		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
+
+	getCacheFile(pathname, isApiCall, function (data) {
+		if (data) {
+			handler.type = data.type;
+			handler.finishResponse(data.status, data.headers, data.data, data.isBinary);
+			return;
+		}
+
+		var isManifest = !!MANIFESTS[pathname];
+
+		if (isManifest) {
+			handler.manifestRequest();
+		}
+		else if ( !isApiCall ) {
+			handler.pathRequest();
+		}
+		else if ( API_SCRIPT_MATCH.test(pathname) ) {
+			handler.scriptRequest();
+		}
+		else {
+			handler.APIRequest();
+		}
+	});
 }
 
 function handleMiddlewareRequest (request, response, next) {
@@ -267,14 +325,14 @@ Handler.prototype.finishResponse = function (status, headers, data, isBinary) {
 		this.response.end();
 	}
 
-	if (CACHE_ENABLED && (this.type === 'file' || this.type === 'script') && !(this.pathname in memoryCache)) {
-		memoryCache[this.pathname] = {
+	if ((this.type === 'file') || (this.type === 'script')) {
+		cacheFile(this.pathname, {
 			type     : this.type ,
 			status   : status    ,
 			headers  : headers   ,
 			data     : data      ,
 			isBinary : isBinary
-		};
+		});
 	}
 
 	this.status = status;
