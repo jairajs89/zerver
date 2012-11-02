@@ -12,6 +12,7 @@ var cleanCSS = require('clean-css'),
 var ROOT_DIR  = process.cwd(),
 	GZIP_ENABLED = false,
 	COMPILATION_ENABLED = false,
+	CACHE_ENABLED = false,
 	GZIPPABLE = {
 		'application/json'       : true ,
 		'application/javascript' : true ,
@@ -21,8 +22,6 @@ var ROOT_DIR  = process.cwd(),
 		'text/plain'             : true ,
 		'text/cache-manifest'    : true
 	},
-	IS_DEFLATE = /\bdeflate\b/,
-	IS_GZIP    = /\bgzip\b/,
 	HAS_MANIFEST = false,
 	MANIFESTS,
 	CACHE_CONTROL,
@@ -34,7 +33,8 @@ var ROOT_DIR  = process.cwd(),
 	API_URL_LENGTH,
 	API_SCRIPT_MATCH;
 
-var app, apis;
+var memoryCache = {},
+	app, apis;
 
 var startTimestamp;
 
@@ -47,13 +47,16 @@ exports.middleware = function (apiDir, apiURL) {
 	return handleMiddlewareRequest;
 };
 
-exports.run = function (port, apiDir, debug, refresh, manifests) {
-	configureZerver(port, apiDir, apiDir, debug, refresh, manifests);
+exports.run = function (port, apiDir, debug, refresh, manifests, production) {
+	configureZerver(port, apiDir, apiDir, debug, refresh, manifests, production);
 
 	app = http.createServer(handleRequest).listen(PORT);
 
 	if (debug) {
 		console.log('[debug mode]');
+	}
+	else if (production) {
+		console.log('[production mode]');
 	}
 
 	console.log('zerver running on port ' + PORT);
@@ -79,7 +82,7 @@ exports.run = function (port, apiDir, debug, refresh, manifests) {
 	console.log('');
 };
 
-function configureZerver (port, apiDir, apiURL, debug, refresh, manifests) {
+function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, production) {
 	PORT             = port;
 	API_DIR          = apiDir;
 	API_URL          = apiURL;
@@ -88,6 +91,16 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests) {
 	REFRESH          = refresh;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
+
+	if (REFRESH) {
+		DEBUG = true;
+	}
+
+	if (!DEBUG && production) {
+		GZIP_ENABLED        = true;
+		COMPILATION_ENABLED = true;
+		CACHE_ENABLED       = true;
+	}
 
 	startTimestamp = new Date();
 
@@ -121,10 +134,18 @@ function fetchAPIs () {
 }
 
 function handleRequest (request, response) {
-	var handler   	= new Handler(request, response),
-		pathname  	= handler.pathname,
-		isApiCall 	= pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/',
-		isManifest	= !!MANIFESTS[pathname];
+	var handler  = new Handler(request, response),
+		pathname = handler.pathname;
+
+	if (pathname in memoryCache) {
+		var data = memoryCache[pathname];
+		handler.type = data.type;
+		handler.finishResponse(data.status, data.headers, data.data, data.isBinary);
+		return;
+	}
+
+	var isApiCall  = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/',
+		isManifest = !!MANIFESTS[pathname];
 
 	if (isManifest) {
 		handler.manifestRequest();
@@ -156,13 +177,6 @@ function compileOutput (type, data, headers, callback) {
 	var handler = this;
 
 	if (!COMPILATION_ENABLED || DEBUG) {
-		callback.call(handler, data, headers);
-		return;
-	}
-
-	var args = handler.query && parseQueryString( handler.query.substr(1) ).compile;
-
-	if ( !args ) {
 		callback.call(handler, data, headers);
 		return;
 	}
@@ -207,40 +221,21 @@ function compileOutput (type, data, headers, callback) {
 function setupGZipOutput (type, data, headers, callback) {
 	var handler = this;
 
-	if (!GZIP_ENABLED || DEBUG || !(type in GZIPPABLE)) {
+	if (!GZIP_ENABLED || !(type in GZIPPABLE)) {
 		callback.call(handler, data, headers);
 		return;
 	}
 
-	var acceptEncoding = handler.request.headers['accept-encoding'] || '';
+	zlib.gzip(data, function (err, gzipped) {
+		if (err) {
+			callback.call(handler, data, headers);
+			return;
+		}
 
-	if ( acceptEncoding.match(IS_DEFLATE) ) {
-		zlib.deflate(data, function (err, deflated) {
-			if (err) {
-				callback.call(handler, data, headers);
-				return;
-			}
+		headers['Content-Encoding'] = 'gzip';
 
-			headers['content-encoding'] = 'deflate';
-
-			callback.call(handler, deflated, headers);
-		});
-	}
-	else if (acceptEncoding.match(IS_GZIP)) {
-		zlib.gzip(data, function (err, gzipped) {
-			if (err) {
-				callback.call(handler, data, headers);
-				return;
-			}
-
-			headers['content-encoding'] = 'gzip';
-
-			callback.call(handler, gzipped, headers);
-		});
-	}
-	else {
-		callback.call(handler, data, headers);
-	}
+		callback.call(handler, gzipped, headers);
+	});
 }
 
 
@@ -261,6 +256,31 @@ function Handler (request, response) {
 	this.type     = null;
 }
 
+Handler.prototype.finishResponse = function (status, headers, data, isBinary) {
+	this.response.writeHeader(status, headers);
+
+	if ( !isBinary ) {
+		this.response.end(data);
+	}
+	else {
+		this.response.write(data, 'binary');
+		this.response.end();
+	}
+
+	if (CACHE_ENABLED && (this.type === 'file' || this.type === 'script') && !(this.pathname in memoryCache)) {
+		memoryCache[this.pathname] = {
+			type     : this.type ,
+			status   : status    ,
+			headers  : headers   ,
+			data     : data      ,
+			isBinary : isBinary
+		};
+	}
+
+	this.status = status;
+	this.logRequest();
+};
+
 Handler.prototype.respond = function (status, type, data, headers) {
 	var handler = this;
 
@@ -269,11 +289,7 @@ Handler.prototype.respond = function (status, type, data, headers) {
 
 	compileOutput.call(this, type, data, headers, function (data, headers) {
 		setupGZipOutput.call(this, type, data, headers, function (data, headers) {
-			handler.response.writeHeader(status, headers);
-			handler.response.end(data);
-
-			handler.status = status;
-			handler.logRequest();
+			handler.finishResponse(status, headers, data, false);
 		});
 	});
 };
@@ -286,12 +302,7 @@ Handler.prototype.respondBinary = function (type, data, headers) {
 
 	compileOutput.call(this, type, data, headers, function (data, headers) {
 		setupGZipOutput.call(this, type, data, headers, function (data, headers) {
-			handler.response.writeHeader(200, headers);
-			handler.response.write(data, 'binary');
-			handler.response.end();
-
-			handler.status = 200;
-			handler.logRequest();
+			handler.finishResponse(200, headers, data, true);
 		});
 	});
 };
@@ -674,7 +685,7 @@ function setupAutoRefresh () {
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), process.argv[6]);
+	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), process.argv[6], (process.argv[7]==='1'));
 
 	if (DEBUG && REFRESH) {
 		setupAutoRefresh();
