@@ -249,10 +249,11 @@ function compileOutput (type, data, headers, callback) {
 		return;
 	}
 
+	var code;
+
 	switch (type) {
 		case 'application/javascript':
 		case 'text/javascript':
-			var code;
 			try {
 				var ast = uglify.parser.parse(data);
 				ast     = uglify.uglify.ast_mangle(ast);
@@ -260,30 +261,17 @@ function compileOutput (type, data, headers, callback) {
 				code    = uglify.uglify.gen_code(ast);
 			}
 			catch (err) {}
-			if ( !code ) {
-				callback.call(handler, data, headers);
-			}
-			else {
-				callback.call(handler, code, headers);
-			}
 			break;
 
 		case 'text/css':
-			var code;
 			try {
 				code = cleanCSS.process(data);
 			}
 			catch (err) {}
-			if ( !code ) {
-				callback.call(handler, data, headers);
-			}
-			else {
-				callback.call(handler, code, headers);
-			}
 			break;
 	}
 
-	callback.call(handler, data, headers);
+	callback.call(handler, code || data, headers);
 }
 
 function setupGZipOutput (type, data, headers, callback) {
