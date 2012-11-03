@@ -136,15 +136,42 @@ function fetchAPIs () {
 	apis.setup(API_DIR, REFRESH);
 }
 
+function cacheFile (pathname, data) {
+	if (!CACHE_ENABLED || (pathname in inMemoryCache)) {
+		return;
+	}
+
+	if ( Buffer.isBuffer(data.data) ) {
+		var str = '';
+
+		for (var i=0, len=data.data.length; i<len; i++) {
+			str += String.fromCharCode( data.data[i] );
+		}
+
+		data.data = str;
+	}
+
+	inMemoryCache[pathname] = data;
+}
+
+function getCachedFile (pathname, isApiCall, callback) {
+	if (!CACHE_ENABLED || isApiCall || !(pathname in inMemoryCache)) {
+		return;
+	}
+
+	return inMemoryCache[pathname];
+}
+
 function handleRequest (request, response) {
 	var handler   = new Handler(request, response),
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
-	if (CACHE_ENABLED && !isApiCall && (pathname in inMemoryCache)) {
-		var data = inMemoryCache[pathname];
+	var data = getCachedFile(pathname, isApiCall);
+
+	if (data) {
 		handler.type = data.type;
-		handler.finishResponse(data.status, data.headers, data.data, data.isBinary, true);
+		handler.finishResponse(data.status, data.headers, data.data, data.isBinary);
 		return;
 	}
 
@@ -247,7 +274,7 @@ function Handler (request, response) {
 	this.type     = null;
 }
 
-Handler.prototype.finishResponse = function (status, headers, data, isBinary, dontCache) {
+Handler.prototype.finishResponse = function (status, headers, data, isBinary) {
 	this.response.writeHeader(status, headers);
 
 	if ( !isBinary ) {
@@ -258,24 +285,14 @@ Handler.prototype.finishResponse = function (status, headers, data, isBinary, do
 		this.response.end();
 	}
 
-	if (!dontCache && CACHE_ENABLED && !(pathname in inMemoryCache) && ((this.type === 'file') || (this.type === 'script'))) {
-		if ( Buffer.isBuffer(data) ) {
-			var str = '';
-
-			for (var i=0, len=data.length; i<len; i++) {
-				str += String.fromCharCode( data[i] );
-			}
-
-			data = str;
-		}
-
-		inMemoryCache[pathname] = {
+	if ((this.type === 'file') || (this.type === 'script')) {
+		cacheFile(this.pathname, {
 			type     : this.type ,
 			status   : status    ,
 			headers  : headers   ,
 			data     : data      ,
 			isBinary : isBinary
-		};
+		});
 	}
 
 	this.status = status;
