@@ -153,7 +153,16 @@ function setupRedis () {
 }
 
 function handleRequest (request, response) {
-	var handler   = new Handler(request, response),
+	var urlParts = url.parse(request.url),
+		handler  = {
+			request  : request                      ,
+			response : response                     ,
+			pathname : decodeURI(urlParts.pathname) ,
+			query    : urlParts.search              ,
+			hash     : urlParts.hash                ,
+			time     : process.hrtime()             ,
+			type     : null
+		},
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
@@ -177,22 +186,22 @@ function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
 		var args = memoryCache[pathname];
 
 		handler.type = args.type;
-		handler.finishResponse(args.status, args.headers, data || '', args.isBinary);
+		finishResponse(handler, args.status, args.headers, data || '', args.isBinary);
 	});
 }
 
 function dynamicResponse (handler, pathname, isApiCall) {
 	if ( !!MANIFESTS[pathname] ) {
-		handler.manifestRequest();
+		manifestRequest(handler, pathname);
 	}
 	else if ( !isApiCall ) {
-		handler.pathRequest();
+		pathRequest(handler, pathname);
 	}
 	else if ( API_SCRIPT_MATCH.test(pathname) ) {
-		handler.scriptRequest();
+		scriptRequest(handler, pathname);
 	}
 	else {
-		handler.APIRequest();
+		APIRequest(handler, pathname);
 	}
 }
 
@@ -208,11 +217,9 @@ function handleMiddlewareRequest (request, response, next) {
 	handleRequest(request, response);
 }
 
-function compileOutput (type, data, headers, callback) {
-	var handler = this;
-
+function compileOutput (type, data, callback) {
 	if (!COMPILATION_ENABLED || DEBUG) {
-		callback.call(handler, data, headers);
+		callback(data);
 		return;
 	}
 
@@ -238,26 +245,24 @@ function compileOutput (type, data, headers, callback) {
 			break;
 	}
 
-	callback.call(handler, code || data, headers);
+	callback(code || data);
 }
 
 function setupGZipOutput (type, data, headers, callback) {
-	var handler = this;
-
 	if (!GZIP_ENABLED || !(type in GZIPPABLE)) {
-		callback.call(handler, data, headers);
+		callback(data, headers);
 		return;
 	}
 
 	zlib.gzip(data, function (err, gzipped) {
 		if (err) {
-			callback.call(handler, data, headers);
+			callback(data, headers);
 			return;
 		}
 
 		headers['Content-Encoding'] = 'gzip';
 
-		callback.call(handler, gzipped, headers);
+		callback(gzipped, headers);
 	});
 }
 
@@ -265,20 +270,8 @@ function setupGZipOutput (type, data, headers, callback) {
 
 /* Request handler */
 
-function Handler (request, response) {
-	var urlParts = url.parse(request.url);
-
-	this.request  = request;
-	this.response = response;
-	this.pathname = decodeURI(urlParts.pathname);
-	this.query    = urlParts.search;
-	this.hash     = urlParts.hash;
-	this.time     = process.hrtime();
-	this.type     = null;
-}
-
-Handler.prototype.finishResponse = function (status, headers, data, isBinary) {
-	var response = this.response;
+function finishResponse (handler, status, headers, data, isBinary) {
+	var response = handler.response;
 
 	response.writeHeader(status, headers);
 
@@ -290,10 +283,10 @@ Handler.prototype.finishResponse = function (status, headers, data, isBinary) {
 		response.end();
 	}
 
-	var pathname = this.pathname,
-		type     = this.type;
+	var pathname = handler.pathname,
+		type     = handler.type;
 
-	if (CACHE_ENABLED && redis && (type === 'file') && !(pathname in memoryCache)) {
+	if (CACHE_ENABLED && redis && (type !== 'api') && (type !== 'scheme') && !(pathname in memoryCache)) {
 		memoryCache[pathname] = {
 			type     : type ,
 			status   : status    ,
@@ -315,217 +308,162 @@ Handler.prototype.finishResponse = function (status, headers, data, isBinary) {
 		}
 	}
 
-	this.logRequest(status);
-};
+	logRequest(handler, status);
+}
 
-Handler.prototype.respond = function (status, type, data, headers) {
-	var handler = this;
+function respond (handler, status, type, data, headers) {
+	headers['Content-Type'] = type;
+	finishResponse(handler, status, headers, data, false);
+}
 
-	headers = headers || {};
+function respondBinary (handler, status, type, data, headers) {
 	headers['Content-Type'] = type;
 
-	compileOutput.call(this, type, data, headers, function (data, headers) {
-		setupGZipOutput.call(this, type, data, headers, function (data, headers) {
-			handler.finishResponse(status, headers, data, false);
+	compileOutput(type, data, function (data) {
+		setupGZipOutput(type, data, headers, function (data, headers) {
+			finishResponse(handler, status, headers, data, true);
 		});
 	});
-};
+}
 
-Handler.prototype.respondBinary = function (type, data, headers) {
-	var handler = this;
+function respond404 (handler) {
+	respond(handler, 404, 'text/plain', '404\n', {});
+}
 
-	headers = headers || {};
-	headers['Content-Type'] = type;
-
-	compileOutput.call(this, type, data, headers, function (data, headers) {
-		setupGZipOutput.call(this, type, data, headers, function (data, headers) {
-			handler.finishResponse(200, headers, data, true);
-		});
+function respond500 (handler) {
+	respond(handler, 500, 'text/plain', '500\n', {
+		'Cache-Control' : 'no-cache'
 	});
-};
+}
 
-Handler.prototype.respondJSON = function (data, headers) {
-	var stringData = JSON.stringify(data);
-	this.respond(200, 'application/json', stringData, headers);
-};
-
-Handler.prototype.respondRedirect = function (pathname, headers) {
-	this.respond(301, 'text/plain', '', {
-		'Location' : pathname + (this.query || '') + (this.hash || '')
-	});
-};
-
-Handler.prototype.respond404 = function (headers) {
-	//TODO: custom pages
-	this.respond(404, 'text/plain', '404\n', headers);
-};
-
-Handler.prototype.respond500 = function (headers) {
-	//TODO: custom pages
-	headers = headers || {};
-
-	if ( !headers['Cache-Control'] ) {
-		headers['Cache-Control'] = 'no-cache';
-	}
-
-	this.respond(500, 'text/plain', '500\n', headers);
-};
-
-Handler.prototype.optionsRequest = function (methods, host, headers) {
-	headers = headers || {};
-
-	addCORSHeaders(headers, methods, host);
-
-	this.respond(200, 'text/plain', '\n', headers);
-};
-
-Handler.prototype.pathRequest = function () {
-	this.type = 'file';
-
-	var pathname = this.pathname;
+function pathRequest (handler, pathname) {
+	handler.type = 'file';
 
 	if (pathname.substr(0, 2) === '/.') {
-		this.respond404();
+		respond404(handler);
 		return;
 	}
 
 	var fileName = path.join(ROOT_DIR, pathname);
-	this.fileRequest(fileName);
-};
+	fileRequest(handler, fileName);
+}
 
-Handler.prototype.fileRequest = function (fileName) {
-	var handler = this;
-
+function fileRequest (handler, fileName) {
 	fs.stat(fileName, function (err, stats) {
 		if (err) {
-			handler.respond404();
+			respond404(handler);
 			return;
 		}
 
 		if ( stats.isDirectory() ) {
-			var pathname = handler.pathname;
-			if (pathname[pathname.length - 1] !== '/') {
-				handler.respondRedirect(pathname + '/');
+			if (fileName[fileName.length - 1] !== '/') {
+				respond(handler, 301, 'text/plain', '', {
+					'Location' : handler.pathname + (handler.query || '') + (handler.hash || '')
+				});
 			}
 			else {
-				handler.fileRequest(fileName + 'index.html');
+				fileRequest(handler, fileName + 'index.html');
 			}
 			return;
 		}
 
-		var fileMime = mime.lookup(fileName);
-
 		fs.readFile(fileName, 'binary', function (err, file) {
 			if (err) {
-				handler.respond500();
+				respond500(handler);
 				return;
 			}
 
-			handler.respondBinary(fileMime, file, {
+			respondBinary(handler, 200, mime.lookup(fileName), file, {
 				'Cache-Control' : CACHE_CONTROL
 			});
 		});
 	});
-};
+}
 
-Handler.prototype.manifestRequest = function () {
-	this.type = 'manifest';
+function manifestRequest (handler, pathname) {
+	handler.type = 'manifest';
 
-	var handler  = this,
-		fileName = path.join(ROOT_DIR, this.pathname);
+	var fileName = path.join(ROOT_DIR, pathname);
 
 	fs.stat(fileName, function (err, stats) {
 		if (err || !stats.isFile()) {
-			handler.respond404();
+			respond404(handler);
 			return;
 		}
 
 		fs.readFile(fileName, 'utf8', function (err, data) {
 			if (err || !data) {
-				handler.respond500();
+				respond500(handler);
 				return;
 			}
 
 			var timestamp = DEBUG ? new Date() : startTimestamp;
 			data += '\n# Zerver: updated at ' + timestamp + '\n';
 
-			handler.respond(200, 'text/cache-manifest', data);
+			respondBinary(handler, 200, 'text/cache-manifest', new Buffer(data), {});
 		});
 	});
 }
 
-Handler.prototype.APIRequest = function () {
-	this.type = 'api';
+function APIRequest (handler, pathname) {
+	handler.type = 'api';
 
-	var pathname = this.pathname.substr(API_URL_LENGTH + 1);
+	var pathname = pathname.substr(API_URL_LENGTH + 1);
 
 	if (pathname === '/') {
-		this.APISchemeRequest();
+		APISchemeRequest(handler);
 		return;
 	}
 
 	var apiParts = pathname.substr(1).split('/');
 
 	if (apiParts.length < 2) {
-		this.respond500();
+		respond500(handler);
 		return;
 	}
 
 	var apiName = apiParts[0],
 		api     = apis.get(apiName);
 
-	if ( !api ) {
-		this.respond404();
-		return;
-	}
-
-	apiParts.slice(1).forEach(function (apiPart) {
-		if ( !api ) {
-			return;
-		}
-
-		if (apiPart in api) {
-			api = api[apiPart];
-		}
-		else {
-			api = null;
-		}
-	});
+	for (var i=1, len=apiParts.length; api && (i<len); api=api[ apiParts[i++] ]);
 
 	if (typeof api !== 'function') {
-		this.respond500();
+		respond500(handler);
 		return;
 	}
 
-	if (this.request.method === 'OPTIONS') {
-		this.optionsRequest(['POST'], apis.getCORS(apiName));
+	if (handler.request.method === 'OPTIONS') {
+		respond(
+			handler,
+			200, 'text/plain', '\n',
+			addCORSHeaders({}, ['POST'], apis.getCORS(apiName))
+		);
 		return;
 	}
 
-	if (this.request.method !== 'POST') {
-		this.respond500();
+	if (handler.request.method !== 'POST') {
+		respond500(handler);
 		return;
 	}
 
-	var handler = this,
-		rawData = '';
+	var rawData = '';
 
-	this.request.on('data', function (chunk) {
+	handler.request.on('data', function (chunk) {
 		rawData += chunk.toString();
 	});
 
-	this.request.on('end', function () {
+	handler.request.on('end', function () {
 		var data, args;
 		try {
 			data = JSON.parse(rawData);
 			args = data.args;
 		}
 		catch (err) {
-			handler.respond500();
+			respond500(handler);
 			return;
 		}
 		if ( !Array.isArray(args) ) {
-			handler.respond500();
+			respond500(handler);
 			return;
 		}
 
@@ -578,67 +516,73 @@ Handler.prototype.APIRequest = function () {
 		}
 
 		try {
-			handler.respondJSON(data, headers);
+			respond(
+				handler,
+				200, 'application/json',
+				JSON.stringify(data),
+				headers
+			);
 		}
 		catch (err) {
 			console.error(err);
-			handler.respond500();
+			respond500(handler);
 		}
 	}
-};
+}
 
-Handler.prototype.APISchemeRequest = function () {
-	this.type = 'scheme';
+function APISchemeRequest (handler) {
+	handler.type = 'scheme';
 
-	var scheme = apis.getScheme();
+	respond(
+		handler,
+		200, 'application/json',
+		JSON.stringify( apis.getScheme() ),
+		{ 'Cache-Control' : 'no-cache' }
+	);
+}
 
-	this.respondJSON(scheme, {
-		'Cache-Control' : 'no-cache'
-	});
-};
+function scriptRequest (handler, pathname) {
+	handler.type = 'script';
 
-Handler.prototype.scriptRequest = function () {
-	this.type = 'script';
-
-	var match = API_SCRIPT_MATCH.exec(this.pathname);
+	var match = API_SCRIPT_MATCH.exec(pathname);
 
 	if ( !match ) {
-		this.respond404();
+		respond404(handler);
 		return;
 	}
 
 	var apiRoot = match[1],
 		apiName = apiRoot;
 
-	if (this.query) {
-		var query = parseQueryString( this.query.substr(1) );
+	if (handler.query) {
+		var query = parseQueryString( handler.query.substr(1) );
 
 		if (query.name) {
 			apiName = query.name;
 		}
 	}
 
-	var file = apis.getScript(apiRoot, apiName, this.request.headers.host, API_URL);
+	var file = apis.getScript(apiRoot, apiName, handler.request.headers.host, API_URL);
 
 	if ( !file ) {
-		this.respond404();
+		respond404(handler);
 		return;
 	}
 
-	this.respond(200, 'application/javascript', file, {
+	respond(handler, 200, 'application/javascript', file, {
 		'Cache-Control' : CACHE_CONTROL
 	});
-};
+}
 
-Handler.prototype.logRequest = function (status) {
+function logRequest (handler, status) {
 	var logType     = 'ZERVER  ',
 		statusField = (status === 200) ? '' : '['+status+'] ',
-		pathname    = this.pathname,
-		timeParts   = process.hrtime(this.time),
+		pathname    = handler.pathname,
+		timeParts   = process.hrtime(handler.time),
 		timeMs      = (timeParts[0] * 1000 + timeParts[1] / 1000000) + '',
 		time        = '[' + timeMs.substr(0, timeMs.indexOf('.')+3) + 'ms] ';
 
-	switch (this.type) {
+	switch (handler.type) {
 		case 'file':
 		case 'script':
 			logType = 'FILE    ';
@@ -656,7 +600,7 @@ Handler.prototype.logRequest = function (status) {
 	}
 
 	console.log(logType + ' : ' + time + statusField + pathname);
-};
+}
 
 var parseQueryString = function () {
 	var re           = /([^&=]+)=([^&]+)/g,
@@ -698,6 +642,8 @@ function addCORSHeaders (headers, methods, host) {
 	if ( !headers['Access-Control-Allow-Headers'] ) {
 		headers['Access-Control-Allow-Headers'] = 'Content-Type';
 	}
+
+	return headers;
 }
 
 
