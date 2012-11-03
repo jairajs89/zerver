@@ -258,7 +258,7 @@ Handler.prototype.finishResponse = function (status, headers, data, isBinary, do
 		this.response.end();
 	}
 
-	if (!dontCache && CACHE_ENABLED && !(this.pathname in inMemoryCache) && ((this.type === 'file') || (this.type === 'script'))) {
+	if (!dontCache && CACHE_ENABLED && !(pathname in inMemoryCache) && ((this.type === 'file') || (this.type === 'script'))) {
 		if ( Buffer.isBuffer(data) ) {
 			var str = '';
 
@@ -269,7 +269,7 @@ Handler.prototype.finishResponse = function (status, headers, data, isBinary, do
 			data = str;
 		}
 
-		inMemoryCache[this.pathname] = {
+		inMemoryCache[pathname] = {
 			type     : this.type ,
 			status   : status    ,
 			headers  : headers   ,
