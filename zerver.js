@@ -10,6 +10,7 @@ var cleanCSS = require('clean-css'),
 	zlib     = require('zlib');
 
 var ROOT_DIR  = process.cwd(),
+	SLASH     = /\//g,
 	GZIP_ENABLED = false,
 	COMPILATION_ENABLED = false,
 	CACHE_ENABLED = false,
@@ -53,7 +54,7 @@ exports.run = function (port, apiDir, debug, refresh, manifests, production) {
 
 	app = http.createServer(handleRequest).listen(PORT);
 
-	if (debug) {
+	if (DEBUG) {
 		console.log('[debug mode]');
 	}
 	else if (production) {
@@ -112,7 +113,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 			}
 
 			MANIFESTS[path] = true;
-			HAS_MANIFEST = true;
+			HAS_MANIFEST    = true;
 		});
 	}
 
@@ -151,84 +152,48 @@ function setupRedis () {
 	catch (err) {}
 }
 
-function cacheFile (pathname, data) {
-	if (!CACHE_ENABLED || !redis || (pathname in memoryCache)) {
-		return;
-	}
-
-	if ( Buffer.isBuffer(data.data) ) {
-		var str = '';
-
-		for (var i=0, len=data.data.length; i<len; i++) {
-			str += String.fromCharCode( data.data[i] );
-		}
-
-		data.data = str;
-	}
-
-	memoryCache[pathname] = {
-		type     : data.type     ,
-		status   : data.status   ,
-		headers  : data.headers  ,
-		isBinary : data.isBinary
-	};
-
-	redis.set(CACHE_PREFIX + pathname, data.data);
-}
-
-function getCacheFile (pathname, isApiCall, callback) {
-	if (!CACHE_ENABLED || isApiCall || !redis || !(pathname in memoryCache)) {
-		callback();
-		return;
-	}
-
-	redis.get(CACHE_PREFIX + pathname, function (err, data) {
-		if (err || !data) {
-			console.error('cache failure');
-			delete memoryCache[pathname];
-			callback();
-			return;
-		}
-
-		var args = memoryCache[pathname];
-
-		callback({
-			type     : args.type     ,
-			status   : args.status   ,
-			headers  : args.headers  ,
-			isBinary : args.isBinary ,
-			data     : data
-		});
-	});
-}
-
 function handleRequest (request, response) {
 	var handler   = new Handler(request, response),
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
-	getCacheFile(pathname, isApiCall, function (data) {
-		if (data) {
-			handler.type = data.type;
-			handler.finishResponse(data.status, data.headers, data.data, data.isBinary);
+	tryResponseFromCache(handler, pathname, isApiCall, dynamicResponse);
+}
+
+function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
+	if (!CACHE_ENABLED || isApiCall || !redis || !(pathname in memoryCache)) {
+		fallback(handler, pathname, isApiCall);
+		return;
+	}
+
+	redis.get(CACHE_PREFIX + pathname, function (err, data) {
+		if (err) {
+			console.error('cache failure: ' + pathname);
+			delete memoryCache[pathname];
+			fallback(handler, pathname, isApiCall);
 			return;
 		}
 
-		var isManifest = !!MANIFESTS[pathname];
+		var args = memoryCache[pathname];
 
-		if (isManifest) {
-			handler.manifestRequest();
-		}
-		else if ( !isApiCall ) {
-			handler.pathRequest();
-		}
-		else if ( API_SCRIPT_MATCH.test(pathname) ) {
-			handler.scriptRequest();
-		}
-		else {
-			handler.APIRequest();
-		}
+		handler.type = args.type;
+		handler.finishResponse(args.status, args.headers, data || '', args.isBinary);
 	});
+}
+
+function dynamicResponse (handler, pathname, isApiCall) {
+	if ( !!MANIFESTS[pathname] ) {
+		handler.manifestRequest();
+	}
+	else if ( !isApiCall ) {
+		handler.pathRequest();
+	}
+	else if ( API_SCRIPT_MATCH.test(pathname) ) {
+		handler.scriptRequest();
+	}
+	else {
+		handler.APIRequest();
+	}
 }
 
 function handleMiddlewareRequest (request, response, next) {
@@ -301,42 +266,56 @@ function setupGZipOutput (type, data, headers, callback) {
 /* Request handler */
 
 function Handler (request, response) {
-	var urlParts = url.parse(request.url),
-		pathname = decodeURI(urlParts.pathname);
+	var urlParts = url.parse(request.url);
 
 	this.request  = request;
 	this.response = response;
-	this.pathname = pathname;
+	this.pathname = decodeURI(urlParts.pathname);
 	this.query    = urlParts.search;
 	this.hash     = urlParts.hash;
 	this.time     = process.hrtime();
-	this.status   = null;
 	this.type     = null;
 }
 
 Handler.prototype.finishResponse = function (status, headers, data, isBinary) {
-	this.response.writeHeader(status, headers);
+	var response = this.response;
+
+	response.writeHeader(status, headers);
 
 	if ( !isBinary ) {
-		this.response.end(data);
+		response.end(data);
 	}
 	else {
-		this.response.write(data, 'binary');
-		this.response.end();
+		response.write(data, 'binary');
+		response.end();
 	}
 
-	if ((this.type === 'file') || (this.type === 'script')) {
-		cacheFile(this.pathname, {
-			type     : this.type ,
+	var pathname = this.pathname,
+		type     = this.type;
+
+	if (CACHE_ENABLED && redis && (type === 'file') && !(pathname in memoryCache)) {
+		memoryCache[pathname] = {
+			type     : type ,
 			status   : status    ,
 			headers  : headers   ,
-			data     : data      ,
 			isBinary : isBinary
-		});
+		};
+
+		if ( Buffer.isBuffer(data) ) {
+			var str = '';
+
+			for (var i=0, len=data.length; i<len; i++) {
+				str += String.fromCharCode( data[i] );
+			}
+
+			redis.set(CACHE_PREFIX + pathname, str);
+		}
+		else {
+			redis.set(CACHE_PREFIX + pathname, data);
+		}
 	}
 
-	this.status = status;
-	this.logRequest();
+	this.logRequest(status);
 };
 
 Handler.prototype.respond = function (status, type, data, headers) {
@@ -651,13 +630,13 @@ Handler.prototype.scriptRequest = function () {
 	});
 };
 
-Handler.prototype.logRequest = function () {
-	var logType   = 'ZERVER  ',
-		status    = (this.status === 200) ? '' : '['+this.status+'] ',
-		pathname  = this.pathname,
-		timeParts = process.hrtime(this.time),
-		timeMs    = (timeParts[0] * 1000 + timeParts[1] / 1000000) + '',
-		time      = '[' + timeMs.substr(0, timeMs.indexOf('.')+3) + 'ms] ';
+Handler.prototype.logRequest = function (status) {
+	var logType     = 'ZERVER  ',
+		statusField = (status === 200) ? '' : '['+status+'] ',
+		pathname    = this.pathname,
+		timeParts   = process.hrtime(this.time),
+		timeMs      = (timeParts[0] * 1000 + timeParts[1] / 1000000) + '',
+		time        = '[' + timeMs.substr(0, timeMs.indexOf('.')+3) + 'ms] ';
 
 	switch (this.type) {
 		case 'file':
@@ -672,11 +651,11 @@ Handler.prototype.logRequest = function () {
 			break;
 		case 'api':
 			logType = 'API     ';
-			pathname = pathname.substr(2 + API_URL_LENGTH).replace(/\//g, '.') + '()';
+			pathname = pathname.substr(2 + API_URL_LENGTH).replace(SLASH, '.') + '()';
 			break;
 	}
 
-	console.log(logType + ' : ' + time + status + pathname);
+	console.log(logType + ' : ' + time + statusField + pathname);
 };
 
 var parseQueryString = function () {
