@@ -55,6 +55,11 @@ function processFlags () {
 	});
 
 	flags.run();
+
+	if (PRODUCTION) {
+		DEBUG   = false;
+		REFRESH = false;
+	}
 }
 
 
@@ -94,7 +99,7 @@ function main () {
 	}
 
 	var watcher    = require(WATCHER),
-		socket    = require(WATCHER),
+		socket     = require(WATCHER),
 		lastChange = null;
 
 	watcher.watch(CWD, function (fileName) {

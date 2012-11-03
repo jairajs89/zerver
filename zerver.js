@@ -186,7 +186,7 @@ function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
 		var args = memoryCache[pathname];
 
 		handler.type = args.type;
-		finishResponse(handler, args.status, args.headers, data || '', args.isBinary);
+		finishResponse(handler, args.status, args.headers, data || '', args.isBinary, true);
 	});
 }
 
@@ -270,7 +270,7 @@ function setupGZipOutput (type, data, headers, callback) {
 
 /* Request handler */
 
-function finishResponse (handler, status, headers, data, isBinary) {
+function finishResponse (handler, status, headers, data, isBinary, noCache) {
 	var response = handler.response;
 
 	response.writeHeader(status, headers);
@@ -286,7 +286,7 @@ function finishResponse (handler, status, headers, data, isBinary) {
 	var pathname = handler.pathname,
 		type     = handler.type;
 
-	if (CACHE_ENABLED && redis && (type !== 'api') && (type !== 'scheme') && !(pathname in memoryCache)) {
+	if (!noCache && CACHE_ENABLED && redis && (type !== 'api') && (type !== 'scheme') && !(pathname in memoryCache)) {
 		memoryCache[pathname] = {
 			type     : type ,
 			status   : status    ,
