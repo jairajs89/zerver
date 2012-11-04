@@ -14,7 +14,6 @@ var ROOT_DIR  = process.cwd(),
 	GZIP_ENABLED = false,
 	COMPILATION_ENABLED = false,
 	CACHE_ENABLED = false,
-	CACHE_PREFIX = 'ZERVER_FILE_',
 	GZIPPABLE = {
 		'application/json'       : true ,
 		'application/javascript' : true ,
@@ -36,7 +35,8 @@ var ROOT_DIR  = process.cwd(),
 	API_SCRIPT_MATCH;
 
 var memoryCache = {},
-	app, apis, redis;
+	fileCache   = {},
+	app, apis;
 
 var startTimestamp;
 
@@ -128,7 +128,6 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 	}
 
 	fetchAPIs();
-	setupRedis();
 
 	http.globalAgent.maxSockets = 50;
 }
@@ -136,20 +135,6 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
 	apis.setup(API_DIR, REFRESH);
-}
-
-function setupRedis () {
-	try {
-		require('redis-url')
-			.connect(process.env.REDISTOGO_URL)
-			.on('connect', function () {
-				redis = this;
-			})
-			.on('error', function () {
-				redis = null;
-			});
-	}
-	catch (err) {}
 }
 
 function handleRequest (request, response) {
@@ -170,24 +155,16 @@ function handleRequest (request, response) {
 }
 
 function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
-	if (!CACHE_ENABLED || isApiCall || !redis || !(pathname in memoryCache)) {
+	if (!CACHE_ENABLED || isApiCall || !(pathname in memoryCache)) {
 		fallback(handler, pathname, isApiCall);
 		return;
 	}
 
-	redis.get(CACHE_PREFIX + pathname, function (err, data) {
-		if (err) {
-			console.error('cache failure: ' + pathname);
-			delete memoryCache[pathname];
-			fallback(handler, pathname, isApiCall);
-			return;
-		}
+	var args = memoryCache[pathname],
+		data = fileCache[pathname];
 
-		var args = memoryCache[pathname];
-
-		handler.type = args.type;
-		finishResponse(handler, args.status, args.headers, data || '', args.isBinary, true);
-	});
+	handler.type = args.type;
+	finishResponse(handler, args.status, args.headers, data, args.isBinary, true);
 }
 
 function dynamicResponse (handler, pathname, isApiCall) {
@@ -286,7 +263,7 @@ function finishResponse (handler, status, headers, data, isBinary, noCache) {
 	var pathname = handler.pathname,
 		type     = handler.type;
 
-	if (!noCache && CACHE_ENABLED && redis && (type !== 'api') && (type !== 'scheme') && !(pathname in memoryCache)) {
+	if (!noCache && CACHE_ENABLED && (type !== 'api') && (type !== 'scheme') && !(pathname in memoryCache)) {
 		memoryCache[pathname] = {
 			type     : type ,
 			status   : status    ,
@@ -301,10 +278,10 @@ function finishResponse (handler, status, headers, data, isBinary, noCache) {
 				str += String.fromCharCode( data[i] );
 			}
 
-			redis.set(CACHE_PREFIX + pathname, str);
+			fileCache[pathname] = str || '';
 		}
 		else {
-			redis.set(CACHE_PREFIX + pathname, data);
+			fileCache[pathname] = data || '';
 		}
 	}
 
