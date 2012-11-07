@@ -198,7 +198,7 @@ function handleMiddlewareRequest (request, response, next) {
 }
 
 function inlineImages (type, data, pathname, callback) {
-	if (!INLINING_ENABLED || DEBUG) {
+	if (!INLINING_ENABLED || DEBUG || (type !== 'text/css') || (typeof data !== 'string')) {
 		callback(data);
 		return;
 	}
