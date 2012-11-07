@@ -11,9 +11,11 @@ var cleanCSS = require('clean-css'),
 
 var ROOT_DIR  = process.cwd(),
 	SLASH     = /\//g,
-	GZIP_ENABLED = false,
+	CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
+	GZIP_ENABLED        = false,
 	COMPILATION_ENABLED = false,
-	CACHE_ENABLED = false,
+	INLINING_ENABLED    = false,
+	CACHE_ENABLED       = false,
 	GZIPPABLE = {
 		'application/json'       : true ,
 		'application/javascript' : true ,
@@ -101,6 +103,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 	if (!DEBUG && production) {
 		GZIP_ENABLED        = true;
 		COMPILATION_ENABLED = true;
+		INLINING_ENABLED    = true;
 		CACHE_ENABLED       = true;
 	}
 
@@ -192,6 +195,57 @@ function handleMiddlewareRequest (request, response, next) {
 	}
 
 	handleRequest(request, response);
+}
+
+function inlineImages (type, data, pathname, callback) {
+	if (!INLINING_ENABLED || DEBUG) {
+		callback(data);
+		return;
+	}
+
+	data.replace(CSS_IMAGE, function (original, relativeURL) {
+		var urlParts;
+
+		try {
+			urlParts = url.parse(relativeURL, true);
+		}
+		catch (err) {
+			return original;
+		}
+
+		if ( !urlParts.query.inline ) {
+			return original;
+		}
+
+
+		var absoluteURL;
+
+		try {
+			absoluteURL = url.resolve(pathname, urlParts.pathname);
+		}
+		catch (err) {
+			return original;
+		}
+
+
+		var fileName = path.join(ROOT_DIR, absoluteURL),
+			fileData;
+
+		try {
+			fileData = fs.readFileSync(fileName).toString('base64');
+		}
+		catch (err) {
+			return original;
+		}
+
+
+		var mimeType = mime.lookup(fileName),
+			dataURL  = 'data:'+mimeType+';base64,'+fileData;
+
+		return 'url(' + dataURL + ')';
+	});
+
+	callback(data);
 }
 
 function compileOutput (type, data, callback) {
@@ -296,9 +350,11 @@ function respond (handler, status, type, data, headers) {
 function respondBinary (handler, status, type, data, headers) {
 	headers['Content-Type'] = type;
 
-	compileOutput(type, data, function (data) {
-		setupGZipOutput(type, data, headers, function (data, headers) {
-			finishResponse(handler, status, headers, data, true);
+	inlineImages(type, data, handler.pathname, function (data) {
+		compileOutput(type, data, function (data) {
+			setupGZipOutput(type, data, headers, function (data, headers) {
+				finishResponse(handler, status, headers, data, true);
+			});
 		});
 	});
 }
