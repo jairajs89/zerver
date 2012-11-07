@@ -203,7 +203,7 @@ function inlineImages (type, data, pathname, callback) {
 		return;
 	}
 
-	data.replace(CSS_IMAGE, function (original, relativeURL) {
+	data = data.replace(CSS_IMAGE, function (original, relativeURL) {
 		var urlParts;
 
 		try {
