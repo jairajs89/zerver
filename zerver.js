@@ -46,9 +46,7 @@ var ROOT_DIR            = process.cwd(),
 var memoryCache = {},
 	fileCache   = {},
 	concatCache = {},
-	app, apis;
-
-var startTimestamp;
+	app, apis, startTimestamp;
 
 
 
