@@ -9,14 +9,8 @@ var cleanCSS = require('clean-css'),
 	url      = require('url' ),
 	zlib     = require('zlib');
 
-var ROOT_DIR  = process.cwd(),
-	SLASH     = /\//g,
-	CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
-	GZIP_ENABLED        = false,
-	COMPILATION_ENABLED = false,
-	INLINING_ENABLED    = false,
-	CACHE_ENABLED       = false,
-	GZIPPABLE = {
+var ROOT_DIR            = process.cwd(),
+	GZIPPABLE           = {
 		'application/json'       : true ,
 		'application/javascript' : true ,
 		'text/javascript'        : true ,
@@ -25,7 +19,17 @@ var ROOT_DIR  = process.cwd(),
 		'text/plain'             : true ,
 		'text/cache-manifest'    : true
 	},
-	HAS_MANIFEST = false,
+	SLASH               = /\//g,
+	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
+	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
+	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\>\<\/script\>/g,
+	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\/?\>/g,
+	CONCAT_FILES        = false,
+	GZIP_ENABLED        = false,
+	COMPILATION_ENABLED = false,
+	INLINING_ENABLED    = false,
+	CACHE_ENABLED       = false,
+	HAS_MANIFEST        = false,
 	MANIFESTS,
 	CACHE_CONTROL,
 	DEBUG,
@@ -38,6 +42,7 @@ var ROOT_DIR  = process.cwd(),
 
 var memoryCache = {},
 	fileCache   = {},
+	concatCache = {},
 	app, apis;
 
 var startTimestamp;
@@ -105,6 +110,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 		COMPILATION_ENABLED = true;
 		INLINING_ENABLED    = true;
 		CACHE_ENABLED       = true;
+		CONCAT_FILES        = true;
 	}
 
 	startTimestamp = new Date();
@@ -171,8 +177,11 @@ function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
 }
 
 function dynamicResponse (handler, pathname, isApiCall) {
-	if ( !!MANIFESTS[pathname] ) {
+	if (pathname in MANIFESTS) {
 		manifestRequest(handler, pathname);
+	}
+	else if (pathname in concatCache) {
+		concatRequest(handler, pathname);
 	}
 	else if ( !isApiCall ) {
 		pathRequest(handler, pathname);
@@ -195,6 +204,53 @@ function handleMiddlewareRequest (request, response, next) {
 	}
 
 	handleRequest(request, response);
+}
+
+function prepareConcatFiles (type, data, pathname, callback) {
+	if (!CONCAT_FILES || DEBUG || (type !== 'text/html') || (typeof data !== 'string')) {
+		callback(data);
+		return;
+	}
+
+	data = data.replace(CONCAT_MATCH, function (original, concatPath, concatables) {
+		var files        = [],
+			aboslutePath = path.join(pathname, concatPath),
+			fileType, match;
+
+		if ( !fileType ) {
+			while (match=SCRIPT_MATCH.exec(concatables)) {
+				fileType = 'js';
+				files.push( path.join(pathname, match[1]) );
+			}
+		}
+
+		if ( !fileType ) {
+			while (match=STYLES_MATCH.exec(concatables)) {
+				fileType = 'css';
+				files.push( path.join(pathname, match[1]) );
+			}
+		}
+
+		if ( !fileType ) {
+			return original;
+		}
+
+		concatCache[aboslutePath] = files;
+
+		switch (fileType) {
+			case 'js':
+				return '<script src="'+concatPath+'"></script>';
+
+			case 'css':
+				return '<link rel="stylesheet" href="'+concatPath+'">';
+
+			default:
+				delete concatCache[aboslutePath];
+				return original;
+		}
+	});
+
+	callback(data);
 }
 
 function inlineImages (type, data, pathname, callback) {
@@ -350,10 +406,12 @@ function respond (handler, status, type, data, headers) {
 function respondBinary (handler, status, type, data, headers) {
 	headers['Content-Type'] = type;
 
-	inlineImages(type, data, handler.pathname, function (data) {
-		compileOutput(type, data, function (data) {
-			setupGZipOutput(type, data, headers, function (data, headers) {
-				finishResponse(handler, status, headers, data, true);
+	prepareConcatFiles(type, data, handler.pathname, function (data) {
+		inlineImages(type, data, handler.pathname, function (data) {
+			compileOutput(type, data, function (data) {
+				setupGZipOutput(type, data, headers, function (data, headers) {
+					finishResponse(handler, status, headers, data, true);
+				});
 			});
 		});
 	});
@@ -411,6 +469,47 @@ function fileRequest (handler, fileName) {
 			});
 		});
 	});
+}
+
+function concatRequest (handler, pathname) {
+	handler.type = 'file';
+
+	var files = concatCache[pathname];
+
+	if ( !files ) {
+		respond404(handler);
+		return;
+	}
+
+	var filesLeft = files.length,
+		hasError  = false,
+		file      = '';
+
+	files.forEach(function (fileName) {
+		fs.readFile(path.join(ROOT_DIR, fileName), function (err, data) {
+			if (err) {
+				hasError = true;
+			}
+			else {
+				file += data;
+			}
+
+			if ( !--filesLeft ) {
+				finish();
+			}
+		});
+	});
+
+	function finish () {
+		if (hasError) {
+			respond404(handler);
+		}
+		else {
+			respondBinary(handler, 200, mime.lookup(pathname), file, {
+				'Cache-Control' : CACHE_CONTROL
+			});
+		}
+	}
 }
 
 function manifestRequest (handler, pathname) {
