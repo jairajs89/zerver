@@ -768,6 +768,7 @@ function scriptRequest (handler, pathname) {
 
 function logRequest (handler, status) {
 	var logType     = 'ZERVER  ',
+		agent       = handler.request.headers['user-agent'],
 		statusField = (status === 200) ? '' : '['+status+'] ',
 		pathname    = handler.pathname,
 		timeParts   = process.hrtime(handler.time),
@@ -792,6 +793,13 @@ function logRequest (handler, status) {
 	}
 
 	console.log(logType + ' : ' + time + statusField + pathname);
+
+	if ( !DEBUG ) {
+		if (agent) {
+			console.log(agent);
+		}
+		console.log('');
+	}
 }
 
 var parseQueryString = function () {
