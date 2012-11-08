@@ -21,6 +21,9 @@ var ROOT_DIR            = process.cwd(),
 	},
 	SLASH               = /\//g,
 	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
+	MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g,
+	MANIFEST_FILE       = /\s*([^\s\#]+).*/g,
+	MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g,
 	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
 	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\>\<\/script\>/g,
 	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\/?\>/g,
@@ -146,6 +149,21 @@ function fetchAPIs () {
 	apis.setup(API_DIR, REFRESH);
 }
 
+function relativePath (path1, path2) {
+	if (path2[0] === '/') {
+		return path2;
+	}
+
+	var pathLength = path1.length;
+
+	if (path1[path1-1] !== '/') {
+		return path.resolve(path1, '../'+path2);
+	}
+	else {
+		return path.resolve(path1, path2);
+	}
+}
+
 function handleRequest (request, response) {
 	var urlParts = url.parse(request.url),
 		handler  = {
@@ -214,20 +232,20 @@ function prepareConcatFiles (type, data, pathname, callback) {
 
 	data = data.replace(CONCAT_MATCH, function (original, concatPath, concatables) {
 		var files        = [],
-			aboslutePath = path.join(pathname, concatPath),
+			aboslutePath = relativePath(pathname, concatPath),
 			fileType, match;
 
 		if ( !fileType ) {
 			while (match=SCRIPT_MATCH.exec(concatables)) {
 				fileType = 'js';
-				files.push( path.join(pathname, match[1]) );
+				files.push( relativePath(pathname, match[1]) );
 			}
 		}
 
 		if ( !fileType ) {
 			while (match=STYLES_MATCH.exec(concatables)) {
 				fileType = 'css';
-				files.push( path.join(pathname, match[1]) );
+				files.push( relativePath(pathname, match[1]) );
 			}
 		}
 
@@ -249,6 +267,48 @@ function prepareConcatFiles (type, data, pathname, callback) {
 				return original;
 		}
 	});
+
+	callback(data);
+}
+
+function prepareManifestConcatFiles (data, pathname, callback) {
+	if (!CONCAT_FILES || DEBUG || (typeof data !== 'string')) {
+		callback(data);
+		return;
+	}
+
+	var lines = data.split('\n'),
+		concatFile, concatIndex;
+
+	for (var i=0,l=lines.length; i<l; i++) {
+		if ( !concatFile ) {
+			var match = MANIFEST_CONCAT.exec( lines[i] );
+
+			if (match) {
+				concatFile  = match[1];
+				concatIndex = i;
+			}
+		}
+
+		else if ( MANIFEST_CONCAT_END.test( lines[i] ) ) {
+			var sectionLength = i-concatIndex+1,
+				concatList    = lines.splice(concatIndex, sectionLength);
+			concatList.shift();
+			concatList.pop();
+			i -= sectionLength;
+			l -= sectionLength;
+
+			lines.splice(i, 1, concatFile);
+			i++;
+			l++;
+
+			concatCache[ relativePath(pathname, concatFile) ] = concatList;
+
+			concatFile = null;
+		}
+	}
+
+	data = lines.join('\n');
 
 	callback(data);
 }
@@ -373,7 +433,7 @@ function finishResponse (handler, status, headers, data, isBinary, noCache) {
 	var pathname = handler.pathname,
 		type     = handler.type;
 
-	if (!noCache && CACHE_ENABLED && (type !== 'api') && (type !== 'scheme') && !(pathname in memoryCache)) {
+	if (!noCache && CACHE_ENABLED && (type !== 'api') && (type !== 'scheme') && (status === 200) && !(pathname in memoryCache)) {
 		memoryCache[pathname] = {
 			type     : type ,
 			status   : status    ,
@@ -529,10 +589,12 @@ function manifestRequest (handler, pathname) {
 				return;
 			}
 
-			var timestamp = DEBUG ? new Date() : startTimestamp;
-			data += '\n# Zerver: updated at ' + timestamp + '\n';
+			prepareManifestConcatFiles(data, pathname, function (data) {
+				var timestamp = DEBUG ? new Date() : startTimestamp;
+				data += '\n# Zerver: updated at ' + timestamp + '\n';
 
-			respondBinary(handler, 200, 'text/cache-manifest', new Buffer(data), {});
+				respondBinary(handler, 200, 'text/cache-manifest', new Buffer(data), {});
+			});
 		});
 	});
 }
