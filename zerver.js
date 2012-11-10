@@ -544,29 +544,28 @@ function concatRequest (handler, pathname) {
 		file      = '';
 
 	files.forEach(function (fileName) {
-		fs.readFile(path.join(ROOT_DIR, fileName), function (err, data) {
-			if (err) {
-				hasError = true;
-			}
-			else {
-				file += data;
-			}
+		if (hasError) {
+			return;
+		}
 
-			if ( !--filesLeft ) {
-				finish();
-			}
-		});
+		try {
+			var data = fs.readFileSync( path.join(ROOT_DIR, fileName) );
+		}
+		catch (err) {
+			hasError = true;
+			return;
+		}
+
+		file += data;
 	});
 
-	function finish () {
-		if (hasError) {
-			respond404(handler);
-		}
-		else {
-			respondBinary(handler, 200, mime.lookup(pathname), file, {
-				'Cache-Control' : CACHE_CONTROL
-			});
-		}
+	if (hasError) {
+		respond404(handler);
+	}
+	else {
+		respondBinary(handler, 200, mime.lookup(pathname), file, {
+			'Cache-Control' : CACHE_CONTROL
+		});
 	}
 }
 
@@ -798,6 +797,7 @@ function logRequest (handler, status) {
 		if (agent) {
 			console.log(agent);
 		}
+		//TODO: print referer
 		console.log('');
 	}
 }
