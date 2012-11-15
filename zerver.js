@@ -116,17 +116,6 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 
 	startTimestamp = new Date();
 
-	if (manifests) {
-		manifests.split(',').forEach(function (path) {
-			if (!path[0] !== '/') {
-				path = '/' + path;
-			}
-
-			MANIFESTS[path] = true;
-			HAS_MANIFEST    = true;
-		});
-	}
-
 	if (DEBUG) {
 		CACHE_CONTROL = 'no-cache';
 	}
@@ -135,6 +124,19 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 	}
 	else {
 		CACHE_CONTROL = 'max-age=14400';
+	}
+
+	if (manifests) {
+		manifests.split(',').forEach(function (path) {
+			if (!path[0] !== '/') {
+				path = '/' + path;
+			}
+
+			MANIFESTS[path] = true;
+			HAS_MANIFEST    = true;
+
+			prefetchManifestFile(path);
+		});
 	}
 
 	fetchAPIs();
@@ -160,6 +162,28 @@ function relativePath (path1, path2) {
 	else {
 		return path.resolve(path1, path2);
 	}
+}
+
+function prefetchManifestFile (pathname, callback) {
+	var fileName = path.join(ROOT_DIR, pathname);
+
+	fs.stat(fileName, function (err, stats) {
+		if (err || !stats.isFile()) {
+			return;
+		}
+
+		fs.readFile(fileName, 'utf8', function (err, data) {
+			if (err || !data) {
+				return;
+			}
+
+			prepareManifestConcatFiles(data, pathname, function () {
+				if (callback) {
+					callback();
+				}
+			});
+		});
+	});
 }
 
 function handleRequest (request, response) {
