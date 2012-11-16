@@ -101,7 +101,16 @@ function getAPIData (url, callback) {
 			});
 
 			res.on('end', function () {
-				var apiData = JSON.parse(data);
+				var apiData;
+
+				try {
+					apiData = JSON.parse(data);
+				}
+				catch (err) {
+					respond();
+					return;
+				}
+
 				respond(apiData);
 			});
 		}
