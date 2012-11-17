@@ -5,6 +5,7 @@ var path = require('path'),
 
 var ZERVER         = __dirname + '/zerver',
 	WATCHER        = __dirname + '/watcher',
+	PACKAGE        = __dirname + '/package.json',
 	API_DIR        = 'zerver',
 	CWD            = process.cwd(),
 	CHANGE_TIMEOUT = 1000,
@@ -18,6 +19,19 @@ var ZERVER         = __dirname + '/zerver',
 
 function processFlags () {
 	var flags = require(__dirname + '/flags');
+
+	flags.add(['v', 'version'], function () {
+		try {
+			var packageFile = require('fs').readFileSync(PACKAGE),
+				packageData = JSON.parse(packageFile);
+
+			console.log('zerver v' + packageData.version);
+		}
+		catch (err) {
+			console.log('zerver v0');
+		}
+		process.exit();
+	});
 
 	flags.add(['d', 'debug'], function () {
 		DEBUG = true;
