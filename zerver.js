@@ -303,7 +303,18 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 		concatFile, concatIndex;
 
 	for (var i=0,l=lines.length; i<l; i++) {
-		if ( !concatFile ) {
+		var urlParts;
+		try {
+			urlParts = url.parse(lines[i].trim(), true);
+		}
+		catch (err) {}
+
+		if (urlParts && urlParts.query.inline) {
+			lines.splice(i, 1);
+			i--;
+			l--;
+		}
+		else if ( !concatFile ) {
 			var match = MANIFEST_CONCAT.exec( lines[i] );
 
 			if (match) {
@@ -311,7 +322,6 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 				concatIndex = i;
 			}
 		}
-
 		else if ( MANIFEST_CONCAT_END.test( lines[i] ) ) {
 			var sectionLength = i-concatIndex+1,
 				concatList    = lines.splice(concatIndex, sectionLength);
