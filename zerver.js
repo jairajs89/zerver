@@ -46,7 +46,7 @@ var ROOT_DIR            = process.cwd(),
 var memoryCache = {},
 	fileCache   = {},
 	concatCache = {},
-	app, apis, startTimestamp;
+	app, apis, lastModTimestamp;
 
 
 
@@ -114,7 +114,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 		CONCAT_FILES        = true;
 	}
 
-	startTimestamp = new Date();
+	lastModTimestamp = getMaxLastModifiedTime(ROOT_DIR);
 
 	if (DEBUG) {
 		CACHE_CONTROL = 'no-cache';
@@ -147,6 +147,22 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
 	apis.setup(API_DIR, REFRESH);
+}
+
+function getMaxLastModifiedTime(file)
+{
+	var stats = fs.statSync(file);
+	if (stats.isDirectory()) {
+		return fs.readdirSync(file)
+			.map(function(child){
+				return getMaxLastModifiedTime(path.join(file, child));
+			}).sort(function(a, b){
+				return b.getTime() - a.getTime();
+			}).shift();
+	}
+	else {
+		return stats.mtime;
+	}
 }
 
 function relativePath (path1, path2) {
@@ -621,7 +637,7 @@ function manifestRequest (handler, pathname) {
 			}
 
 			prepareManifestConcatFiles(data, pathname, function (data) {
-				var timestamp = DEBUG ? new Date() : startTimestamp;
+				var timestamp = DEBUG ? getMaxLastModifiedTime(ROOT_DIR) : lastModTimestamp;
 				data += '\n# Zerver: updated at ' + timestamp + '\n';
 
 				respondBinary(handler, 200, 'text/cache-manifest', new Buffer(data), {});
