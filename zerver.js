@@ -114,7 +114,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 		CONCAT_FILES        = true;
 	}
 
-	lastModTimestamp = getMaxLastModifiedTime(ROOT_DIR);
+	updateLastModifiedTime();
 
 	if (DEBUG) {
 		CACHE_CONTROL = 'no-cache';
@@ -149,20 +149,47 @@ function fetchAPIs () {
 	apis.setup(API_DIR, REFRESH);
 }
 
-function getMaxLastModifiedTime(file)
-{
-	var stats = fs.statSync(file);
-	if (stats.isDirectory()) {
-		return fs.readdirSync(file)
-			.map(function(child){
-				return getMaxLastModifiedTime(path.join(file, child));
-			}).sort(function(a, b){
-				return b.getTime() - a.getTime();
-			}).shift();
+function updateLastModifiedTime () {
+	lastModTimestamp = getMaxLastModifiedTime(ROOT_DIR) || new Date();
+}
+
+function getMaxLastModifiedTime (file) {
+	var stats;
+	try {
+		stats = fs.statSync(file);
 	}
-	else {
+	catch (err) {
+		console.error('unable to get last mod time for file ' + file);
+		return;
+	}
+
+	if ( !stats.isDirectory() ) {
 		return stats.mtime;
 	}
+
+	var dirListing;
+	try {
+		dirListing = fs.readdirSync(file);
+	}
+	catch (err) {
+		console.error('unable to get last mod time for directory ' + file);
+		return;
+	}
+
+	var maxModTime = 0;
+	dirListing.forEach(function (child) {
+		var modTime = getMaxLastModifiedTime( path.join(file, child) );
+		if (modTime > maxModTime) {
+			maxModTime = modTime;
+		}
+	});
+
+	if ( !maxModTime ) {
+		console.error('unable to get last mod time for directory ' + file);
+		return;
+	}
+
+	return maxModTime;
 }
 
 function relativePath (path1, path2) {
@@ -637,8 +664,11 @@ function manifestRequest (handler, pathname) {
 			}
 
 			prepareManifestConcatFiles(data, pathname, function (data) {
-				var timestamp = DEBUG ? getMaxLastModifiedTime(ROOT_DIR) : lastModTimestamp;
-				data += '\n# Zerver: updated at ' + timestamp + '\n';
+				if (DEBUG) {
+					updateLastModifiedTime();
+				}
+
+				data += '\n# Zerver: updated at ' + lastModTimestamp + '\n';
 
 				respondBinary(handler, 200, 'text/cache-manifest', new Buffer(data), {});
 			});
