@@ -164,7 +164,7 @@ function getMaxLastModifiedTime (file) {
 	}
 
 	if ( !stats.isDirectory() ) {
-		return stats.mtime;
+		return stats.mtime || undefined;
 	}
 
 	var dirListing;
