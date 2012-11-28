@@ -116,16 +116,6 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 
 	updateLastModifiedTime();
 
-	if (DEBUG) {
-		CACHE_CONTROL = 'no-cache';
-	}
-	else if (HAS_MANIFEST) {
-		CACHE_CONTROL = 'max-age=0';
-	}
-	else {
-		CACHE_CONTROL = 'max-age=14400';
-	}
-
 	if (manifests) {
 		manifests.split(',').forEach(function (path) {
 			if (!path[0] !== '/') {
@@ -137,6 +127,16 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 
 			prefetchManifestFile(path);
 		});
+	}
+
+	if (DEBUG) {
+		CACHE_CONTROL = 'no-cache';
+	}
+	else if (HAS_MANIFEST) {
+		CACHE_CONTROL = 'max-age=0';
+	}
+	else {
+		CACHE_CONTROL = 'max-age=14400';
 	}
 
 	fetchAPIs();
