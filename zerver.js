@@ -33,6 +33,7 @@ var ROOT_DIR            = process.cwd(),
 	INLINING_ENABLED    = false,
 	CACHE_ENABLED       = false,
 	HAS_MANIFEST        = false,
+	PRODUCTION          = false,
 	MANIFESTS,
 	CACHE_CONTROL,
 	DEBUG,
@@ -98,6 +99,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 	API_URL          = apiURL;
 	API_URL_LENGTH   = apiURL.length;
 	DEBUG            = debug;
+	PRODUCTION       = production;
 	REFRESH          = refresh;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
@@ -106,7 +108,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 		DEBUG = true;
 	}
 
-	if (!DEBUG && production) {
+	if (!DEBUG && PRODUCTION) {
 		GZIP_ENABLED        = true;
 		COMPILATION_ENABLED = true;
 		INLINING_ENABLED    = true;
@@ -847,6 +849,10 @@ function scriptRequest (handler, pathname) {
 }
 
 function logRequest (handler, status) {
+	if (PRODUCTION) {
+		return;
+	}
+
 	var logType     = 'ZERVER  ',
 		agent       = handler.request.headers['user-agent'],
 		statusField = (status === 200) ? '' : '['+status+'] ',
@@ -871,18 +877,17 @@ function logRequest (handler, status) {
 			pathname = pathname.substr(2 + API_URL_LENGTH).replace(SLASH, '.') + '()';
 			break;
 	}
-
 	console.log(logType + ' : ' + time + statusField + pathname);
 
-	if ( !DEBUG ) {
-		if (agent) {
-			console.log(agent);
-		}
-		if (handler.referrer) {
-			console.log('referrer='+handler.referrer);
-		}
-		console.log('');
+	if (agent) {
+		console.log('  ' + agent);
 	}
+
+	if (handler.referrer) {
+		console.log('  referrer=' + handler.referrer);
+	}
+
+	console.log('');
 }
 
 var parseQueryString = function () {
