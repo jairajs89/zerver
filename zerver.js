@@ -237,6 +237,7 @@ function handleRequest (request, response) {
 			pathname : decodeURI(urlParts.pathname) ,
 			query    : urlParts.search              ,
 			hash     : urlParts.hash                ,
+			referrer : request.headers['referrer'] || request.headers['referer'] ,
 			time     : process.hrtime()             ,
 			type     : null
 		},
@@ -877,7 +878,9 @@ function logRequest (handler, status) {
 		if (agent) {
 			console.log(agent);
 		}
-		//TODO: print referer
+		if (handler.referrer) {
+			console.log('referrer='+handler.referrer);
+		}
 		console.log('');
 	}
 }
