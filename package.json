@@ -2,14 +2,14 @@
   "author": "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name": "zerver",
   "description": "client-integrated webapp server",
-  "version": "0.6.12",
+  "version": "0.6.13",
   "repository": {
     "type": "git",
     "url": "git://github.com/jairajs89/zerver.git"
   },
   "main": "nodeclient.js",
   "engines": {
-    "node": ">=0.8.0"
+    "node": "0.8.x"
   },
   "dependencies": {
     "mime"       : "1.2.7"  ,

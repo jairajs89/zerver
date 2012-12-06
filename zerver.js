@@ -27,6 +27,7 @@ var ROOT_DIR            = process.cwd(),
 	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
 	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\>\<\/script\>/g,
 	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\/?\>/g,
+	REQUEST_TIMEOUT     = 25 * 1000,
 	CONCAT_FILES        = false,
 	GZIP_ENABLED        = false,
 	COMPILATION_ENABLED = false,
@@ -246,7 +247,18 @@ function handleRequest (request, response) {
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
+	setRequestTimeout(request, response);
+
 	tryResponseFromCache(handler, pathname, isApiCall, dynamicResponse);
+}
+
+function setRequestTimeout (request, response) {
+	request.socket.removeAllListeners('timeout');
+	request.socket.setTimeout(REQUEST_TIMEOUT);
+	request.socket.once('timeout', function () {
+		console.log('zerver: request timeout, closing socket');
+		request.socket.destroy();
+	});
 }
 
 function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
@@ -376,8 +388,7 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 			i -= sectionLength;
 			l -= sectionLength;
 
-			lines.splice(i, 1, concatFile);
-			i++;
+			lines.splice(i+1, 0, concatFile);
 			l++;
 
 			concatCache[ relativePath(pathname, concatFile) ] = concatList;
