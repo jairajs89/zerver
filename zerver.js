@@ -247,18 +247,25 @@ function handleRequest (request, response) {
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
-	setRequestTimeout(request, response);
+	setRequestTimeout(response);
 
 	tryResponseFromCache(handler, pathname, isApiCall, dynamicResponse);
 }
 
-function setRequestTimeout (request, response) {
-	request.socket.removeAllListeners('timeout');
-	request.socket.setTimeout(REQUEST_TIMEOUT);
-	request.socket.once('timeout', function () {
-		console.log('zerver: request timeout, closing socket');
-		request.socket.destroy();
-	});
+function setRequestTimeout (response) {
+	var responseEnd = response.end,
+		timeout;
+
+	timeout = setTimeout(function () {
+		console.log('zerver: request timeout');
+		response.end('');
+	}, REQUEST_TIMEOUT);
+
+	response.end = function () {
+		clearTimeout(timeout);
+		response.end = responseEnd;
+		response.end.apply(this, arguments);
+	};
 }
 
 function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
