@@ -25,8 +25,8 @@ var ROOT_DIR            = process.cwd(),
 	MANIFEST_FILE       = /\s*([^\s\#]+).*/g,
 	MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g,
 	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
-	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\>\<\/script\>/g,
-	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\/?\>/g,
+	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g,
+	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g,
 	REQUEST_TIMEOUT     = 25 * 1000,
 	CONCAT_FILES        = false,
 	GZIP_ENABLED        = false,
@@ -257,7 +257,7 @@ function setRequestTimeout (response) {
 		timeout;
 
 	timeout = setTimeout(function () {
-		console.log('zerver: request timeout');
+		console.error('zerver: request timeout');
 		response.end('');
 	}, REQUEST_TIMEOUT);
 
