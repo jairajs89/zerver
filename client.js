@@ -4,6 +4,7 @@
 	var XHR_TIMEOUT = 30000;
 
 	var apiRefresh   = {{__API_REFRESH__}},
+		apiLogging   = {{__API_LOGGING__}},
 		apiHost      = {{__API_HOST__}},
 		apiDir       = {{__API_DIR__}},
 		apiName      = {{__API_NAME__}},
@@ -11,7 +12,8 @@
 		apiObj       = {{__API_OBJ__}},
 		apiFunctions = {{__API_FUNCTIONS__}},
 		apiData      = {{__API_APIS__}},
-		apis         = {};
+		apis         = {},
+		apiSocket;
 
 	main();
 
@@ -25,6 +27,9 @@
 
 		if (apiRefresh) {
 			setupAutoRefresh();
+		}
+		if (apiLogging) {
+			setupLogging();
 		}
 	}
 
@@ -212,20 +217,17 @@
 		}
 	}
 
-	function setupAutoRefresh () {
-		var REFRESH_FLAG = '__ZERVER_REFRESH_FLAG',
-			REFRESH_FUNC = 'ZERVER_REFRESH';
-
-		if ( window[REFRESH_FLAG] ) {
+	function setupSocket (handler) {
+		if (Object.prototype.toString.call(apiSocket) == '[object Array]') {
+			apiSocket.push(handler);
 			return;
 		}
-		window[REFRESH_FLAG] = true;
-
-		if (typeof window[REFRESH_FUNC] !== 'function') {
-			window[REFRESH_FUNC] = function () {
-				window.location.reload();
-			};
+		else if (apiSocket) {
+			handler();
+			return;
 		}
+
+		apiSocket = [ handler ];
 
 		var done   = false,
 			head   = document.getElementsByTagName('head')[0],
@@ -240,22 +242,119 @@
 
 			if (!this.readyState || (this.readyState == 'loaded') || (this.readyState == 'complete')) {
 				done = true;
-				setTimeout(setupRefreshListener, 0);
+				setTimeout(function () {
+					var handlers = apiSocket.slice();
+
+					apiSocket = io.connect('//'+apiHost+'/'+apiDir+'/_refresh');
+
+					handlers.forEach(function (handler) {
+						handler();
+					});
+				}, 0);
 				script.onload = script.onreadystatechange = null;
 				head.removeChild(script);
 			}
 		};
 		head.appendChild(script);
+	}
 
-		function setupRefreshListener () {
-			io.connect('//'+apiHost+'/'+apiDir+'/_refresh')
-				.on('refresh', function () {
-					var refresher = window[REFRESH_FUNC];
+	function setupAutoRefresh () {
+		var REFRESH_FUNC = 'ZERVER_REFRESH';
 
-					if (typeof refresher === 'function') {
-						refresher();
-					}
+		if (typeof window[REFRESH_FUNC] !== 'function') {
+			window[REFRESH_FUNC] = function () {
+				window.location.reload();
+			};
+		}
+
+		setupSocket(function () {
+			apiSocket.on('refresh', function () {
+				var refresher = window[REFRESH_FUNC];
+
+				if (typeof refresher === 'function') {
+					refresher();
+				}
+			});
+		});
+	}
+
+	function setupLogging () {
+		var logLock = false,
+			onLog;
+
+		setupSocket(pipeLogs);
+		setupLoggers();
+
+		function pipeLogs () {
+			onLog = function (level, message) {
+				apiSocket.emit('log', {
+					level   : level   ,
+					message : message
 				});
+			};
+		}
+
+		function logMessage (level, message) {
+			if (logLock) {
+				return;
+			}
+			logLock = true;
+
+			if (onLog) {
+				onLog(level, message);
+			}
+
+			logLock = false;
+		}
+
+		function setupLoggers () {
+			var console = window.console;
+
+			if (typeof console !== 'object') {
+				console = {};
+			}
+
+			console.log   = interceptLogs(console.log  , 'log'  );
+			console.warn  = interceptLogs(console.warn , 'warn' );
+			console.error = interceptLogs(console.error, 'error');
+			interceptExceptions();
+
+			window.console = console;
+		}
+
+		function interceptLogs (logger, level) {
+			switch (typeof logger) {
+				case 'undefined':
+					logger = function () {};
+				case 'function':
+					break;
+
+				default:
+					return logger;
+			}
+
+			return function () {
+				var message = Array.prototype.map.call(
+					arguments,
+					function (log) {
+						return log + '';
+					}
+				).join(' ');
+
+				logMessage(level, message);
+
+				logger.apply(this, arguments);
+			};
+		}
+
+		function interceptExceptions () {
+			if ( !window.addEventListener ) {
+				return;
+			}
+
+			window.addEventListener('error', function (e) {
+				logMessage('exception', e.message + '');
+			}, false);
 		}
 	}
 })(window);

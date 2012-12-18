@@ -39,6 +39,7 @@ var ROOT_DIR            = process.cwd(),
 	CACHE_CONTROL,
 	DEBUG,
 	REFRESH,
+	LOGGING,
 	PORT,
 	API_DIR,
 	API_URL,
@@ -59,8 +60,8 @@ exports.middleware = function (apiDir, apiURL) {
 	return handleMiddlewareRequest;
 };
 
-exports.run = function (port, apiDir, debug, refresh, manifests, production) {
-	configureZerver(port, apiDir, apiDir, debug, refresh, manifests, production);
+exports.run = function (port, apiDir, debug, refresh, logging, manifests, production) {
+	configureZerver(port, apiDir, apiDir, debug, refresh, logging, manifests, production);
 
 	app = http.createServer(handleRequest).listen(PORT);
 
@@ -94,7 +95,7 @@ exports.run = function (port, apiDir, debug, refresh, manifests, production) {
 	console.log('');
 };
 
-function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, production) {
+function configureZerver (port, apiDir, apiURL, debug, refresh, logging, manifests, production) {
 	PORT             = port;
 	API_DIR          = apiDir;
 	API_URL          = apiURL;
@@ -102,9 +103,13 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 	DEBUG            = debug;
 	PRODUCTION       = production;
 	REFRESH          = refresh;
+	LOGGING          = logging;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
 
+	if (LOGGING) {
+		REFRESH = true;
+	}
 	if (REFRESH) {
 		DEBUG = true;
 	}
@@ -149,7 +154,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, manifests, produ
 
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
-	apis.setup(API_DIR, REFRESH);
+	apis.setup(API_DIR, REFRESH, LOGGING);
 }
 
 function updateLastModifiedTime () {
@@ -967,6 +972,12 @@ function setupAutoRefresh () {
 			sockets.emit('refresh');
 		}
 	});
+
+	sockets.on('connection', function (socket) {
+		socket.on('log', function (data) {
+			console.log(data.level + ': ' + data.message);
+		});
+	});
 }
 
 
@@ -974,7 +985,7 @@ function setupAutoRefresh () {
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), process.argv[6], (process.argv[7]==='1'));
+	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), process.argv[7], (process.argv[8]==='1'));
 
 	if (DEBUG && REFRESH) {
 		setupAutoRefresh();

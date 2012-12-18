@@ -3,8 +3,10 @@ var fs = require('fs');
 var CHANGE_TIMEOUT   = 1000,
 	ROOT_DIR         = process.cwd(),
 	REFRESH          = false,
+	LOGGING          = false,
 	CLIENT_JS        = 'client.js',
 	INSERT_REFRESH   = '{{__API_REFRESH__}}',
+	INSERT_LOGGING   = '{{__API_LOGGING__}}',
 	INSERT_HOST      = '{{__API_HOST__}}',
 	INSERT_DIR       = '{{__API_DIR__}}',
 	INSERT_NAME      = '{{__API_NAME__}}',
@@ -23,13 +25,14 @@ var setupComplete  = false,
 
 
 
-exports.setup = function (apiDir, refresh) {
+exports.setup = function (apiDir, refresh, logging) {
 	if (setupComplete) {
 		throw Error('apis can be setup only once');
 	}
 	setupComplete = true;
 
 	REFRESH = refresh;
+	LOGGING = logging;
 
 	//TODO: validate apiDir
 
@@ -124,8 +127,9 @@ exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
 	else {
 		return;
 	}
-
+console.log(REFRESH, LOGGING);
 	script = script.replace(INSERT_REFRESH, JSON.stringify(REFRESH));
+	script = script.replace(INSERT_LOGGING, JSON.stringify(LOGGING));
 	script = script.replace(INSERT_NAME   , JSON.stringify(apiName));
 	script = script.replace(INSERT_HOST   , JSON.stringify(apiHost));
 	script = script.replace(INSERT_DIR    , JSON.stringify(apiDir ));
