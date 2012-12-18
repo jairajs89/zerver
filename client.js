@@ -279,19 +279,31 @@
 	}
 
 	function setupLogging () {
-		var logLock = false,
-			onLog;
+		var logLock    = false,
+			queuedLogs = [];
 
 		setupSocket(pipeLogs);
 		setupLoggers();
 
+		function onLog (level, message) {
+			queuedLogs.push([level, message]);
+		}
+
 		function pipeLogs () {
-			onLog = function (level, message) {
-				apiSocket.emit('log', {
-					level   : level   ,
-					message : message
-				});
-			};
+			var logs   = queuedLogs.slice();
+			queuedLogs = null;
+			onLog      = pipeLog;
+
+			logs.forEach(function (data) {
+				pipeLog(data[0], data[1]);
+			});
+		}
+
+		function pipeLog (level, message) {
+			apiSocket.emit('log', {
+				level   : level   ,
+				message : message
+			});
 		}
 
 		function logMessage (level, message) {
