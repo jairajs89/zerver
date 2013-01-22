@@ -906,7 +906,7 @@ function generateZerverScript (apiRoot, host, query) {
 }
 
 function logRequest (handler, status) {
-	if (PRODUCTION) {
+	if (PRODUCTION && !VERBOSE) {
 		return;
 	}
 
