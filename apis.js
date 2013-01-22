@@ -1,7 +1,6 @@
 var fs = require('fs');
 
-var CHANGE_TIMEOUT   = 1000,
-	ROOT_DIR         = process.cwd(),
+var ROOT_DIR         = process.cwd(),
 	REFRESH          = false,
 	LOGGING          = false,
 	CLIENT_JS        = 'client.js',

@@ -20,6 +20,7 @@ var ROOT_DIR            = process.cwd(),
 		'text/cache-manifest'    : true
 	},
 	SLASH               = /\//g,
+	DEBUG_LINES         = /\s*\;\;\;.*/g,
 	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
 	MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g,
 	MANIFEST_FILE       = /\s*([^\s\#]+).*/g,
@@ -478,8 +479,8 @@ function compileOutput (type, data, callback) {
 	switch (type) {
 		case 'application/javascript':
 		case 'text/javascript':
+			data = data.replace(DEBUG_LINES, '');
 			try {
-				//TODO: remove debug lines (;;; debug_code())
 				var ast = uglify.parser.parse(data);
 				ast     = uglify.uglify.ast_mangle(ast);
 				ast     = uglify.uglify.ast_squeeze(ast);
