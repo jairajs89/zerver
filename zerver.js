@@ -686,7 +686,7 @@ function concatRequest (handler, pathname) {
 			}
 		}
 
-		file += data;
+		file += '\n' + data;
 	});
 
 	if (hasError) {
