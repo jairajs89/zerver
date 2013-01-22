@@ -127,7 +127,7 @@ exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
 	else {
 		return;
 	}
-console.log(REFRESH, LOGGING);
+
 	script = script.replace(INSERT_REFRESH, JSON.stringify(REFRESH));
 	script = script.replace(INSERT_LOGGING, JSON.stringify(LOGGING));
 	script = script.replace(INSERT_NAME   , JSON.stringify(apiName));
@@ -169,6 +169,7 @@ function setupAPIObj (api, obj, functions) {
 				break;
 
 			case 'object':
+				//TODO: what if array?
 				obj[key] = {};
 				functions[key] = {};
 				setupAPIObj(value, obj[key], functions[key]);

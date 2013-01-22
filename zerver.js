@@ -477,6 +477,7 @@ function compileOutput (type, data, callback) {
 		case 'application/javascript':
 		case 'text/javascript':
 			try {
+				//TODO: remove debug lines (;;; debug_code())
 				var ast = uglify.parser.parse(data);
 				ast     = uglify.uglify.ast_mangle(ast);
 				ast     = uglify.uglify.ast_squeeze(ast);
@@ -591,7 +592,7 @@ function respond500 (handler) {
 function pathRequest (handler, pathname) {
 	handler.type = 'file';
 
-	if (pathname.substr(0, 2) === '/.') {
+	if (pathname.indexOf('/.') !== -1) {
 		respond404(handler);
 		return;
 	}
@@ -608,9 +609,9 @@ function fileRequest (handler, fileName) {
 		}
 
 		if ( stats.isDirectory() ) {
-			if (fileName[fileName.length - 1] !== '/') {
+			if (handler.pathname[handler.pathname.length - 1] !== '/') {
 				respond(handler, 301, 'text/plain', '', {
-					'Location' : handler.pathname + (handler.query || '') + (handler.hash || '')
+					'Location' : handler.pathname + '/' + (handler.query || '') + (handler.hash || '')
 				});
 			}
 			else {
@@ -902,15 +903,15 @@ function logRequest (handler, status) {
 	}
 	console.log(logType + ' : ' + time + statusField + pathname);
 
-	if (agent) {
-		console.log('  ' + agent);
-	}
+	// if (agent) {
+	// 	console.log('  ' + agent);
+	// }
 
-	if (handler.referrer) {
-		console.log('  referrer=' + handler.referrer);
-	}
+	// if (handler.referrer) {
+	// 	console.log('  referrer=' + handler.referrer);
+	// }
 
-	console.log('');
+	// console.log('');
 }
 
 var parseQueryString = function () {
