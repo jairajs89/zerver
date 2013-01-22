@@ -655,7 +655,7 @@ function concatRequest (handler, pathname) {
 			return;
 		}
 
-		var urlPath = url.resolve(pathname, fileName);
+		var urlPath = url.resolve('/', fileName);
 
 		var urlParts;
 		try {
