@@ -13,6 +13,7 @@ var ZERVER         = __dirname + '/zerver',
 	REFRESH        = false,
 	LOGGING        = false,
 	PRODUCTION     = false,
+	VERBOSE        = false,
 	PORT           = process.env.PORT || 8888;
 	MANIFESTS	   = [];
 
@@ -47,6 +48,10 @@ function processFlags () {
 		DEBUG   = true;
 		REFRESH = true;
 		LOGGING = true;
+	});
+
+	flags.add(['b', 'verbose'], function () {
+		VERBOSE = true;
 	});
 
 	flags.add(['p', 'production'], function () {
@@ -92,7 +97,7 @@ function main () {
 	var death    = false,
 		apiDir   = CWD + '/' + API_DIR,
 		apiCheck = new RegExp('^' + CWD + '/' + API_DIR),
-		args     = [ PORT, API_DIR, (DEBUG ? '1' : '0'), (REFRESH ? '1' : '0'), (LOGGING ? '1' : '0'), MANIFESTS.join(','), (PRODUCTION ? '1' : '0')],
+		args     = [ PORT, API_DIR, (DEBUG ? '1' : '0'), (REFRESH ? '1' : '0'), (LOGGING ? '1' : '0'), (VERBOSE ? '1' : '0'), MANIFESTS.join(','), (PRODUCTION ? '1' : '0')],
 		opts     = { cwd : CWD },
 		child;
 

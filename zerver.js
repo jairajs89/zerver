@@ -40,6 +40,7 @@ var ROOT_DIR            = process.cwd(),
 	DEBUG,
 	REFRESH,
 	LOGGING,
+	VERBOSE,
 	PORT,
 	API_DIR,
 	API_URL,
@@ -60,8 +61,8 @@ exports.middleware = function (apiDir, apiURL) {
 	return handleMiddlewareRequest;
 };
 
-exports.run = function (port, apiDir, debug, refresh, logging, manifests, production) {
-	configureZerver(port, apiDir, apiDir, debug, refresh, logging, manifests, production);
+exports.run = function (port, apiDir, debug, refresh, logging, verbose, manifests, production) {
+	configureZerver(port, apiDir, apiDir, debug, refresh, logging, verbose, manifests, production);
 
 	app = http.createServer(handleRequest).listen(PORT);
 
@@ -95,7 +96,7 @@ exports.run = function (port, apiDir, debug, refresh, logging, manifests, produc
 	console.log('');
 };
 
-function configureZerver (port, apiDir, apiURL, debug, refresh, logging, manifests, production) {
+function configureZerver (port, apiDir, apiURL, debug, refresh, logging, verbose, manifests, production) {
 	PORT             = port;
 	API_DIR          = apiDir;
 	API_URL          = apiURL;
@@ -104,6 +105,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, logging, manifes
 	PRODUCTION       = production;
 	REFRESH          = refresh;
 	LOGGING          = logging;
+	VERBOSE          = verbose;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
 
@@ -903,15 +905,17 @@ function logRequest (handler, status) {
 	}
 	console.log(logType + ' : ' + time + statusField + pathname);
 
-	// if (agent) {
-	// 	console.log('  ' + agent);
-	// }
+	if (VERBOSE) {
+		if (agent) {
+			console.log('  ' + agent);
+		}
 
-	// if (handler.referrer) {
-	// 	console.log('  referrer=' + handler.referrer);
-	// }
+		if (handler.referrer) {
+			console.log('  referrer=' + handler.referrer);
+		}
 
-	// console.log('');
+		console.log('');
+	}
 }
 
 var parseQueryString = function () {
@@ -986,7 +990,7 @@ function setupAutoRefresh () {
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), process.argv[7], (process.argv[8]==='1'));
+	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), (process.argv[7]==='1'), process.argv[8], (process.argv[9]==='1'));
 
 	if (DEBUG && REFRESH) {
 		setupAutoRefresh();
