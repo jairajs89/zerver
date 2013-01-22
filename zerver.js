@@ -245,7 +245,7 @@ function handleRequest (request, response) {
 		handler  = {
 			request  : request                      ,
 			response : response                     ,
-			pathname : decodeURI(urlParts.pathname) ,
+			pathname : url.resolve('/', decodeURI(urlParts.pathname)) ,
 			query    : urlParts.search              ,
 			hash     : urlParts.hash                ,
 			referrer : request.headers['referrer'] || request.headers['referer'] ,
@@ -655,12 +655,35 @@ function concatRequest (handler, pathname) {
 			return;
 		}
 
+		var urlPath = url.resolve(pathname, fileName);
+
+		var urlParts;
 		try {
-			var data = fs.readFileSync( path.join(ROOT_DIR, fileName) );
+			urlParts = url.parse( urlPath.trim() );
 		}
-		catch (err) {
-			hasError = true;
-			return;
+		catch (err) {}
+
+		var match = urlParts && API_SCRIPT_MATCH.exec(urlParts.pathname);
+
+		if (match) {
+			var data = generateZerverScript(
+				match[1],
+				handler.request.headers.host,
+				urlParts.query
+			);
+			if ( !data ) {
+				hasError = true;
+				return;
+			}
+		}
+		else {
+			try {
+				var data = fs.readFileSync( path.join(ROOT_DIR, urlPath) );
+			}
+			catch (err) {
+				hasError = true;
+				return;
+			}
 		}
 
 		file += data;
@@ -852,18 +875,11 @@ function scriptRequest (handler, pathname) {
 		return;
 	}
 
-	var apiRoot = match[1],
-		apiName = apiRoot;
-
-	if (handler.query) {
-		var query = parseQueryString( handler.query.substr(1) );
-
-		if (query.name) {
-			apiName = query.name;
-		}
-	}
-
-	var file = apis.getScript(apiRoot, apiName, handler.request.headers.host, API_URL);
+	var file = generateZerverScript(
+		match[1],
+		handler.request.headers.host,
+		handler.query
+	);
 
 	if ( !file ) {
 		respond404(handler);
@@ -873,6 +889,20 @@ function scriptRequest (handler, pathname) {
 	respond(handler, 200, 'application/javascript', file, {
 		'Cache-Control' : CACHE_CONTROL
 	});
+}
+
+function generateZerverScript (apiRoot, host, query) {
+	var apiName = apiRoot;
+
+	if (query) {
+		var query = parseQueryString( query.substr(1) );
+
+		if (query.name) {
+			apiName = query.name;
+		}
+	}
+
+	return apis.getScript(apiRoot, apiName, host, API_URL);
 }
 
 function logRequest (handler, status) {
