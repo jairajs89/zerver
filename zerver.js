@@ -58,7 +58,7 @@ var memoryCache = {},
 /* Run server */
 
 exports.middleware = function (apiDir, apiURL) {
-	configureZerver(8888, apiDir, apiURL, false, false, '');
+	configureZerver(8888, apiDir, apiURL, false, false, false, false, '', false);
 	return handleMiddlewareRequest;
 };
 

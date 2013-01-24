@@ -133,16 +133,16 @@ function main () {
 			return;
 		}
 
-		if ( !apiCheck.test(fileName) ) {
-			child.send({ debugRefresh: true });
-			return;
-		}
-
 		var time   = new Date();
 		lastChange = time;
 
 		setTimeout(function () {
 			if (lastChange !== time) {
+				return;
+			}
+
+			if ( !apiCheck.test(fileName) ) {
+				child.send({ debugRefresh: true });
 				return;
 			}
 
