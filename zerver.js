@@ -170,7 +170,7 @@ function getMaxLastModifiedTime (file) {
 		stats = fs.statSync(file);
 	}
 	catch (err) {
-		console.error('unable to get last mod time for file ' + file);
+		// console.error('unable to get last mod time for file ' + file);
 		return;
 	}
 
@@ -183,7 +183,7 @@ function getMaxLastModifiedTime (file) {
 		dirListing = fs.readdirSync(file);
 	}
 	catch (err) {
-		console.error('unable to get last mod time for directory ' + file);
+		// console.error('unable to get last mod time for directory ' + file);
 		return;
 	}
 
@@ -196,7 +196,7 @@ function getMaxLastModifiedTime (file) {
 	});
 
 	if ( !maxModTime ) {
-		console.error('unable to get last mod time for directory ' + file);
+		// console.error('unable to get last mod time for directory ' + file);
 		return;
 	}
 
