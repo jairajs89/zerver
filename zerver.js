@@ -144,7 +144,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, logging, verbose
 		CACHE_CONTROL = 'no-cache';
 	}
 	else if (HAS_MANIFEST) {
-		CACHE_CONTROL = 'max-age=0';
+		CACHE_CONTROL = 'max-age='+(PRODUCTION?'300':'0');
 	}
 	else {
 		CACHE_CONTROL = 'max-age=14400';
