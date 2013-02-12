@@ -6,6 +6,7 @@ var path = require('path'),
 var ZERVER         = __dirname + '/zerver',
 	WATCHER        = __dirname + '/watcher',
 	PACKAGE        = __dirname + '/package.json',
+	ENV_MATCHER    = /(\w+)\=(\w+)/g,
 	API_DIR        = 'zerver',
 	CWD            = process.cwd(),
 	CHANGE_TIMEOUT = 1000,
@@ -14,12 +15,94 @@ var ZERVER         = __dirname + '/zerver',
 	LOGGING        = false,
 	PRODUCTION     = false,
 	VERBOSE        = false,
-	PORT           = process.env.PORT || 8888;
+	PORT           = process.env.PORT || 8888,
 	MANIFESTS	   = [];
 
 
 
 function processFlags () {
+	var envConfig = process.env.ZERVER;
+
+	if (envConfig) {
+		var m;
+		while (m = ENV_MATCHER.exec(envConfig)) {
+			switch ( m[1] ) {
+				case 'd':
+				case 'debug':
+					if (m[2] === 'true') {
+						DEBUG = true;
+					}
+					else if (m[2] === 'false') {
+						DEBUG = false;
+					}
+					else {
+						console.warn('[WARNING] ignoring invalid env debug=' + m[2]);
+					}
+					break;
+				case 'r':
+				case 'refresh':
+					if (m[2] === 'true') {
+						REFRESH = true;
+					}
+					else if (m[2] === 'false') {
+						REFRESH = false;
+					}
+					else {
+						console.warn('[WARNING] ignoring invalid env refresh=' + m[2]);
+					}
+					break;
+				case 'l':
+				case 'logging':
+					if (m[2] === 'true') {
+						LOGGING = true;
+					}
+					else if (m[2] === 'false') {
+						LOGGING = false;
+					}
+					else {
+						console.warn('[WARNING] ignoring invalid env logging=' + m[2]);
+					}
+					break;
+				case 'b':
+				case 'verbose':
+					if (m[2] === 'true') {
+						VERBOSE = true;
+					}
+					else if (m[2] === 'false') {
+						VERBOSE = false;
+					}
+					else {
+						console.warn('[WARNING] ignoring invalid env verbose=' + m[2]);
+					}
+					break;
+				case 'p':
+				case 'production':
+					if (m[2] === 'true') {
+						PRODUCTION = true;
+					}
+					else if (m[2] === 'false') {
+						PRODUCTION = false;
+					}
+					else {
+						console.warn('[WARNING] ignoring invalid env production=' + m[2]);
+					}
+					break;
+				case 'port':
+					var envPort = parseInt( m[2] );
+					if (envPort) {
+						PORT = envPort;
+					}
+					else {
+						console.warn('[WARNING] ignoring invalid env port=' + m[2]);
+					}
+					break;
+				default:
+					console.warn('[WARNING] ignoring invalid env '+m[1]+'='+m[2]);
+					break;
+			}
+		}
+	}
+
 	var flags = require(__dirname + '/flags');
 
 	flags.add(['v', 'version'], function () {
@@ -40,13 +123,10 @@ function processFlags () {
 	});
 
 	flags.add(['r', 'refresh'], function () {
-		DEBUG   = true;
 		REFRESH = true;
 	});
 
 	flags.add(['l', 'logging'], function () {
-		DEBUG   = true;
-		REFRESH = true;
 		LOGGING = true;
 	});
 
@@ -86,6 +166,14 @@ function processFlags () {
 		DEBUG   = false;
 		REFRESH = false;
 		LOGGING = false;
+	}
+	else {
+		if (LOGGING) {
+			REFRESH = true;
+		}
+		if (REFRESH) {
+			DEBUG = true;
+		}
 	}
 }
 
