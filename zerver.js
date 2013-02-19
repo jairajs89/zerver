@@ -723,7 +723,9 @@ function manifestRequest (handler, pathname) {
 
 				data += '\n# Zerver: updated at ' + lastModTimestamp + '\n';
 
-				respondBinary(handler, 200, 'text/cache-manifest', new Buffer(data), {});
+				respondBinary(handler, 200, 'text/cache-manifest', new Buffer(data), {
+					'Cache-Control' : 'private, max-age=0'
+				});
 			});
 		});
 	});
