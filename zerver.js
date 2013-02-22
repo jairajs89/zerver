@@ -67,6 +67,12 @@ exports.run = function (port, apiDir, debug, refresh, logging, verbose, manifest
 
 	app = http.createServer(handleRequest).listen(PORT);
 
+	app.on('error', function (err) {
+		console.error('zerver: server error');
+		console.error(err);
+		console.error(err.stack);
+	});
+
 	if (DEBUG) {
 		console.log('[debug mode]');
 	}
@@ -208,9 +214,7 @@ function relativePath (path1, path2) {
 		return path2;
 	}
 
-	var pathLength = path1.length;
-
-	if (path1[path1-1] !== '/') {
+	if (path1[path1.length-1] !== '/') {
 		return path.resolve(path1, '../'+path2);
 	}
 	else {
@@ -223,11 +227,13 @@ function prefetchManifestFile (pathname, callback) {
 
 	fs.stat(fileName, function (err, stats) {
 		if (err || !stats.isFile()) {
+			handleFailure('file not found');
 			return;
 		}
 
 		fs.readFile(fileName, 'utf8', function (err, data) {
 			if (err || !data) {
+				handleFailure('failed to read file');
 				return;
 			}
 
@@ -238,6 +244,15 @@ function prefetchManifestFile (pathname, callback) {
 			});
 		});
 	});
+
+	function handleFailure (msg) {
+		console.error('zerver: failed to load manifest, ' + pathname);
+		console.error('zerver: ' + msg);
+
+		if ( !DEBUG ) {
+			process.exit();
+		}
+	}
 }
 
 function handleRequest (request, response) {
@@ -255,14 +270,26 @@ function handleRequest (request, response) {
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
-	setRequestTimeout(response);
+	handleRequestErrors(request, response);
 
 	tryResponseFromCache(handler, pathname, isApiCall, dynamicResponse);
 }
 
-function setRequestTimeout (response) {
+function handleRequestErrors (request, response) {
 	var responseEnd = response.end,
 		timeout;
+
+	request.on('error', function (err) {
+		console.error('zerver: request error');
+		console.error(err);
+		console.error(err.stack);
+	});
+
+	response.on('error', function (err) {
+		console.error('zerver: response error');
+		console.error(err);
+		console.error(err.stack);
+	});
 
 	timeout = setTimeout(function () {
 		console.error('zerver: request timeout');
@@ -367,6 +394,8 @@ function prepareConcatFiles (type, data, pathname, callback) {
 }
 
 function prepareManifestConcatFiles (data, pathname, callback) {
+	validateManifest(data, pathname);
+
 	if (!CONCAT_FILES || DEBUG || (typeof data !== 'string')) {
 		callback(data);
 		return;
@@ -376,9 +405,11 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 		concatFile, concatIndex;
 
 	for (var i=0,l=lines.length; i<l; i++) {
+		lines[i] = lines[i].trim();
+
 		var urlParts;
 		try {
-			urlParts = url.parse(lines[i].trim(), true);
+			urlParts = url.parse(lines[i], true);
 		}
 		catch (err) {}
 
@@ -410,11 +441,93 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 
 			concatFile = null;
 		}
+		else if ( !lines[i] ) {
+			lines.splice(i, 1);
+			i--;
+			l--;
+		}
 	}
 
 	data = lines.join('\n');
 
 	callback(data);
+}
+
+function validateManifest (data, pathname) {
+	if (!data || typeof data !== 'string') {
+		return;
+	}
+
+	if (pathname[0] !== '/') {
+		pathname = '/' + pathname;
+	}
+
+	var lines     = data.split('\n'),
+		firstLine = lines.shift().trim(),
+		section   = 'CACHE:';
+
+	if (firstLine !== 'CACHE MANIFEST') {
+		handleFailure('missing "CACHE MANIFEST" header');
+		return;
+	}
+
+	lines.forEach(function (line) {
+		line = line.split('#')[0].trim();
+
+		if ( !line ) {
+			return;
+		}
+
+		switch (line) {
+			case 'CACHE:':
+			case 'NETWORK:':
+			case 'FALLBACK:':
+				section = line;
+				return;
+		}
+
+		if (section !== 'CACHE:') {
+			return;
+		}
+
+		var originalLine = line;
+
+		if (line.substr(0,2) === '//') {
+			line = 'http:' + line;
+		}
+
+		var urlParts;
+		try {
+			urlParts = url.parse(line);
+		}
+		catch (err) {
+			return;
+		}
+
+		if ( urlParts.host ) {
+			return;
+		}
+
+		var fileName = path.join(ROOT_DIR, relativePath(pathname, urlParts.pathname));
+
+		try {
+			if ( !fs.readFileSync(fileName) ) {
+				throw '';
+			}
+		}
+		catch (err) {
+			handleFailure('failed to load file, ' + originalLine);
+		}
+	});
+
+	function handleFailure (msg) {
+		console.error('zerver: invalid manifest, ' + pathname);
+		console.error('zerver: ' + msg);
+
+		if ( !DEBUG ) {
+			process.exit();
+		}
+	}
 }
 
 function inlineImages (type, data, pathname, callback) {
@@ -648,7 +761,8 @@ function concatRequest (handler, pathname) {
 
 	var filesLeft = files.length,
 		hasError  = false,
-		file      = '';
+		file      = '',
+		errorFile;
 
 	files.forEach(function (fileName) {
 		if (hasError) {
@@ -672,7 +786,8 @@ function concatRequest (handler, pathname) {
 				urlParts.query
 			);
 			if ( !data ) {
-				hasError = true;
+				hasError  = true;
+				errorFile = fileName;
 				return;
 			}
 		}
@@ -681,7 +796,8 @@ function concatRequest (handler, pathname) {
 				var data = fs.readFileSync( path.join(ROOT_DIR, urlPath) );
 			}
 			catch (err) {
-				hasError = true;
+				hasError  = true;
+				errorFile = fileName;
 				return;
 			}
 		}
@@ -690,7 +806,14 @@ function concatRequest (handler, pathname) {
 	});
 
 	if (hasError) {
-		respond404(handler);
+		console.error('zerver: failed to load concat file, ' + pathname);
+		console.error('zerver: could not load file, ' + errorFile);
+		if ( !DEBUG ) {
+			process.exit();
+		}
+		else {
+			respond404(handler);
+		}
 	}
 	else {
 		respondBinary(handler, 200, mime.lookup(pathname), file, {
