@@ -508,7 +508,13 @@ function validateManifest (data, pathname) {
 			return;
 		}
 
-		var fileName = path.join(ROOT_DIR, relativePath(pathname, urlParts.pathname));
+		var linePath = relativePath(pathname, urlParts.pathname);
+
+		if ( API_SCRIPT_MATCH.test(linePath) ) {
+			return;
+		}
+
+		var fileName = path.join(ROOT_DIR, linePath);
 
 		try {
 			if ( !fs.readFileSync(fileName) ) {
