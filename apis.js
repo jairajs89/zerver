@@ -164,14 +164,20 @@ function setupAPIObj (api, obj, functions) {
 
 		switch (typeof value) {
 			case 'function':
-				functions[key] = true;
+				if ((typeof value.type !== 'string') || (value.type.toLowerCase() !== 'get')) {
+					functions[key] = true;
+				}
 				break;
 
 			case 'object':
-				//TODO: what if array?
-				obj[key] = {};
-				functions[key] = {};
-				setupAPIObj(value, obj[key], functions[key]);
+				if ( Array.isArray(value) ) {
+					obj[key] = value;
+				}
+				else {
+					obj[key] = {};
+					functions[key] = {};
+					setupAPIObj(value, obj[key], functions[key]);
+				}
 				break;
 
 			default:

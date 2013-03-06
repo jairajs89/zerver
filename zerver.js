@@ -1032,6 +1032,11 @@ function getRequest (handler, api) {
 		lock = true;
 
 		switch (typeof status) {
+			case 'undefined':
+				data    = '';
+				headers = {};
+				status  = 200;
+				break;
 			case 'string':
 				data    = status;
 				headers = {};
