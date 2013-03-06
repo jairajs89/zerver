@@ -270,13 +270,15 @@ function handleRequest (request, response) {
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
-	handleRequestErrors(request, response);
+	handleRequestErrors(handler);
 
 	tryResponseFromCache(handler, pathname, isApiCall, dynamicResponse);
 }
 
-function handleRequestErrors (request, response) {
-	var responseEnd = response.end,
+function handleRequestErrors (handler) {
+	var request     = handler.request,
+		response    = handler.response,
+		responseEnd = response.end,
 		timeout;
 
 	request.on('error', function (err) {
@@ -293,7 +295,9 @@ function handleRequestErrors (request, response) {
 
 	timeout = setTimeout(function () {
 		console.error('zerver: request timeout');
+		response.statusCode = 500;
 		response.end('');
+		logRequest(handler, 500);
 	}, REQUEST_TIMEOUT);
 
 	response.end = function () {
@@ -705,6 +709,12 @@ function respond404 (handler) {
 	respond(handler, 404, 'text/plain', '404\n', {});
 }
 
+function respond405 (handler) {
+	respond(handler, 405, 'text/plain', '405\n', {
+		'Cache-Control' : 'no-cache'
+	});
+}
+
 function respond500 (handler) {
 	respond(handler, 500, 'text/plain', '500\n', {
 		'Cache-Control' : 'no-cache'
@@ -863,7 +873,7 @@ function manifestRequest (handler, pathname) {
 function APIRequest (handler, pathname) {
 	handler.type = 'api';
 
-	var pathname = pathname.substr(API_URL_LENGTH + 1);
+	pathname = pathname.substr(API_URL_LENGTH + 1);
 
 	if (pathname === '/') {
 		APISchemeRequest(handler);
@@ -896,8 +906,18 @@ function APIRequest (handler, pathname) {
 		return;
 	}
 
-	if (handler.request.method !== 'POST') {
-		respond500(handler);
+	var apiMethod = 'POST';
+	if ((typeof api.type === 'string') && (api.type.toLowerCase() === 'get')) {
+		apiMethod = 'GET';
+	}
+
+	if (handler.request.method !== apiMethod) {
+		respond405(handler);
+		return;
+	}
+
+	if (apiMethod === 'GET') {
+		getRequest(handler, api);
 		return;
 	}
 
@@ -982,6 +1002,75 @@ function APIRequest (handler, pathname) {
 			console.error(err);
 			respond500(handler);
 		}
+	}
+}
+
+function getRequest (handler, api) {
+	var params = {};
+
+	try {
+		params = url.parse(handler.query, true).query;
+	}
+	catch (err) {}
+
+	var lock = false;
+
+	try {
+		api.call(handler, params, callback);
+	}
+	catch (err) {
+		if ( !lock ) {
+			respond500(handler);
+		}
+	}
+
+	function callback (status, headers, data) {
+		if (lock) {
+			console.error('api callback, called multiple times');
+			return;
+		}
+		lock = true;
+
+		switch (typeof status) {
+			case 'string':
+				data    = status;
+				headers = {};
+				status  = 200;
+				break;
+			case 'object':
+				data    = headers || '';
+				headers = status;
+				status  = 200;
+				break;
+			case 'number':
+				if (typeof headers === 'string') {
+					data    = headers;
+					headers = {};
+				}
+				else {
+					headers = headers || {};
+					data    = data    || '';
+				}
+				break;
+		}
+
+		if (typeof status !== 'number') {
+			console.error('api callback, invalid status ' + status);
+			respond500(handler);
+			return;
+		}
+		if (typeof headers !== 'object') {
+			console.error('api callback, invalid headers ' + headers);
+			respond500(handler);
+			return;
+		}
+		if (typeof data !== 'string') {
+			console.error('api callback, invalid data ' + data);
+			respond500(handler);
+			return;
+		}
+
+		finishResponse(handler, status, headers, data, false, true);
 	}
 }
 
