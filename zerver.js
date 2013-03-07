@@ -1252,6 +1252,7 @@ function setupAutoRefresh () {
 				else {
 					console.warn('(no browsers available)');
 				}
+				process.send({ prompt: true });
 			}
 		});
 	}

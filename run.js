@@ -191,12 +191,20 @@ function setupCLI (processCommand) {
 	rl.setPrompt('');
 
 	process.stdin.on('keypress', function (s, key) {
-		if (rlEnabled || !key || (key.name !== 'tab')) {
+		if ( !key ) {
 			return;
 		}
-		rlEnabled = true;
-		rl.setPrompt('>>> ');
-		rl.prompt();
+
+		if (rlEnabled && key.name === 'escape') {
+			rlEnabled = false;
+			rl.setPrompt('');
+			rl.prompt();
+		}
+		else if (!rlEnabled && key.name === 'tab') {
+			rlEnabled = true;
+			rl.setPrompt('>>> ');
+			rl.prompt();
+		}
 	});
 
 	rl.on('line', function (line) {
@@ -205,8 +213,6 @@ function setupCLI (processCommand) {
 		}
 
 		processCommand(line);
-		rlEnabled = false;
-		rl.setPrompt('');
 	});
 
 	rl.on('close', function() {
@@ -215,6 +221,8 @@ function setupCLI (processCommand) {
 		}
 		process.exit(0);
 	});
+
+	return rl;
 }
 
 
@@ -227,7 +235,7 @@ function main () {
 		apiCheck = new RegExp('^' + CWD + '/' + API_DIR),
 		args     = [ PORT, API_DIR, (DEBUG ? '1' : '0'), (REFRESH ? '1' : '0'), (LOGGING ? '1' : '0'), (VERBOSE ? '1' : '0'), MANIFESTS.join(','), (PRODUCTION ? '1' : '0'), (API_HOST || '')],
 		opts     = { cwd : CWD },
-		child;
+		child, cli;
 
 	function runServer (noRestart) {
 		child = fork(ZERVER, args, opts);
@@ -237,6 +245,14 @@ function main () {
 				noRestart ? process.exit() : runServer();
 			}
 		});
+
+		if (LOGGING) {
+			child.on('message', function (data) {
+				if (data && data.prompt && cli) {
+					cli.prompt();
+				}
+			});
+		}
 	}
 
 	process.on('exit', function () {
@@ -254,7 +270,7 @@ function main () {
 	}
 
 	if (LOGGING) {
-		setupCLI(function (line) {
+		cli = setupCLI(function (line) {
 			if (child) {
 				try {
 					child.send({ cli : line });
