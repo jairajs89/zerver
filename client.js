@@ -290,24 +290,39 @@
 
 		function setupCLI () {
 			apiSocket.on('eval', function (line, callback) {
-				var val, error;
-                try {
-                    val = new Function('return ' + line)();
-                }
-                catch (err) {
-                    error = err+'';
-                }
-				if (typeof val !== 'undefined') {
-					try {
-						val = JSON.stringify(val);
+				var success, val, error;
+				try {
+					val     = new Function('return ' + line)();
+					success = true;
+					error   = undefined;
+				}
+				catch (err) {
+					val     = undefined;
+					success = false;
+					error   = err + '';
+				}
+
+				var type, jsonVal;
+				if (success) {
+					if ((val !== null) && (typeof val === 'object')) {
+						try {
+							jsonVal = JSON.stringify(val);
+							if (typeof jsonVal === 'string') {
+								type = 'json';
+							}
+						}
+						catch (err) {}
 					}
-					catch (err) {
-						val = val + '';
+					if ( !type ) {
+						jsonVal = val + '';
+						type    = 'string';
 					}
 				}
+
 				callback({
-					output : JSON.stringify(val) ,
-					error  : error
+					error  : error   ,
+					output : jsonVal ,
+					type   : type
 				});
 			});
 		}

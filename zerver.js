@@ -1240,10 +1240,18 @@ function setupAutoRefresh () {
 				var socket = getSingleSocket();
 				if (socket) {
 					socket.emit('eval', data.cli, function (data) {
-						if (data.output) {
+						if (data.type === 'string') {
 							console.log(data.output);
 						}
-						else if (data.error) {
+						else if (data.type === 'json') {
+							try {
+								console.log( JSON.parse(data.output) );
+							}
+							catch (err) {
+								console.error('(zerver cli error)');
+							}
+						}
+						else {
 							console.error(data.error);
 						}
 						process.send({ prompt: true });
