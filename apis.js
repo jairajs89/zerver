@@ -12,7 +12,8 @@ var ROOT_DIR         = process.cwd(),
 	INSERT_APIS      = '{{__API_APIS__}}',
 	INSERT_ROOT      = '{{__API_ROOT__}}',
 	INSERT_API       = '{{__API_OBJ__}}',
-	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
+	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}',
+	API_HOST;
 
 var setupComplete  = false,
 	scriptTemplate = fs.readFileSync(__dirname + '/' + CLIENT_JS) + '',
@@ -24,14 +25,15 @@ var setupComplete  = false,
 
 
 
-exports.setup = function (apiDir, refresh, logging) {
+exports.setup = function (apiHost, apiDir, refresh, logging) {
 	if (setupComplete) {
 		throw Error('apis can be setup only once');
 	}
 	setupComplete = true;
 
-	REFRESH = refresh;
-	LOGGING = logging;
+	REFRESH  = refresh;
+	LOGGING  = logging;
+	API_HOST = apiHost;
 
 	//TODO: validate apiDir
 
@@ -110,7 +112,7 @@ exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
 		isRefresh = (apiRoot === 'refresh'),
 		isAPI     = (apiRoot in apiScripts);
 
-	apiHost = apiHost || 'localhost:8888';
+	apiHost = API_HOST || apiHost || 'localhost:8888';
 
 	var script;
 

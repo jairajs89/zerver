@@ -46,6 +46,7 @@ var ROOT_DIR            = process.cwd(),
 	API_DIR,
 	API_URL,
 	API_URL_LENGTH,
+	API_HOST,
 	API_SCRIPT_MATCH;
 
 var memoryCache = {},
@@ -57,13 +58,13 @@ var memoryCache = {},
 
 /* Run server */
 
-exports.middleware = function (apiDir, apiURL) {
-	configureZerver(8888, apiDir, apiURL, false, false, false, false, '', false);
+exports.middleware = function (apiDir, apiURL, apiHost) {
+	configureZerver(8888, apiDir, apiURL, apiHost, false, false, false, false, '', false);
 	return handleMiddlewareRequest;
 };
 
-exports.run = function (port, apiDir, debug, refresh, logging, verbose, manifests, production) {
-	configureZerver(port, apiDir, apiDir, debug, refresh, logging, verbose, manifests, production);
+exports.run = function (port, apiDir, debug, refresh, logging, verbose, manifests, production, apiHost) {
+	configureZerver(port, apiDir, apiDir, apiHost, debug, refresh, logging, verbose, manifests, production);
 
 	app = http.createServer(handleRequest).listen(PORT);
 
@@ -103,11 +104,12 @@ exports.run = function (port, apiDir, debug, refresh, logging, verbose, manifest
 	console.log('');
 };
 
-function configureZerver (port, apiDir, apiURL, debug, refresh, logging, verbose, manifests, production) {
+function configureZerver (port, apiDir, apiURL, apiHost, debug, refresh, logging, verbose, manifests, production) {
 	PORT             = port;
 	API_DIR          = apiDir;
 	API_URL          = apiURL;
 	API_URL_LENGTH   = apiURL.length;
+	API_HOST         = apiHost;
 	DEBUG            = debug;
 	PRODUCTION       = production;
 	REFRESH          = refresh;
@@ -163,7 +165,7 @@ function configureZerver (port, apiDir, apiURL, debug, refresh, logging, verbose
 
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
-	apis.setup(API_DIR, REFRESH, LOGGING);
+	apis.setup(API_HOST, API_DIR, REFRESH, LOGGING);
 }
 
 function updateLastModifiedTime () {
@@ -256,12 +258,13 @@ function prefetchManifestFile (pathname, callback) {
 }
 
 function handleRequest (request, response) {
-	var urlParts = url.parse(request.url),
+	var urlParts = url.parse(request.url, true),
 		handler  = {
 			request  : request                      ,
 			response : response                     ,
 			pathname : url.resolve('/', decodeURI(urlParts.pathname)) ,
 			query    : urlParts.search              ,
+			params   : urlParts.query               ,
 			hash     : urlParts.hash                ,
 			referrer : request.headers['referrer'] || request.headers['referer'] ,
 			time     : process.hrtime()             ,
@@ -1006,17 +1009,10 @@ function APIRequest (handler, pathname) {
 }
 
 function getRequest (handler, api) {
-	var params = {};
-
-	try {
-		params = url.parse(handler.query, true).query;
-	}
-	catch (err) {}
-
 	var lock = false;
 
 	try {
-		api.call(handler, params, callback);
+		api.call(handler, handler.params, callback);
 	}
 	catch (err) {
 		if ( !lock ) {
@@ -1246,7 +1242,7 @@ function setupAutoRefresh () {
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), (process.argv[7]==='1'), process.argv[8], (process.argv[9]==='1'));
+	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), (process.argv[7]==='1'), process.argv[8], (process.argv[9]==='1'), (process.argv[10]||undefined));
 
 	if (DEBUG && REFRESH) {
 		setupAutoRefresh();

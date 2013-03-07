@@ -6,7 +6,7 @@ var path = require('path'),
 var ZERVER         = __dirname + '/zerver',
 	WATCHER        = __dirname + '/watcher',
 	PACKAGE        = __dirname + '/package.json',
-	ENV_MATCHER    = /(\w+)\=(\w+)/g,
+	ENV_MATCHER    = /([^\,]+)\=([^\,]+)/g,
 	API_DIR        = 'zerver',
 	CWD            = process.cwd(),
 	CHANGE_TIMEOUT = 1000,
@@ -16,7 +16,8 @@ var ZERVER         = __dirname + '/zerver',
 	PRODUCTION     = false,
 	VERBOSE        = false,
 	PORT           = process.env.PORT || 8888,
-	MANIFESTS	   = [];
+	MANIFESTS	   = [],
+	API_HOST;
 
 
 
@@ -96,6 +97,9 @@ function processFlags () {
 						console.warn('[WARNING] ignoring invalid env port=' + m[2]);
 					}
 					break;
+				case 'host':
+					API_HOST = m[2];
+					break;
 				default:
 					console.warn('[WARNING] ignoring invalid env '+m[1]+'='+m[2]);
 					break;
@@ -148,6 +152,10 @@ function processFlags () {
 		PORT = port;
 	});
 
+	flags.add('host', function (host) {
+		API_HOST = host;
+	});
+
 	flags.add('zerver-dir', function (dir) {
 		API_DIR = dir;
 	});
@@ -185,7 +193,7 @@ function main () {
 	var death    = false,
 		apiDir   = CWD + '/' + API_DIR,
 		apiCheck = new RegExp('^' + CWD + '/' + API_DIR),
-		args     = [ PORT, API_DIR, (DEBUG ? '1' : '0'), (REFRESH ? '1' : '0'), (LOGGING ? '1' : '0'), (VERBOSE ? '1' : '0'), MANIFESTS.join(','), (PRODUCTION ? '1' : '0')],
+		args     = [ PORT, API_DIR, (DEBUG ? '1' : '0'), (REFRESH ? '1' : '0'), (LOGGING ? '1' : '0'), (VERBOSE ? '1' : '0'), MANIFESTS.join(','), (PRODUCTION ? '1' : '0'), (API_HOST || '')],
 		opts     = { cwd : CWD },
 		child;
 
