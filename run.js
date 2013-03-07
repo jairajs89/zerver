@@ -175,13 +175,9 @@ function processFlags () {
 		REFRESH = false;
 		LOGGING = false;
 	}
-	else {
-		if (LOGGING) {
-			REFRESH = true;
-		}
-		if (REFRESH) {
-			DEBUG = true;
-		}
+	else if (DEBUG || REFRESH || LOGGING) {
+		DEBUG      = true;
+		PRODUCTION = false;
 	}
 }
 

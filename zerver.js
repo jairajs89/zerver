@@ -118,10 +118,7 @@ function configureZerver (port, apiDir, apiURL, apiHost, debug, refresh, logging
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
 
-	if (LOGGING) {
-		REFRESH = true;
-	}
-	if (REFRESH) {
+	if (REFRESH || LOGGING) {
 		DEBUG = true;
 	}
 
@@ -1217,24 +1214,28 @@ function addCORSHeaders (headers, methods, host) {
 
 
 function setupAutoRefresh () {
-	if ( !app ) {
+	if (!app || !DEBUG || (!REFRESH && !LOGGING)) {
 		return;
 	}
 
 	var io      = require('socket.io').listen(app, { log: false }),
 		sockets = io.of('/'+API_URL+'/_refresh');
 
-	process.on('message', function (data) {
-		if (data && data.debugRefresh) {
-			sockets.emit('refresh');
-		}
-	});
-
-	sockets.on('connection', function (socket) {
-		socket.on('log', function (data) {
-			console.log(data.level + ': ' + data.message);
+	if (REFRESH) {
+		process.on('message', function (data) {
+			if (data && data.debugRefresh) {
+				sockets.emit('refresh');
+			}
 		});
-	});
+	}
+
+	if (LOGGING) {
+		sockets.on('connection', function (socket) {
+			socket.on('log', function (data) {
+				console.log(data.level + ': ' + data.message);
+			});
+		});
+	}
 }
 
 
@@ -1243,8 +1244,5 @@ function setupAutoRefresh () {
 
 if (require.main === module) {
 	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), (process.argv[7]==='1'), process.argv[8], (process.argv[9]==='1'), (process.argv[10]||undefined));
-
-	if (DEBUG && REFRESH) {
-		setupAutoRefresh();
-	}
+	setupAutoRefresh();
 }
