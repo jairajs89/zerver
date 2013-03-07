@@ -1234,25 +1234,25 @@ function setupAutoRefresh () {
 			socket.on('log', function (data) {
 				console.log(data.level + ': ' + data.message);
 			});
-			socket.on('eval', function (data) {
-				if (data.output) {
-					console.log(data.output);
-				}
-				else if (data.error) {
-					console.error(data.error);
-				}
-			});
 		});
 		process.on('message', function (data) {
 			if (data && data.cli) {
 				var socket = getSingleSocket();
 				if (socket) {
-					socket.emit('eval', data.cli);
+					socket.emit('eval', data.cli, function (data) {
+						if (data.output) {
+							console.log(data.output);
+						}
+						else if (data.error) {
+							console.error(data.error);
+						}
+						process.send({ prompt: true });
+					});
 				}
 				else {
 					console.warn('(no browsers available)');
+					process.send({ prompt: true });
 				}
-				process.send({ prompt: true });
 			}
 		});
 	}

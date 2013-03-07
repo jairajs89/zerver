@@ -212,6 +212,11 @@ function setupCLI (processCommand) {
 			return;
 		}
 
+		if ( !line ) {
+			rl.prompt();
+			return;
+		}
+
 		processCommand(line);
 	});
 

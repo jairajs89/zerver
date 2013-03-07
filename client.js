@@ -289,17 +289,25 @@
 		setupLoggers();
 
 		function setupCLI () {
-			apiSocket.on('eval', function (line) {
+			apiSocket.on('eval', function (line, callback) {
 				var val, error;
                 try {
                     val = new Function('return ' + line)();
                 }
                 catch (err) {
-                    error = err;
+                    error = err+'';
                 }
-				apiSocket.emit('eval', {
+				if (typeof val !== 'undefined') {
+					try {
+						val = JSON.stringify(val);
+					}
+					catch (err) {
+						val = val + '';
+					}
+				}
+				callback({
 					output : JSON.stringify(val) ,
-					error  : error && ((error.stack||error)+'')
+					error  : error
 				});
 			});
 		}
