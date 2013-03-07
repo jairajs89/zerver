@@ -183,6 +183,42 @@ function processFlags () {
 
 
 
+function setupCLI (processCommand) {
+	var readline  = require('readline'),
+		rlEnabled = false;
+		rl        = readline.createInterface(process.stdin, process.stdout);
+
+	rl.setPrompt('');
+
+	process.stdin.on('keypress', function (s, key) {
+		if (rlEnabled || !key || (key.name !== 'tab')) {
+			return;
+		}
+		rlEnabled = true;
+		rl.setPrompt('>>> ');
+		rl.prompt();
+	});
+
+	rl.on('line', function (line) {
+		if ( !rlEnabled ) {
+			return;
+		}
+
+		processCommand(line);
+		rlEnabled = false;
+		rl.setPrompt('');
+	});
+
+	rl.on('close', function() {
+		if (rlEnabled) {
+			console.log('');
+		}
+		process.exit(0);
+	});
+}
+
+
+
 function main () {
 	processFlags();
 
@@ -215,6 +251,17 @@ function main () {
 	if ( !DEBUG ) {
 		runServer(true);
 		return;
+	}
+
+	if (LOGGING) {
+		setupCLI(function (line) {
+			if (child) {
+				try {
+					child.send({ cli : line });
+				}
+				catch (err) {}
+			}
+		});
 	}
 
 	var watcher    = require(WATCHER),

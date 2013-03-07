@@ -1234,7 +1234,34 @@ function setupAutoRefresh () {
 			socket.on('log', function (data) {
 				console.log(data.level + ': ' + data.message);
 			});
+			socket.on('eval', function (data) {
+				if (data.output) {
+					console.log(data.output);
+				}
+				else if (data.error) {
+					console.error(data.error);
+				}
+			});
 		});
+		process.on('message', function (data) {
+			if (data && data.cli) {
+				var socket = getSingleSocket();
+				if (socket) {
+					socket.emit('eval', data.cli);
+				}
+				else {
+					console.warn('(no browsers available)');
+				}
+			}
+		});
+	}
+
+	function getSingleSocket () {
+		for (var id in sockets.sockets) {
+			if ( !sockets.sockets[id].disconnected ) {
+				return sockets.sockets[id];
+			}
+		}
 	}
 }
 

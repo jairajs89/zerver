@@ -282,8 +282,27 @@
 		var logLock    = false,
 			queuedLogs = [];
 
-		setupSocket(pipeLogs);
+		setupSocket(function () {
+			pipeLogs();
+			setupCLI();
+		});
 		setupLoggers();
+
+		function setupCLI () {
+			apiSocket.on('eval', function (line) {
+				var val, error;
+                try {
+                    val = new Function('return ' + line)();
+                }
+                catch (err) {
+                    error = err;
+                }
+				apiSocket.emit('eval', {
+					output : JSON.stringify(val) ,
+					error  : error && ((error.stack||error)+'')
+				});
+			});
+		}
 
 		function onLog (level, message) {
 			queuedLogs.push([level, message]);
