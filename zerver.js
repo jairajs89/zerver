@@ -149,10 +149,10 @@ function configureZerver (port, apiDir, apiURL, apiHost, debug, refresh, logging
 		CACHE_CONTROL = 'no-cache';
 	}
 	else if (HAS_MANIFEST) {
-		CACHE_CONTROL = 'max-age=300';
+		CACHE_CONTROL = 'public, max-age=300';
 	}
 	else {
-		CACHE_CONTROL = 'max-age=14400';
+		CACHE_CONTROL = 'public, max-age=14400';
 	}
 
 	fetchAPIs();
