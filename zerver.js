@@ -1012,6 +1012,7 @@ function getRequest (handler, api) {
 		api.call(handler, handler.params, callback);
 	}
 	catch (err) {
+		console.error(err);
 		if ( !lock ) {
 			respond500(handler);
 		}
@@ -1023,6 +1024,25 @@ function getRequest (handler, api) {
 			return;
 		}
 		lock = true;
+
+		var isBinary = false,
+			buffer;
+
+		if ( Buffer.isBuffer(status) ) {
+			buffer   = status;
+			status   = 'buffer';
+			isBinary = true;
+		}
+		else if ( Buffer.isBuffer(headers) ) {
+			buffer   = headers;
+			headers  = 'buffer';
+			isBinary = true;
+		}
+		else if ( Buffer.isBuffer(data) ) {
+			buffer   = data;
+			data     = 'buffer';
+			isBinary = true;
+		}
 
 		switch (typeof status) {
 			case 'undefined':
@@ -1068,7 +1088,11 @@ function getRequest (handler, api) {
 			return;
 		}
 
-		finishResponse(handler, status, headers, data, false, true);
+		if (isBinary) {
+			data = buffer;
+		}
+
+		finishResponse(handler, status, headers, data, isBinary, true);
 	}
 }
 
