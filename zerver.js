@@ -1,6 +1,7 @@
 /* Imports and static vars */
 
 var cleanCSS = require('clean-css'),
+	less     = require('less'),
 	fs       = require('fs'  ),
 	http     = require('http'),
 	mime     = require('mime'),
@@ -28,6 +29,7 @@ var ROOT_DIR            = process.cwd(),
 	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
 	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g,
 	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g,
+	IS_LESS             = /^.*\.less$/,
 	REQUEST_TIMEOUT     = 25 * 1000,
 	CONCAT_FILES        = false,
 	GZIP_ENABLED        = false,
@@ -541,7 +543,7 @@ function validateManifest (data, pathname) {
 }
 
 function inlineImages (type, data, pathname, callback) {
-	if (!INLINING_ENABLED || DEBUG || (type !== 'text/css') || (typeof data !== 'string')) {
+	if (!INLINING_ENABLED || DEBUG || ((type !== 'text/css') && (type !== 'text/less')) || (typeof data !== 'string')) {
 		callback(data);
 		return;
 	}
@@ -582,7 +584,7 @@ function inlineImages (type, data, pathname, callback) {
 		}
 
 
-		var mimeType = mime.lookup(fileName),
+		var mimeType = lookupMime(fileName),
 			dataURL  = 'data:'+mimeType+';base64,'+fileData;
 
 		return 'url(' + dataURL + ')';
@@ -592,35 +594,53 @@ function inlineImages (type, data, pathname, callback) {
 }
 
 function compileOutput (type, data, callback) {
-	if (!COMPILATION_ENABLED || DEBUG) {
-		callback(data);
+	compileLess(type, data, function (type, data) {
+		if (!COMPILATION_ENABLED || DEBUG) {
+			callback(type, data);
+			return;
+		}
+
+		var code;
+
+		switch (type) {
+			case 'application/javascript':
+			case 'text/javascript':
+				data = data.replace(DEBUG_LINES, '');
+				try {
+					var ast = uglify.parser.parse(data);
+					ast     = uglify.uglify.ast_mangle(ast);
+					ast     = uglify.uglify.ast_squeeze(ast);
+					code    = uglify.uglify.gen_code(ast);
+				}
+				catch (err) {}
+				break;
+
+			case 'text/css':
+				try {
+					code = cleanCSS.process(data);
+				}
+				catch (err) {}
+				break;
+		}
+
+		callback(type, code || data);
+	});
+}
+
+function compileLess (type, data, callback) {
+	if (type !== 'text/less') {
+		callback(type, data);
 		return;
 	}
 
-	var code;
-
-	switch (type) {
-		case 'application/javascript':
-		case 'text/javascript':
-			data = data.replace(DEBUG_LINES, '');
-			try {
-				var ast = uglify.parser.parse(data);
-				ast     = uglify.uglify.ast_mangle(ast);
-				ast     = uglify.uglify.ast_squeeze(ast);
-				code    = uglify.uglify.gen_code(ast);
-			}
-			catch (err) {}
-			break;
-
-		case 'text/css':
-			try {
-				code = cleanCSS.process(data);
-			}
-			catch (err) {}
-			break;
-	}
-
-	callback(code || data);
+	less.render(data, function(err, css) {
+		if (err) {
+			callback(type, data);
+		}
+		else {
+			callback('text/css', css);
+		}
+	});
 }
 
 function setupGZipOutput (type, data, headers, callback) {
@@ -692,12 +712,11 @@ function respond (handler, status, type, data, headers) {
 }
 
 function respondBinary (handler, status, type, data, headers) {
-	headers['Content-Type'] = type;
-
 	prepareConcatFiles(type, data, handler.pathname, function (data) {
 		inlineImages(type, data, handler.pathname, function (data) {
-			compileOutput(type, data, function (data) {
+			compileOutput(type, data, function (type, data) {
 				setupGZipOutput(type, data, headers, function (data, headers) {
+					headers['Content-Type'] = type;
 					finishResponse(handler, status, headers, data, true);
 				});
 			});
@@ -758,7 +777,7 @@ function fileRequest (handler, fileName) {
 				return;
 			}
 
-			respondBinary(handler, 200, mime.lookup(fileName), file, {
+			respondBinary(handler, 200, lookupMime(fileName), file, {
 				'Cache-Control' : CACHE_CONTROL
 			});
 		});
@@ -832,7 +851,7 @@ function concatRequest (handler, pathname) {
 		}
 	}
 	else {
-		respondBinary(handler, 200, mime.lookup(pathname), file, {
+		respondBinary(handler, 200, lookupMime(pathname), file, {
 			'Cache-Control' : CACHE_CONTROL
 		});
 	}
@@ -1233,6 +1252,15 @@ function addCORSHeaders (headers, methods, host) {
 	}
 
 	return headers;
+}
+
+function lookupMime (fileName) {
+	if ( IS_LESS.test(fileName) ) {
+		return 'text/less';
+	}
+	else {
+		return mime.lookup(fileName);
+	}
 }
 
 
