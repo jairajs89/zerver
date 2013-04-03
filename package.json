@@ -2,7 +2,7 @@
   "author": "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name": "zerver",
   "description": "client-integrated webapp server",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "repository": {
     "type": "git",
     "url": "git://github.com/jairajs89/zerver.git"
@@ -14,7 +14,6 @@
   "dependencies": {
     "mime"       : "1.2.7"  ,
     "uglify-js"  : "1.3.4"  ,
-    "clean-css"  : "0.8.3"  ,
     "less"       : "1.3.3"  ,
     "stalker"    : "0.0.20" ,
     "findit"     : "0.1.2"  ,

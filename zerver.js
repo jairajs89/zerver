@@ -1,14 +1,13 @@
 /* Imports and static vars */
 
-var cleanCSS = require('clean-css'),
-	less     = require('less'),
-	fs       = require('fs'  ),
-	http     = require('http'),
-	mime     = require('mime'),
-	path     = require('path'),
-	uglify   = require('uglify-js'),
-	url      = require('url' ),
-	zlib     = require('zlib');
+var less   = require('less'),
+	fs     = require('fs'  ),
+	http   = require('http'),
+	mime   = require('mime'),
+	path   = require('path'),
+	uglify = require('uglify-js'),
+	url    = require('url' ),
+	zlib   = require('zlib');
 
 var ROOT_DIR            = process.cwd(),
 	GZIPPABLE           = {
@@ -602,8 +601,6 @@ function compileOutput (type, data, callback) {
 			return;
 		}
 
-		var code;
-
 		switch (type) {
 			case 'application/javascript':
 			case 'text/javascript':
@@ -612,20 +609,25 @@ function compileOutput (type, data, callback) {
 					var ast = uglify.parser.parse(data);
 					ast     = uglify.uglify.ast_mangle(ast);
 					ast     = uglify.uglify.ast_squeeze(ast);
-					code    = uglify.uglify.gen_code(ast);
+					data    = uglify.uglify.gen_code(ast);
 				}
 				catch (err) {}
+				callback(type, data);
 				break;
 
 			case 'text/css':
-				try {
-					code = cleanCSS.process(data);
-				}
-				catch (err) {}
+				less.render(data, { compress : true }, function (err, compiledCSS) {
+					if ( !err ) {
+						data = compiledCSS;
+					}
+					callback(type, data);
+				});
+				break;
+
+			default:
+				callback(type, data);
 				break;
 		}
-
-		callback(type, code || data);
 	});
 }
 
