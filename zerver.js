@@ -12,10 +12,12 @@ var cleanCSS = require('clean-css'),
 
 var ROOT_DIR            = process.cwd(),
 	GZIPPABLE           = {
+		'application/x-font-ttf' : true ,
 		'application/json'       : true ,
 		'application/javascript' : true ,
 		'text/javascript'        : true ,
 		'text/css'               : true ,
+		'text/less'              : true ,
 		'text/html'              : true ,
 		'text/plain'             : true ,
 		'text/cache-manifest'    : true
