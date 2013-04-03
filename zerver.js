@@ -11,7 +11,6 @@ var less   = require('less'),
 
 var ROOT_DIR            = process.cwd(),
 	GZIPPABLE           = {
-		'application/x-font-ttf' : true ,
 		'application/json'       : true ,
 		'application/javascript' : true ,
 		'text/javascript'        : true ,
