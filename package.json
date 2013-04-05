@@ -2,7 +2,7 @@
   "author" : "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name" : "zerver",
   "description" : "client-integrated webapp server",
-  "version" : "0.9.8",
+  "version" : "0.9.9",
   "license" : "MIT" ,
   "repository" : {
     "type" : "git",
@@ -14,7 +14,7 @@
   "dependencies" : {
     "mime"          : "1.2.7" ,
     "yuicompressor" : "2.4.7" ,
-    "less"          : "1.3.3"
+    "less"          : "1.2.2"
   },
   "devDependencies" : {
     "stalker"   : "0.0.20" ,
