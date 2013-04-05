@@ -2,7 +2,7 @@
   "author": "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name": "zerver",
   "description": "client-integrated webapp server",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "repository": {
     "type": "git",
     "url": "git://github.com/jairajs89/zerver.git"
@@ -14,11 +14,9 @@
   "dependencies": {
     "mime"          : "1.2.7"  ,
     "yuicompressor" : "2.4.7"  ,
-    "less"          : "1.3.3"
-  },
-  "devDependencies": {
-    "stalker"   : "0.0.20" ,
-    "socket.io" : "0.9.11"
+    "less"          : "1.3.3"  ,
+    "stalker"       : "0.0.20" ,
+    "socket.io"     : "0.9.11"
   },
   "bin": {
     "zerver": "run.js"
