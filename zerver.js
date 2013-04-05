@@ -1,11 +1,12 @@
 /* Imports and static vars */
 
 var less   = require('less'),
+	clean  = require('clean-css'),
 	fs     = require('fs'  ),
 	http   = require('http'),
 	mime   = require('mime'),
 	path   = require('path'),
-	yui    = require('yuicompressor'),
+	uglify = require('uglify-js'),
 	url    = require('url' ),
 	zlib   = require('zlib');
 
@@ -600,29 +601,34 @@ function compileOutput (type, data, callback) {
 			return;
 		}
 
+		var code;
+
 		switch (type) {
 			case 'application/javascript':
 			case 'text/javascript':
 				data = data.replace(DEBUG_LINES, '');
-				yui.compress(data, {
-					'charset'    : 'utf8' ,
-					'type'       : 'js'   ,
-					'nomunge'    : true
-				}, function (err, compiledJS) {
-					if ( !err ) {
-						data = compiledJS;
-					}
-					callback(type, data);
-				});
+				try {
+					var ast = uglify.parser.parse(data);
+					ast     = uglify.uglify.ast_mangle(ast);
+					ast     = uglify.uglify.ast_squeeze(ast);
+					code    = uglify.uglify.gen_code(ast);
+				}
+				catch (err) {}
+				if (code) {
+					data = code;
+				}
+				callback(type, data);
 				break;
 
 			case 'text/css':
-				less.render(data, { compress : true }, function (err, compiledCSS) {
-					if ( !err ) {
-						data = compiledCSS;
-					}
-					callback(type, data);
-				});
+				try{
+					code = clean.process(data);
+				}
+				catch(err){}
+				if (code) {
+					data = code;
+				}
+				callback(type, data);
 				break;
 
 			default:
