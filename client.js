@@ -1,5 +1,3 @@
-//TODO: remove dependency on JSON
-
 (function (window) {
 	var XHR_TIMEOUT = 30000;
 
@@ -243,12 +241,17 @@
 			if (!this.readyState || (this.readyState == 'loaded') || (this.readyState == 'complete')) {
 				done = true;
 				setTimeout(function () {
-					var handlers = apiSocket.slice();
+					var socket = new io.Socket(null, {
+						transports: ['htmlfile', 'xhr-multipart', 'xhr-polling', 'jsonp-polling']
+					});
 
-					apiSocket = io.connect('//'+apiHost+'/'+apiDir+'/_refresh');
+					socket.connect(function () {
+						var handlers = apiSocket.slice();
+						apiSocket = socket;
 
-					handlers.forEach(function (handler) {
-						handler();
+						handlers.forEach(function (handler) {
+							handler();
+						});
 					});
 				}, 0);
 				script.onload = script.onreadystatechange = null;
@@ -268,7 +271,11 @@
 		}
 
 		setupSocket(function () {
-			apiSocket.on('refresh', function () {
+			apiSocket.on('message', function (data) {
+				if (data.type !== 'refresh') {
+					return;
+				}
+
 				var refresher = window[REFRESH_FUNC];
 
 				if (typeof refresher === 'function') {
@@ -289,10 +296,14 @@
 		setupLoggers();
 
 		function setupCLI () {
-			apiSocket.on('eval', function (line, callback) {
+			apiSocket.on('message', function (data) {
+				if (data.type !== 'eval') {
+					return;
+				}
+
 				var success, val, error;
 				try {
-					val     = new Function('return ' + line)();
+					val     = new Function('return ' + data.line)();
 					success = true;
 					error   = undefined;
 				}
@@ -319,10 +330,12 @@
 					}
 				}
 
-				callback({
-					error  : error   ,
-					output : jsonVal ,
-					type   : type
+				apiSocket.send({
+					type      : 'eval'  ,
+					requestID : data.requestID ,
+					error     : error   ,
+					output    : jsonVal ,
+					dataType  : type
 				});
 			});
 		}
@@ -342,7 +355,8 @@
 		}
 
 		function pipeLog (level, message) {
-			apiSocket.emit('log', {
+			apiSocket.send({
+				type    : 'log'   ,
 				level   : level   ,
 				message : message
 			});

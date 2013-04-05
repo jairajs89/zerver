@@ -1,25 +1,27 @@
 {
-  "author": "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
-  "name": "zerver",
-  "description": "client-integrated webapp server",
-  "version": "0.9.7",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/jairajs89/zerver.git"
+  "author" : "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
+  "name" : "zerver",
+  "description" : "client-integrated webapp server",
+  "version" : "0.9.8",
+  "license" : "MIT" ,
+  "repository" : {
+    "type" : "git",
+    "url" : "git://github.com/jairajs89/zerver.git"
   },
-  "main": "nodeclient.js",
-  "engines": {
-    "node": "0.8.x"
+  "engines" : {
+    "node" : "0.8.x"
   },
-  "dependencies": {
-    "mime"          : "1.2.7"  ,
-    "yuicompressor" : "2.4.7"  ,
-    "less"          : "1.3.3"  ,
-    "stalker"       : "0.0.20" ,
-    "socket.io"     : "0.9.11"
+  "dependencies" : {
+    "mime"          : "1.2.7" ,
+    "yuicompressor" : "2.4.7" ,
+    "less"          : "1.3.3"
   },
-  "bin": {
+  "devDependencies" : {
+    "stalker"   : "0.0.20" ,
+    "socket.io" : "0.6.18"
+  },
+  "main" : "nodeclient.js",
+  "bin" : {
     "zerver": "run.js"
-  },
-  "license": "MIT"
+  }
 }

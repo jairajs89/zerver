@@ -1275,57 +1275,92 @@ function setupAutoRefresh () {
 		return;
 	}
 
-	var io      = require('socket.io').listen(app, { log: false }),
-		sockets = io.of('/'+API_URL+'/_refresh');
+	var io = require('socket.io').listen(app, {
+		log               : function () {} ,
+		flashPolicyServer : false ,
+		transports        : ['htmlfile', 'xhr-multipart', 'xhr-polling', 'jsonp-polling']
+	});
 
 	if (REFRESH) {
 		process.on('message', function (data) {
 			if (data && data.debugRefresh) {
-				sockets.emit('refresh');
+				io.broadcast({ type : 'refresh' });
 			}
 		});
 	}
 
 	if (LOGGING) {
-		sockets.on('connection', function (socket) {
-			socket.on('log', function (data) {
-				console.log(data.level + ': ' + data.message);
+		io.on('connection', function (client) {
+			client.on('message', function (data) {
+				if (data.type === 'log') {
+					console.log(data.level + ': ' + data.message);
+				}
 			});
 		});
+
 		process.on('message', function (data) {
-			if (data && data.cli) {
-				var socket = getSingleSocket();
-				if (socket) {
-					socket.emit('eval', data.cli, function (data) {
-						if (data.type === 'string') {
-							console.log(data.output);
-						}
-						else if (data.type === 'json') {
-							try {
-								console.log( JSON.parse(data.output) );
-							}
-							catch (err) {
-								console.error('(zerver cli error)');
-							}
-						}
-						else {
-							console.error(data.error);
-						}
-						process.send({ prompt: true });
-					});
+			if (!data || !data.cli) {
+				return;
+			}
+
+			var socket = getSingleSocket();
+
+			if ( !socket ) {
+				console.warn('(no browsers available)');
+				process.send({ prompt: true });
+				return;
+			}
+
+			var requestID = 'x'+Math.random();
+
+			socket.send({
+				type      : 'eval'    ,
+				line      : data.cli  ,
+				requestID : requestID
+			});
+
+			socket.on('message', handleMessage);
+
+			var timeout = setTimeout(function () {
+				socket.removeListener('message', handleMessage);
+				finish();
+			}, 10 * 1000);
+
+			function handleMessage (data) {
+				if ((data.type !== 'eval') || (data.requestID !== requestID)) {
+					return;
+				}
+
+				clearTimeout(timeout);
+
+				if (data.dataType === 'string') {
+					console.log(data.output);
+				}
+				else if (data.dataType === 'json') {
+					try {
+						console.log( JSON.parse(data.output) );
+					}
+					catch (err) {
+						console.error('(zerver cli error)');
+					}
 				}
 				else {
-					console.warn('(no browsers available)');
-					process.send({ prompt: true });
+					console.error(data.error);
 				}
+
+				finish();
+			}
+
+			function finish () {
+				process.send({ prompt: true });
 			}
 		});
 	}
 
 	function getSingleSocket () {
-		for (var id in sockets.sockets) {
-			if ( !sockets.sockets[id].disconnected ) {
-				return sockets.sockets[id];
+		for (var id in io.clients) {
+			if ( io.clients[id].connected ) {
+				return io.clients[id];
 			}
 		}
 	}
