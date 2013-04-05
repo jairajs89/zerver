@@ -274,6 +274,17 @@ function main () {
 		return;
 	}
 
+	try {
+		require('socket.io');
+		require('findit'   );
+		require('stalker'  );
+	}
+	catch (err) {
+		console.error('zerver debug mode requires dev dependencies');
+		console.error('run this command: npm install --dev zerver');
+		return;
+	}
+
 	if (LOGGING) {
 		cli = setupCLI(function (line) {
 			if (child) {
