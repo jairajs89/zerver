@@ -5,7 +5,7 @@ var less   = require('less'),
 	http   = require('http'),
 	mime   = require('mime'),
 	path   = require('path'),
-	uglify = require('uglify-js'),
+	yui    = require('yuicompressor'),
 	url    = require('url' ),
 	zlib   = require('zlib');
 
@@ -604,14 +604,16 @@ function compileOutput (type, data, callback) {
 			case 'application/javascript':
 			case 'text/javascript':
 				data = data.replace(DEBUG_LINES, '');
-				try {
-					var ast = uglify.parser.parse(data);
-					ast     = uglify.uglify.ast_mangle(ast);
-					ast     = uglify.uglify.ast_squeeze(ast);
-					data    = uglify.uglify.gen_code(ast);
-				}
-				catch (err) {}
-				callback(type, data);
+				yui.compress(data, {
+					'charset'    : 'utf8' ,
+					'type'       : 'js'   ,
+					'nomunge'    : true
+				}, function (err, compiledJS) {
+					if ( !err ) {
+						data = compiledJS;
+					}
+					callback(type, data);
+				});
 				break;
 
 			case 'text/css':
