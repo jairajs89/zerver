@@ -128,6 +128,14 @@ zerver -d --manifest=path/to/cache.manifest website-dir
 zerver --manifest=path/to/cache.manifest website-dir
 ```
 
+### Default options
+
+You can specify default options in an environment variable,
+to avoid having to type them every time
+```sh
+export ZERVER_FLAGS='-drl'
+```
+
 ### Cross origin
 
 Zerver can automatically make a script available to multiple host origins. This is especially useful if you are including a Zerver script from a subdomain of your webapp.
