@@ -1,5 +1,5 @@
-var path = require('path');
-
+var path 	   = require('path'),
+    shellParse = require('shell-quote').parse;
 
 
 var FLAG_MATCHER = /^(\w+)(?:\=(\S*))?$/,
@@ -29,10 +29,18 @@ exports.arg = function (arg, handler) {
 
 
 
-exports.run = function () {
+exports.run = function (defaultArgString) {
 	var args = 0;
 
-	process.argv.slice(2).forEach(function (arg) {
+	var defaultArgs = [];
+	if (defaultArgString) {
+		defaultArgs = shellParse(defaultArgString);
+		console.log("Environment options: " + defaultArgs.join(", "));
+	}
+	// defaults go first, so they get overriden by manually specified options
+	var argv = defaultArgs.concat(process.argv.slice(2));
+	
+	argv.forEach(function (arg) {
 		if (arg[0] !== '-') {
 			try {
 				argHandlers[args++][1](arg);
