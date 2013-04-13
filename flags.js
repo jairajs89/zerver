@@ -1,5 +1,4 @@
-var path 	   = require('path'),
-    shellParse = require('shell-quote').parse;
+var path = require('path');
 
 
 var FLAG_MATCHER = /^(\w+)(?:\=(\S*))?$/,
@@ -34,12 +33,12 @@ exports.run = function (defaultArgString) {
 
 	var defaultArgs = [];
 	if (defaultArgString) {
-		defaultArgs = shellParse(defaultArgString);
+		defaultArgs = parseShell(defaultArgString);
 		console.log("Environment options: " + defaultArgs.join(", "));
 	}
 	// defaults go first, so they get overriden by manually specified options
 	var argv = defaultArgs.concat(process.argv.slice(2));
-	
+
 	argv.forEach(function (arg) {
 		if (arg[0] !== '-') {
 			try {
@@ -105,4 +104,26 @@ function usageError () {
 
 	console.error(usage);
 	process.exit(1);
+}
+
+
+
+function parseShell (s) {
+    return s.match(/(['"])((\\\1|[^\1])*?)\1|(\\ |\S)+/g)
+        .map(function (s) {
+            if (/^'/.test(s)) {
+                return s
+                    .replace(/^'|'$/g, '')
+                    .replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
+                ;
+            }
+            else if (/^"/.test(s)) {
+                return s
+                    .replace(/^"|"$/g, '')
+                    .replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
+                ;
+            }
+            else return s.replace(/\\([ "'\\$`(){}!#&*|])/g, '$1');
+        })
+    ;
 }

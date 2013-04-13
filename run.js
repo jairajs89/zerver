@@ -22,6 +22,13 @@ var ZERVER         = __dirname + '/zerver',
 
 
 function processFlags () {
+	if (process.env.ZERVER) {
+		console.error('ZERVER environment variable is not longer supported');
+		console.error('use ZERVER_FLAGS instead');
+		process.exit(1);
+		return;
+	}
+
 	var flags = require(__dirname + '/flags');
 
 	flags.add(['v', 'version'], function () {
@@ -34,7 +41,7 @@ function processFlags () {
 		catch (err) {
 			console.log('zerver v0');
 		}
-		process.exit();
+		process.exit(0);
 	});
 
 	flags.add(['d', 'debug'], function () {
