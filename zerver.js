@@ -1,7 +1,7 @@
 /* Imports and static vars */
 
 var less   = require('less'),
-	clean  = require('clean-css'),
+	clean  = require(__dirname + '/clean-css'),
 	fs     = require('fs'  ),
 	http   = require('http'),
 	mime   = require('mime'),
