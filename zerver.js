@@ -1337,6 +1337,7 @@ function setupAutoRefresh () {
 					return;
 				}
 
+				socket.removeListener('message', handleMessage);
 				clearTimeout(timeout);
 
 				if (data.dataType === 'string') {
