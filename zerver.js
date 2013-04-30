@@ -982,7 +982,7 @@ function APIRequest (handler, pathname) {
 			val = api.apply(handler, args);
 		}
 		catch (err) {
-			console.error(err);
+			console.error(err && (err.stack || err.message));
 			errorCallback(err);
 			return;
 		}
