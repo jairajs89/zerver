@@ -2,6 +2,7 @@
 
 var less   = require('less'),
 	clean  = require(__dirname + '/clean-css'),
+	debug  = require(__dirname + '/debug'),
 	fs     = require('fs'  ),
 	http   = require('http'),
 	mime   = require('mime'),
@@ -66,8 +67,12 @@ exports.middleware = function (apiDir, apiURL, apiHost) {
 	return handleMiddlewareRequest;
 };
 
-exports.run = function (port, apiDir, debug, refresh, logging, verbose, manifests, production, apiHost) {
-	configureZerver(port, apiDir, apiDir, apiHost, debug, refresh, logging, verbose, manifests, production);
+exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, manifests, production, apiHost) {
+	configureZerver(port, apiDir, apiDir, apiHost, debugFlag, refresh, logging, verbose, manifests, production);
+
+	if (DEBUG && (REFRESH || LOGGING)) {
+		debug.setup(API_URL, REFRESH, LOGGING);
+	}
 
 	app = http.createServer(handleRequest).listen(PORT);
 
@@ -107,13 +112,13 @@ exports.run = function (port, apiDir, debug, refresh, logging, verbose, manifest
 	console.log('');
 };
 
-function configureZerver (port, apiDir, apiURL, apiHost, debug, refresh, logging, verbose, manifests, production) {
+function configureZerver (port, apiDir, apiURL, apiHost, debugFlag, refresh, logging, verbose, manifests, production) {
 	PORT             = port;
 	API_DIR          = apiDir;
 	API_URL          = apiURL;
 	API_URL_LENGTH   = apiURL.length;
 	API_HOST         = apiHost;
-	DEBUG            = debug;
+	DEBUG            = debugFlag;
 	PRODUCTION       = production;
 	REFRESH          = refresh;
 	LOGGING          = logging;
@@ -272,6 +277,10 @@ function handleRequest (request, response) {
 		},
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
+
+	if (DEBUG && (REFRESH || LOGGING) && isApiCall && debug.handle(handler)) {
+		return;
+	}
 
 	handleRequestErrors(handler);
 
@@ -1276,108 +1285,8 @@ function lookupMime (fileName) {
 
 
 
-function setupAutoRefresh () {
-	if (!app || !DEBUG || (!REFRESH && !LOGGING)) {
-		return;
-	}
-
-	var io = require('socket.io').listen(app, {
-		log               : function () {} ,
-		flashPolicyServer : false ,
-		transports        : ['htmlfile', 'xhr-multipart', 'xhr-polling', 'jsonp-polling']
-	});
-
-	if (REFRESH) {
-		process.on('message', function (data) {
-			if (data && data.debugRefresh) {
-				io.broadcast({ type : 'refresh' });
-			}
-		});
-	}
-
-	if (LOGGING) {
-		io.on('connection', function (client) {
-			client.on('message', function (data) {
-				if (data.type === 'log') {
-					console.log(data.level + ': ' + data.message);
-				}
-			});
-		});
-
-		process.on('message', function (data) {
-			if (!data || !data.cli) {
-				return;
-			}
-
-			var socket = getSingleSocket();
-
-			if ( !socket ) {
-				console.warn('(no browsers available)');
-				process.send({ prompt: true });
-				return;
-			}
-
-			var requestID = 'x'+Math.random();
-
-			socket.send({
-				type      : 'eval'    ,
-				line      : data.cli  ,
-				requestID : requestID
-			});
-
-			socket.on('message', handleMessage);
-
-			var timeout = setTimeout(function () {
-				socket.removeListener('message', handleMessage);
-				finish();
-			}, 10 * 1000);
-
-			function handleMessage (data) {
-				if ((data.type !== 'eval') || (data.requestID !== requestID)) {
-					return;
-				}
-
-				socket.removeListener('message', handleMessage);
-				clearTimeout(timeout);
-
-				if (data.dataType === 'string') {
-					console.log(data.output);
-				}
-				else if (data.dataType === 'json') {
-					try {
-						console.log( JSON.parse(data.output) );
-					}
-					catch (err) {
-						console.error('(zerver cli error)');
-					}
-				}
-				else {
-					console.error(data.error);
-				}
-
-				finish();
-			}
-
-			function finish () {
-				process.send({ prompt: true });
-			}
-		});
-	}
-
-	function getSingleSocket () {
-		for (var id in io.clients) {
-			if ( io.clients[id].connected ) {
-				return io.clients[id];
-			}
-		}
-	}
-}
-
-
-
 /* Run in debug mode */
 
 if (require.main === module) {
 	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), (process.argv[7]==='1'), process.argv[8], (process.argv[9]==='1'), (process.argv[10]||undefined));
-	setupAutoRefresh();
 }

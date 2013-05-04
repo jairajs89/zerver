@@ -3,7 +3,7 @@
   "author" : "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name" : "zerver",
   "description" : "client-integrated webapp server",
-  "version" : "0.10.3",
+  "version" : "0.11.0",
   "license" : "MIT" ,
   "repository" : {
     "type" : "git",
@@ -13,13 +13,10 @@
     "node" : "0.8.x"
   },
   "dependencies" : {
-    "mime"      : "1.2.7" ,
-    "uglify-js" : "1.3.4" ,
-    "less"      : "1.2.2"
-  },
-  "devDependencies" : {
-    "stalker"   : "0.0.20" ,
-    "socket.io" : "0.6.18"
+    "mime"      : "1.2.7"  ,
+    "uglify-js" : "1.3.4"  ,
+    "less"      : "1.2.2"  ,
+    "stalker"   : "0.0.20"
   },
   "main" : "nodeclient.js",
   "bin" : {

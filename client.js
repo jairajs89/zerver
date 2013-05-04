@@ -11,7 +11,10 @@
 		apiFunctions = {{__API_FUNCTIONS__}},
 		apiData      = {{__API_APIS__}},
 		apis         = {},
-		apiSocket;
+		apiSocket,
+		apiSocketID  = generateStreamID(),
+		hadFirstConnect = false,
+		isConnected;
 
 	main();
 
@@ -84,10 +87,10 @@
 				return defered;
 			}
 
-			var data          = {},
-				args          = Array.prototype.slice.call(arguments),
-				numArgs       = args.length,
-				callback      = args[numArgs - 1];
+			var data     = {},
+				args     = Array.prototype.slice.call(arguments),
+				numArgs  = args.length,
+				callback = args[numArgs - 1];
 
 			if (typeof callback === 'function') {
 				args.pop();
@@ -130,13 +133,39 @@
 
 	function apiCall (tree, args, callback) {
 		var url  = '//' + apiHost + '/' + apiDir,
-			data = JSON.stringify(args),
-			done = false,
-			xhr;
+			data = JSON.stringify(args);
 
 		for (var i=0, len=tree.length; i<len; i++) {
 			url += '/' + encodeURIComponent( tree[i] );
 		}
+
+		ajaxPost(url, data, function (status, responseText) {
+			if (status === 200) {
+				try {
+					var response = JSON.parse(xhr.responseText);
+
+					if (response.data) {
+						data = response.data;
+					}
+					else {
+						error = response.error;
+					}
+				}
+				catch (err) {
+					error = 'zerver failed to parse response';
+				}
+			}
+			else {
+				error = 'zerver http error, ' + status;
+			}
+
+			callback(error, data);
+		});
+	}
+
+	function ajaxPost (url, data, callback) {
+		var done = false,
+			xhr;
 
 		if ((apiHost !== window.location.host) && (typeof XDomainRequest !== 'undefined')) {
 			xhr = new XDomainRequest();
@@ -189,29 +218,7 @@
 			}
 			done = true;
 
-			var data = [],
-				error, errorString;
-
-			if (status === 200) {
-				try {
-					var response = JSON.parse(xhr.responseText);
-
-					if (response.data) {
-						data = response.data;
-					}
-					else {
-						error = response.error;
-					}
-				}
-				catch (err) {
-					error = 'zerver failed to parse response';
-				}
-			}
-			else {
-				error = 'zerver http error, ' + status;
-			}
-
-			callback(error, data);
+			callback && callback(status, xhr.responseText);
 		}
 	}
 
@@ -227,38 +234,163 @@
 
 		apiSocket = [ handler ];
 
-		var done   = false,
-			head   = document.getElementsByTagName('head')[0],
-			script = document.createElement('script');
+		createAPISocket(function (socket) {
+			var handlers = apiSocket.slice();
+			apiSocket = socket;
 
-		script.src = '//'+apiHost+'/socket.io/socket.io.js';
-		script.async = true;
-		script.onload = script.onreadystatechange = function () {
-			if (done) {
+			handlers.forEach(function (handler) {
+				handler();
+			});
+		});
+	}
+
+	function createAPISocket (callback) {
+		var listeners = [],
+			socket    = {
+				send : sendMessage ,
+				on   : bindToMessage
+			};
+
+		startIncomingStream(function (payload) {
+			var data;
+			try {
+				data = JSON.parse(payload);
+			}
+			catch (err) {}
+			if ((typeof data !== 'object') || (data === null)) {
 				return;
 			}
 
-			if (!this.readyState || (this.readyState == 'loaded') || (this.readyState == 'complete')) {
-				done = true;
-				setTimeout(function () {
-					var socket = new io.Socket(null, {
-						transports: ['htmlfile', 'xhr-multipart', 'xhr-polling', 'jsonp-polling']
-					});
+			for (var i=0, l=listeners.length; i<l; i++) {
+				listeners[i](data);
+			}
+		});
 
-					socket.connect(function () {
-						var handlers = apiSocket.slice();
-						apiSocket = socket;
+		callback(socket);
 
-						handlers.forEach(function (handler) {
-							handler();
-						});
-					});
-				}, 0);
-				script.onload = script.onreadystatechange = null;
-				head.removeChild(script);
+		function sendMessage (data) {
+			if (hadFirstConnect && !isConnected) {
+				return;
+			}
+
+			var url     = '//' + apiHost + '/' + apiDir + '/_push/message?id='+apiSocketID+'&_='+(+new Date()),
+				payload = JSON.stringify(data);
+
+			ajaxPost(url, payload);
+		}
+
+		function bindToMessage (messageType, func) {
+			listeners.push(func);
+		}
+	}
+
+	function startIncomingStream (handler, fails) {
+		var timeout;
+		if ( !fails ) {
+			fails   = 0;
+			timeout = 0;
+		}
+		else {
+			timeout = Math.pow(2, Math.min(fails, 5)) * 1000;
+		}
+
+		setTimeout(function () {
+			openStream(handler, function (status) {
+				if (status) {
+					fails = 0;
+				}
+				else {
+					fails += 1;
+				}
+				startIncomingStream(handler, fails);
+			});
+		}, timeout);
+	}
+
+	function openStream (onMessage, onClose) {
+		var done       = false,
+			hasConnect = false,
+			url        = '//' + apiHost + '/' + apiDir + '/_push/stream?id='+apiSocketID+'&_='+(+new Date()),
+			xhr        = new XMLHttpRequest();
+
+		xhr.onreadystatechange = function () {
+			if ((xhr.readyState >= 3) && (xhr.status === 200)) {
+				hasConnect      = true;
+				hadFirstConnect = true;
+				isConnected     = true;
+			}
+			if (xhr.readyState === 4) {
+				xhrComplete(xhr.status);
 			}
 		};
-		head.appendChild(script);
+
+		var timeout = 45 * 1000;
+
+		xhr.timeout = timeout;
+		xhr.ontimeout = function () {
+			xhrComplete(0);
+		};
+
+		setTimeout(function () {
+			if ( !done ) {
+				xhr.abort();
+				xhrComplete(0);
+			}
+		}, timeout);
+
+		var messageInterval = setInterval(checkForUpdates, 200),
+			lastIndex       = 0;
+
+		xhr.open('GET', url, true);
+		xhr.send('');
+
+		function checkForUpdates () {
+			var currIndex = xhr.responseText.length;
+
+			if (currIndex === lastIndex) {
+				return;
+			}
+
+			var raw       = xhr.responseText.substring(lastIndex, currIndex),
+				lastBreak = raw.lastIndexOf('\n');
+
+			if (lastBreak === -1) {
+				return;
+			}
+
+			raw = raw.substr(0, lastBreak);
+			lastIndex += raw.length + 1;
+
+			raw.split('\n').forEach(function (line) {
+				if (line && (line[0] !== ';')) {
+					onMessage(line);
+				}
+			});
+		}
+
+		function xhrComplete (status) {
+			if (done) {
+				return;
+			}
+			done = true;
+
+			isConnected = false;
+
+			clearInterval(messageInterval);
+			checkForUpdates();
+			onClose && onClose(hasConnect);
+		}
+	}
+
+	function generateStreamID () {
+		var streamID = localStorage['__ZERVER_STREAM_ID__'];
+
+		if ( !streamID ) {
+			streamID = ('x'+Math.random()).replace(/\.|\-/g, '');
+			localStorage['__ZERVER_STREAM_ID__'] = streamID;
+		}
+
+		return streamID;
 	}
 
 	function setupAutoRefresh () {

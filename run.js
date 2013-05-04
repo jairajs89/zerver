@@ -196,16 +196,6 @@ function main () {
 		return;
 	}
 
-	try {
-		require('socket.io');
-		require('stalker'  );
-	}
-	catch (err) {
-		console.error('please install zerver dev dependencies to use debug mode');
-		console.error('command: npm install --dev zerver');
-		return;
-	}
-
 	if (LOGGING) {
 		cli = setupCLI(function (line) {
 			if (child) {
