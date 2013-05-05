@@ -1,6 +1,6 @@
 var fs      = require('fs'),
 	path    = require('path'),
-	stalker = require('stalker');
+	stalker = require(__dirname + '/stalker');
 
 
 
@@ -14,11 +14,11 @@ exports.watch = function (dir, callback) {
 
 	stalker.watch(
 		dir,
-		function (err, fileName) {
+		function (fileName) {
 			setupWatcher(fileName);
 			changeDetected(fileName);
 		},
-		function (err, fileName) {
+		function (fileName) {
 			destroyWatcher(fileName);
 			changeDetected(fileName);
 		}
