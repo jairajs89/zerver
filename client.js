@@ -142,7 +142,7 @@
 		ajaxPost(url, data, function (status, responseText) {
 			if (status === 200) {
 				try {
-					var response = JSON.parse(xhr.responseText);
+					var response = JSON.parse(responseText);
 
 					if (response.data) {
 						data = response.data;
