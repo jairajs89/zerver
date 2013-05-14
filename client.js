@@ -140,26 +140,28 @@
 		}
 
 		ajaxPost(url, data, function (status, responseText) {
+			var responseData, responseError;
+
 			if (status === 200) {
 				try {
 					var response = JSON.parse(responseText);
 
 					if (response.data) {
-						data = response.data;
+						responseData = response.data;
 					}
 					else {
-						error = response.error;
+						responseError = response.error;
 					}
 				}
 				catch (err) {
-					error = 'zerver failed to parse response';
+					responseError = 'zerver failed to parse response';
 				}
 			}
 			else {
-				error = 'zerver http error, ' + status;
+				responseError = 'zerver http error, ' + status;
 			}
 
-			callback(error, data);
+			callback(responseError, responseData);
 		});
 	}
 
