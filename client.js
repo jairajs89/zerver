@@ -14,8 +14,10 @@
 		apiSocket,
 		apiSocketID  = generateStreamID(),
 		hadFirstConnect = false,
+		notReady     = [],
 		isConnected;
 
+	startReadyCheck();
 	main();
 
 	function main () {
@@ -297,6 +299,10 @@
 		}
 
 		setTimeout(function () {
+			afterReady(performStreamOpen);
+		}, timeout);
+
+		function performStreamOpen () {
 			openStream(handler, function (status) {
 				if (status) {
 					fails = 0;
@@ -306,7 +312,7 @@
 				}
 				startIncomingStream(handler, fails);
 			});
-		}, timeout);
+		}
 	}
 
 	function openStream (onMessage, onClose) {
@@ -558,5 +564,40 @@
 				logMessage('exception', e.message + '');
 			}, false);
 		}
+	}
+
+	function afterReady (func) {
+		if (notReady) {
+			notReady.push(func);
+		}
+		else {
+			func();
+		}
+	}
+
+	function startReadyCheck () {
+		if (!window.addEventListener || (document.readyState === 'complete')) {
+			flushReadyQueue();
+		}
+		else {
+			window.addEventListener('load', flushReadyQueue, false);
+		}
+	}
+
+	function flushReadyQueue () {
+		window.removeEventListener('load', flushReadyQueue);
+
+		if ( !notReady ) {
+			return;
+		}
+
+		setTimeout(function () {
+			var funcs = notReady.slice();
+			notReady = false;
+
+			funcs.forEach(function (func) {
+				func();
+			});
+		}, 500);
 	}
 })(window);
