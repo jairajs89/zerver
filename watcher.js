@@ -5,6 +5,10 @@ var fs      = require('fs'),
 
 
 exports.watch = function (dir, callback) {
+	if (dir[dir.length-1] === '/') {
+		dir = dir.substr(0, dir.length-1);
+	}
+
 	var filesNames = findSync(dir),
 		files      = {};
 

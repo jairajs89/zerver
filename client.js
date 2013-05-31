@@ -391,14 +391,7 @@
 	}
 
 	function generateStreamID () {
-		var streamID = localStorage['__ZERVER_STREAM_ID__'];
-
-		if ( !streamID ) {
-			streamID = ('x'+Math.random()).replace(/\.|\-/g, '');
-			localStorage['__ZERVER_STREAM_ID__'] = streamID;
-		}
-
-		return streamID;
+		return ('x'+Math.random()).replace(/\.|\-/g, '');
 	}
 
 	function setupAutoRefresh () {
