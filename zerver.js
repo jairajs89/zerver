@@ -130,6 +130,8 @@ function configureZerver (port, apiDir, apiURL, apiHost, debugFlag, refresh, log
 		DEBUG = true;
 	}
 
+	global.ZERVER_DEBUG = DEBUG;
+
 	if (!DEBUG && PRODUCTION) {
 		GZIP_ENABLED        = true;
 		COMPILATION_ENABLED = true;
