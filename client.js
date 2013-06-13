@@ -559,8 +559,16 @@
 				return;
 			}
 
-			window.addEventListener('error', function (e) {
-				logMessage('exception', (e.stack || e.message) + '');
+			window.addEventListener('error', function (msg, fileName, lineNum) {
+				var err = msg + '';
+				if (fileName) {
+					err += ' (' + fileName;
+					if (lineNum) {
+						err += ':' + lineNum;
+					}
+					err += ')';
+				}
+				logMessage('exception', err);
 			}, false);
 		}
 	}
