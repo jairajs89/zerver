@@ -1,6 +1,7 @@
 (function (window) {
-	var XHR_TIMEOUT = 30000,
-		ZERVER_INIT = 'ZERVER_INIT';
+	var XHR_TIMEOUT        = 30000,
+		ZERVER_INIT        = 'ZERVER_INIT',
+		ZERVER_KILL_STREAM = 'ZERVER_KILL_STREAM';
 
 	var apiRefresh   = {{__API_REFRESH__}},
 		apiLogging   = {{__API_LOGGING__}},
@@ -322,7 +323,8 @@
 	}
 
 	function openStream (onMessage, onClose) {
-		var done       = false,
+		var dying      = false,
+			done       = false,
 			hasConnect = false,
 			url        = '//' + apiHost + '/' + apiDir + '/_push/stream?id='+apiSocketID+'&_='+(+new Date()),
 			xhr        = new XMLHttpRequest();
@@ -359,6 +361,10 @@
 		xhr.send('');
 
 		function checkForUpdates () {
+			if (dying) {
+				return;
+			}
+
 			var currIndex = xhr.responseText.length;
 
 			if (currIndex === lastIndex) {
@@ -383,7 +389,7 @@
 		}
 
 		function xhrComplete (status) {
-			if (done) {
+			if (done || dying) {
 				return;
 			}
 			done = true;
@@ -394,6 +400,18 @@
 			checkForUpdates();
 			onClose && onClose(hasConnect);
 		}
+
+		window[ZERVER_KILL_STREAM] = function () {
+			if (dying) {
+				return;
+			}
+			dying = true;
+
+			try {
+				xhr.abort();
+			}
+			catch (err) {}
+		};
 	}
 
 	function generateStreamID () {
