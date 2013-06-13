@@ -1,5 +1,6 @@
 (function (window) {
-	var XHR_TIMEOUT = 30000;
+	var XHR_TIMEOUT = 30000,
+		ZERVER_INIT = 'ZERVER_INIT';
 
 	var apiRefresh   = {{__API_REFRESH__}},
 		apiLogging   = {{__API_LOGGING__}},
@@ -27,6 +28,11 @@
 		else if (apiObj) {
 			setupSingleAPI();
 		}
+
+		if ( window[ZERVER_INIT] ) {
+			return;
+		}
+		window[ZERVER_INIT] = true;
 
 		if (apiRefresh) {
 			setupAutoRefresh();
@@ -554,7 +560,7 @@
 			}
 
 			window.addEventListener('error', function (e) {
-				logMessage('exception', e.message + '');
+				logMessage('exception', (e.stack || e.message) + '');
 			}, false);
 		}
 	}
