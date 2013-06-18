@@ -3,13 +3,14 @@
 var less   = require('less'),
 	clean  = require(__dirname + '/clean-css'),
 	debug  = require(__dirname + '/debug'),
-	fs     = require('fs'  ),
-	http   = require('http'),
-	mime   = require('mime'),
-	path   = require('path'),
+	crypto = require('crypto'),
+	fs     = require('fs'    ),
+	http   = require('http'  ),
+	mime   = require('mime'  ),
+	path   = require('path'  ),
 	uglify = require('uglify-js'),
-	url    = require('url' ),
-	zlib   = require('zlib');
+	url    = require('url'   ),
+	zlib   = require('zlib'  );
 
 var ROOT_DIR            = process.cwd(),
 	GZIPPABLE           = {
@@ -84,11 +85,21 @@ exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, mani
 
 	console.log('zerver running:');
 
+	var runMode = [];
 	if (DEBUG) {
-		console.log('- mode: debug');
+		runMode.push('debug');
+		if (REFRESH) {
+			runMode.push('auto-refresh');
+		}
+		if (LOGGING) {
+			runMode.push('log-streaming');
+		}
 	}
-	else if (production) {
-		console.log('- mode: production');
+	else if (PRODUCTION) {
+		runMode.push('production');
+	}
+	if (runMode.length) {
+		console.log('- mode: ' + runMode.join(', '));
 	}
 
 	console.log('- port: ' + PORT);
@@ -98,8 +109,9 @@ exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, mani
 		console.log('- zerver apis: ' + apiNames.join(', '));
 	}
 
-	if (manifests) {
-		console.log('- appcache manifests: ' + Object.keys(MANIFESTS).join(', '));
+	var manifestList = Object.keys(MANIFESTS);
+	if (manifestList.length) {
+		console.log('- appcache manifest' + (manifestList.length > 1 ? 's' : '') + ': ' + manifestList.join(', '));
 	}
 
 	console.log('');
@@ -320,11 +332,15 @@ function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
 		return;
 	}
 
-	var args = memoryCache[pathname],
-		data = fileCache[pathname];
-
+	var args = memoryCache[pathname];
 	handler.type = args.type;
-	finishResponse(handler, args.status, args.headers, data, args.isBinary, true);
+
+	if (args.etag === handler.request.headers['if-none-match']) {
+		finishResponse(handler, 304, args.headers, '', false, true);
+	}
+	else {
+		finishResponse(handler, args.status, args.headers, fileCache[pathname], args.isBinary, true);
+	}
 }
 
 function dynamicResponse (handler, pathname, isApiCall) {
@@ -681,6 +697,19 @@ function setupGZipOutput (type, data, headers, callback) {
 /* Request handler */
 
 function finishResponse (handler, status, headers, data, isBinary, noCache) {
+	var pathname    = handler.pathname,
+		type        = handler.type,
+		shouldCache = (!noCache && CACHE_ENABLED && (type !== 'api') && (type !== 'scheme') && (status === 200) && !(pathname in memoryCache)),
+		hash, etag;
+
+	if (shouldCache) {
+		hash = crypto.createHash('md5');
+		hash.update(data);
+		etag = '"' + hash.digest('hex') + '"';
+		headers['ETag'] = etag;
+		headers['Vary'] = 'Accept-Encoding';
+	}
+
 	var response = handler.response;
 
 	response.writeHeader(status, headers);
@@ -693,15 +722,13 @@ function finishResponse (handler, status, headers, data, isBinary, noCache) {
 		response.end();
 	}
 
-	var pathname = handler.pathname,
-		type     = handler.type;
-
-	if (!noCache && CACHE_ENABLED && (type !== 'api') && (type !== 'scheme') && (status === 200) && !(pathname in memoryCache)) {
+	if (shouldCache) {
 		memoryCache[pathname] = {
-			type     : type ,
-			status   : status    ,
-			headers  : headers   ,
-			isBinary : isBinary
+			type     : type     ,
+			status   : status   ,
+			headers  : headers  ,
+			isBinary : isBinary ,
+			etag     : etag
 		};
 
 		if ( Buffer.isBuffer(data) ) {

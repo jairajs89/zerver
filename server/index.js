@@ -50,13 +50,13 @@ function processFlags () {
 	commands
 		.version(zerverVersion, '-v, --version')
 		.usage('[options] [dir]')
+		.option('-p, --production', 'enable production mode (caching, concat, minfiy, gzip, etc)')
 		.option('-d, --debug', 'enable debug mode (auto-reload APIs on changes)')
 		.option('-r, --refresh', 'auto-refresh browsers on file changes')
 		.option('-l, --logging', 'stream browser logs to server console')
-		.option('-b, --verbose', 'verbose request logging')
-		.option('-p, --production', 'enable production mode (caching, concat, minfiy, gzip, etc)')
+		.option('-V, --verbose', 'verbose request logging')
 		.option('-P, --port <n>', 'set server port to listen on', parseInt)
-		.option('-u, --host <str>', 'declare production hostname')
+		.option('-H, --host <str>', 'declare production hostname')
 		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
 		.parse(args);
 
