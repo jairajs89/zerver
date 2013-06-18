@@ -82,7 +82,7 @@ function processFlags () {
 		API_HOST = commands.host;
 	}
 	if (commands.manifest) {
-		MANIFESTS.concat( commands.manifest.split(',') );
+		MANIFESTS = MANIFESTS.concat( commands.manifest.split(',') );
 	}
 	if (commands.args[0]) {
 		CWD = path.join(process.cwd(), commands.args[0]);
