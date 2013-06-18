@@ -34,7 +34,7 @@ exports.run = function (defaultArgString) {
 	var defaultArgs = [];
 	if (defaultArgString) {
 		defaultArgs = parseShell(defaultArgString);
-		console.log("Environment options: " + defaultArgs.join(", "));
+		console.log('Environment options: ' + defaultArgs.join(', '));
 	}
 	// defaults go first, so they get overriden by manually specified options
 	var argv = defaultArgs.concat(process.argv.slice(2));

@@ -5,7 +5,7 @@ var path = require('path'),
 
 var ZERVER         = __dirname + '/zerver',
 	WATCHER        = __dirname + '/watcher',
-	PACKAGE        = __dirname + '/package.json',
+	PACKAGE        = __dirname + '/../package.json',
 	ENV_MATCHER    = /([^\,]+)\=([^\,]+)/g,
 	API_DIR        = 'zerver',
 	CWD            = process.cwd(),
@@ -18,6 +18,8 @@ var ZERVER         = __dirname + '/zerver',
 	PORT           = process.env.PORT || 8888,
 	MANIFESTS	   = [],
 	API_HOST;
+
+startServer();
 
 
 
@@ -154,7 +156,7 @@ function setupCLI (processCommand) {
 
 
 
-function main () {
+function startServer () {
 	processFlags();
 
 	var death    = false,
@@ -241,7 +243,3 @@ function main () {
 
 	runServer();
 }
-
-
-
-main();
