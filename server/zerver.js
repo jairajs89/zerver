@@ -82,31 +82,24 @@ exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, mani
 		console.error(err.stack);
 	});
 
+	console.log('zerver running:');
+
 	if (DEBUG) {
-		console.log('[debug mode]');
+		console.log('- mode: debug');
 	}
 	else if (production) {
-		console.log('[production mode]');
+		console.log('- mode: production');
 	}
 
-	console.log('zerver running on port ' + PORT);
+	console.log('- port: ' + PORT);
 
 	var apiNames = apis.getNames();
 	if ( apiNames.length ) {
-		console.log('available apis:');
-		apiNames.forEach(function (apiName) {
-			console.log('\t' + apiName);
-		});
-	}
-	else {
-		console.log('no available apis');
+		console.log('- zerver apis: ' + apiNames.join(', '));
 	}
 
 	if (manifests) {
-		console.log('manifest files:');
-		for (var path in MANIFESTS) {
-			console.log('\t' + path);
-		}
+		console.log('- appcache manifests: ' + Object.keys(MANIFESTS).join(', '));
 	}
 
 	console.log('');
