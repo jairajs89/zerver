@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-var path = require('path'),
-	fork = require('child_process').fork;
+var commander = require(__dirname + '/commander'),
+	path      = require('path'),
+	fork      = require('child_process').fork;
 
 var ZERVER         = __dirname + '/zerver',
 	WATCHER        = __dirname + '/watcher',
@@ -27,72 +28,65 @@ function processFlags () {
 	if (process.env.ZERVER) {
 		console.error('ZERVER environment variable is not longer supported');
 		console.error('use ZERVER_FLAGS instead');
-		process.exit(1);
-		return;
+	}
+	var defaultArgs = [];
+	if (process.env.ZERVER_FLAGS) {
+		console.log('env: ' + process.env.ZERVER_FLAGS);
+		defaultArgs = parseShell(process.env.ZERVER_FLAGS);
+	}
+	var args = process.argv.slice(0,2).concat(defaultArgs).concat(process.argv.slice(2));
+
+	var zerverVersion;
+	try {
+		var packageFile = require('fs').readFileSync(PACKAGE),
+			packageData = JSON.parse(packageFile);
+		zerverVersion = packageData.version;
+	}
+	catch (err) {
+		zerverVersion = '0.0.0';
 	}
 
-	var flags = require(__dirname + '/flags');
+	var commands = new commander.Command('zerver');
+	commands
+		.version(zerverVersion, '-v, --version')
+		.usage('[options] [dir]')
+		.option('-d, --debug', 'enable debug mode (auto-reload APIs on changes)')
+		.option('-r, --refresh', 'auto-refresh browsers on file changes')
+		.option('-l, --logging', 'stream browser logs to server console')
+		.option('-b, --verbose', 'verbose request logging')
+		.option('-p, --production', 'enable production mode (caching, concat, minfiy, gzip, etc)')
+		.option('-P, --port <n>', 'set server port to listen on', parseInt)
+		.option('-u, --host <str>', 'declare production hostname')
+		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
+		.parse(args);
 
-	flags.add(['v', 'version'], function () {
-		try {
-			var packageFile = require('fs').readFileSync(PACKAGE),
-				packageData = JSON.parse(packageFile);
-
-			console.log('zerver v' + packageData.version);
-		}
-		catch (err) {
-			console.log('zerver v0');
-		}
-		process.exit(0);
-	});
-
-	flags.add(['d', 'debug'], function () {
+	if (commands.debug) {
 		DEBUG = true;
-	});
-
-	flags.add(['r', 'refresh'], function () {
+	}
+	if (commands.refresh) {
 		REFRESH = true;
-	});
-
-	flags.add(['l', 'logging'], function () {
+	}
+	if (commands.logging) {
 		LOGGING = true;
-	});
-
-	flags.add(['b', 'verbose'], function () {
+	}
+	if (commands.verbose) {
 		VERBOSE = true;
-	});
-
-	flags.add(['p', 'production'], function () {
+	}
+	if (commands.production) {
 		PRODUCTION = true;
-	});
-
-	flags.add('port', function (port) {
-		port = parseInt(port);
-
-		if ( !port ) {
-			throw TypeError('port must be an integer, got ' + port);
-		}
-
-		PORT = port;
-	});
-
-	flags.add('host', function (host) {
-		API_HOST = host;
-	});
-
-	flags.add('zerver-dir', function (dir) {
-		API_DIR = dir;
-	});
-
-	flags.arg('dir', function (dir) {
-		CWD = path.join(process.cwd(), dir);
-	});
-
-	flags.add('manifest', function (manifest) {
-		MANIFESTS.push(manifest);
-	});
-
-	flags.run(process.env.ZERVER_FLAGS);
+	}
+	if (commands.port) {
+		PORT = commands.port;
+	}
+	if (commands.host) {
+		API_HOST = commands.host;
+	}
+	if (commands.manifest) {
+		MANIFESTS.concat( commands.manifest.split(',') );
+	}
+	if (commands.args[0]) {
+		CWD = path.join(process.cwd(), commands.args[0]);
+	}
 
 	if (PRODUCTION) {
 		DEBUG   = false;
@@ -103,6 +97,26 @@ function processFlags () {
 		DEBUG      = true;
 		PRODUCTION = false;
 	}
+}
+
+function parseShell (s) {
+    return s.match(/(['"])((\\\1|[^\1])*?)\1|(\\ |\S)+/g)
+        .map(function (s) {
+            if (/^'/.test(s)) {
+                return s
+                    .replace(/^'|'$/g, '')
+                    .replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
+                ;
+            }
+            else if (/^"/.test(s)) {
+                return s
+                    .replace(/^"|"$/g, '')
+                    .replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
+                ;
+            }
+            else return s.replace(/\\([ "'\\$`(){}!#&*|])/g, '$1');
+        })
+    ;
 }
 
 
