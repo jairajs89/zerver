@@ -41,19 +41,18 @@ function processFlags () {
 	commands
 		.version(zerverVersion, '-v, --version')
 		.usage('[options] [dir]')
-		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
-		.option('-d, --debug'           , 'no-op (backwards compatibility)')
 		.option('-r, --refresh'         , 'auto-refresh browsers on file changes')
-		.option('-l, --logging'         , 'stream browser logs to server console')
+		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
+		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
+		.option('-H, --host <str>'      , 'declare production hostname')
+		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||8888)
 		.option('-V, --verbose'         , 'verbose request logging')
 		.option('-L, --less'            , 'automatically compile less into css')
-		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||8888)
-		.option('-H, --host <str>'      , 'declare production hostname')
-		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
+		.option('-d, --debug'           , 'no-op (backwards compatibility)')
+		.option('-l, --logging'         , 'no-op (backwards compatibility)')
 		.parse(args);
 	if (commands.production) {
 		commands.refresh = false;
-		commands.logging = false;
 	}
 	return commands;
 }
@@ -81,10 +80,10 @@ function parseShell (s) {
 
 
 function setupCLI (processCommand) {
-	var readline  = require('readline'),
-		rlEnabled = false;
-		rl        = readline.createInterface(process.stdin, process.stdout);
+	var readline = require('readline'),
+		rl       = readline.createInterface(process.stdin, process.stdout);
 
+	rl.isEnabled = false;
 	rl.setPrompt('');
 
 	process.stdin.on('keypress', function (s, key) {
@@ -92,20 +91,20 @@ function setupCLI (processCommand) {
 			return;
 		}
 
-		if (rlEnabled && key.name === 'escape') {
-			rlEnabled = false;
+		if (rl.isEnabled && key.name === 'escape') {
+			rl.isEnabled = false;
 			rl.setPrompt('');
 			rl.prompt();
 		}
-		else if (!rlEnabled && key.name === 'tab') {
-			rlEnabled = true;
+		else if (!rl.isEnabled && key.name === 'tab') {
+			rl.isEnabled = true;
 			rl.setPrompt('>>> ');
 			rl.prompt();
 		}
 	});
 
 	rl.on('line', function (line) {
-		if ( !rlEnabled ) {
+		if ( !rl.isEnabled ) {
 			return;
 		}
 
@@ -118,7 +117,7 @@ function setupCLI (processCommand) {
 	});
 
 	rl.on('close', function() {
-		if (rlEnabled) {
+		if (rl.isEnabled) {
 			console.log('');
 		}
 		process.exit(0);
@@ -134,14 +133,12 @@ function startServer () {
 
 	var death    = false,
 		cwd      = commands.args[0] ? path.join(process.cwd(),commands.args[0]) : process.cwd(),
-		apiDir   = cwd + '/' + API_DIR,
 		apiCheck = new RegExp('^' + cwd + '/' + API_DIR),
 		args     = [new Buffer(JSON.stringify({
 			port       : commands.port ,
-			apiDir     : apiDir ,
-			apiURL     : apiDir ,
+			apiDir     : API_DIR ,
+			apiURL     : API_DIR ,
 			refresh    : !!commands.refresh ,
-			logging    : !!commands.logging ,
 			verbose    : !!commands.verbose ,
 			manifests  : (commands.manifest || '') ,
 			production : !!commands.production ,
@@ -160,9 +157,19 @@ function startServer () {
 			}
 		});
 
-		if (commands.logging) {
+		if ( !commands.production ) {
 			child.on('message', function (data) {
-				if (data && data.prompt && cli) {
+				if ( !data ) {
+					return;
+				}
+				if (data.prompt && cli) {
+					cli.prompt();
+				}
+				else if (data.log && cli && cli.isEnabled) {
+					cli.setPrompt('');
+					cli.prompt();
+					console.log(data.log);
+					cli.setPrompt('>>> ');
 					cli.prompt();
 				}
 			});
@@ -183,16 +190,14 @@ function startServer () {
 		return;
 	}
 
-	if (commands.logging) {
-		cli = setupCLI(function (line) {
-			if (child) {
-				try {
-					child.send({ cli : line });
-				}
-				catch (err) {}
+	cli = setupCLI(function (line) {
+		if (child) {
+			try {
+				child.send({ cli : line });
 			}
-		});
-	}
+			catch (err) {}
+		}
+	});
 
 	var watcher    = require(WATCHER),
 		lastChange = null;

@@ -1,6 +1,6 @@
 var EventEmitter = require('events').EventEmitter;
 
-var API_URL, REFRESH, LOGGING,
+var API_URL, REFRESH,
 	DEBUG_PREFIX,
 	FORCE_FLUSH;
 
@@ -19,7 +19,7 @@ exports.handle = handleRequest;
 
 
 
-function setupDebugMode (apiURL, refresh, logging) {
+function setupDebugMode (apiURL, refresh) {
 	if (enabled) {
 		return;
 	}
@@ -27,7 +27,6 @@ function setupDebugMode (apiURL, refresh, logging) {
 
 	API_URL = apiURL;
 	REFRESH = refresh;
-	LOGGING = logging;
 
 	DEBUG_PREFIX = '/' + API_URL + '/_push/';
 
@@ -49,7 +48,7 @@ function setupLogging () {
 	streams.on('connection', function (stream) {
 		stream.on('message', function (data) {
 			if (data.type === 'log') {
-				console.log(data.level + ': ' + data.message);
+				process.send({ log: (data.level+': '+data.message) });
 			}
 		});
 	});

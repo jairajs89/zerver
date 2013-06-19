@@ -45,7 +45,6 @@ var ROOT_DIR            = process.cwd(),
 	MANIFESTS,
 	CACHE_CONTROL,
 	REFRESH,
-	LOGGING,
 	VERBOSE,
 	PORT,
 	API_DIR,
@@ -71,7 +70,6 @@ exports.middleware = function (apiDir, apiURL, apiHost) {
 		apiHost    : apiHost ,
 		debug      : false   ,
 		refresh    : false   ,
-		logging    : false   ,
 		verbose    : false   ,
 		manifests  : ''      ,
 		production : false
@@ -82,8 +80,8 @@ exports.middleware = function (apiDir, apiURL, apiHost) {
 exports.run = function (options) {
 	configureZerver(options);
 
-	if (REFRESH || LOGGING) {
-		debug.setup(API_URL, REFRESH, LOGGING);
+	if ( !PRODUCTION ) {
+		debug.setup(API_URL, REFRESH);
 	}
 
 	app = http.createServer(handleRequest).listen(PORT);
@@ -100,9 +98,6 @@ exports.run = function (options) {
 	if ( !PRODUCTION ) {
 		if (REFRESH) {
 			runMode.push('auto-refresh');
-		}
-		if (LOGGING) {
-			runMode.push('log-streaming');
 		}
 	}
 	else {
@@ -135,7 +130,6 @@ function configureZerver (options) {
 	API_HOST         = options.apiHost;
 	PRODUCTION       = options.production;
 	REFRESH          = options.refresh;
-	LOGGING          = options.logging;
 	VERBOSE          = options.verbose;
 	LESS_ENABLED     = options.less;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
@@ -200,7 +194,7 @@ function configureZerver (options) {
 
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
-	apis.setup(API_HOST, API_DIR, REFRESH, LOGGING);
+	apis.setup(API_HOST, API_DIR, REFRESH, !PRODUCTION);
 }
 
 function updateLastModifiedTime () {
@@ -305,7 +299,7 @@ function handleRequest (request, response) {
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
-	if (!PRODUCTION && (REFRESH || LOGGING) && isApiCall && debug.handle(handler)) {
+	if (!PRODUCTION && isApiCall && debug.handle(handler)) {
 		return;
 	}
 
