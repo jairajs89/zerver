@@ -47,9 +47,7 @@ function processFlags () {
 		.option('-H, --host <str>'      , 'declare production hostname')
 		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||8888)
 		.option('-V, --verbose'         , 'verbose request logging')
-		.option('-L, --less'            , 'automatically compile less into css')
-		.option('-d, --debug'           , 'no-op (backwards compatibility)')
-		.option('-l, --logging'         , 'no-op (backwards compatibility)')
+		.option('-l, --less'            , 'automatically compile less into css')
 		.parse(args);
 	if (commands.production) {
 		commands.refresh = false;
