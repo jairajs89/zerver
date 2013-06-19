@@ -92,17 +92,15 @@ exports.run = function (options) {
 
 	console.log('zerver running:');
 
-	var runMode = [];
-	if ( !PRODUCTION ) {
-		if (REFRESH) {
-			runMode.push('auto-refresh');
-		}
+	if (PRODUCTION) {
+		console.log('- production: true');
 	}
-	else {
-		runMode.push('production');
+	else if (REFRESH) {
+		console.log('- refresh: true');
 	}
-	if (runMode.length) {
-		console.log('- mode: ' + runMode.join(', '));
+
+	if (LESS_ENABLED) {
+		console.log('- less: true');
 	}
 
 	console.log('- port: ' + PORT);
@@ -114,7 +112,7 @@ exports.run = function (options) {
 
 	var manifestList = Object.keys(MANIFESTS);
 	if (manifestList.length) {
-		console.log('- appcache manifest' + (manifestList.length > 1 ? 's' : '') + ': ' + manifestList.join(', '));
+		console.log('- manifest' + (manifestList.length > 1 ? 's' : '') + ': ' + manifestList.join(', '));
 	}
 
 	console.log('');
