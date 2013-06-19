@@ -1,7 +1,6 @@
 /* Imports and static vars */
 
-var less   = require('less'),
-	clean  = require(__dirname + '/clean-css'),
+var clean  = require(__dirname + '/clean-css'),
 	debug  = require(__dirname + '/debug'),
 	crypto = require('crypto'),
 	fs     = require('fs'    ),
@@ -10,7 +9,8 @@ var less   = require('less'),
 	path   = require('path'  ),
 	uglify = require('uglify-js'),
 	url    = require('url'   ),
-	zlib   = require('zlib'  );
+	zlib   = require('zlib'  ),
+	less;
 
 var ROOT_DIR            = process.cwd(),
 	GZIPPABLE           = {
@@ -41,9 +41,9 @@ var ROOT_DIR            = process.cwd(),
 	CACHE_ENABLED       = false,
 	HAS_MANIFEST        = false,
 	PRODUCTION          = false,
+	LESS_ENABLED        = false,
 	MANIFESTS,
 	CACHE_CONTROL,
-	DEBUG,
 	REFRESH,
 	LOGGING,
 	VERBOSE,
@@ -64,14 +64,25 @@ var memoryCache = {},
 /* Run server */
 
 exports.middleware = function (apiDir, apiURL, apiHost) {
-	configureZerver(8888, apiDir, apiURL, apiHost, false, false, false, false, '', false);
+	configureZerver({
+		port       : 8888    ,
+		apiDir     : apiDir  ,
+		apiURL     : apiURL  ,
+		apiHost    : apiHost ,
+		debug      : false   ,
+		refresh    : false   ,
+		logging    : false   ,
+		verbose    : false   ,
+		manifests  : ''      ,
+		production : false
+	});
 	return handleMiddlewareRequest;
 };
 
-exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, manifests, production, apiHost) {
-	configureZerver(port, apiDir, apiDir, apiHost, debugFlag, refresh, logging, verbose, manifests, production);
+exports.run = function (options) {
+	configureZerver(options);
 
-	if (DEBUG && (REFRESH || LOGGING)) {
+	if (REFRESH || LOGGING) {
 		debug.setup(API_URL, REFRESH, LOGGING);
 	}
 
@@ -86,8 +97,7 @@ exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, mani
 	console.log('zerver running:');
 
 	var runMode = [];
-	if (DEBUG) {
-		runMode.push('debug');
+	if ( !PRODUCTION ) {
 		if (REFRESH) {
 			runMode.push('auto-refresh');
 		}
@@ -95,7 +105,7 @@ exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, mani
 			runMode.push('log-streaming');
 		}
 	}
-	else if (PRODUCTION) {
+	else {
 		runMode.push('production');
 	}
 	if (runMode.length) {
@@ -117,27 +127,24 @@ exports.run = function (port, apiDir, debugFlag, refresh, logging, verbose, mani
 	console.log('');
 };
 
-function configureZerver (port, apiDir, apiURL, apiHost, debugFlag, refresh, logging, verbose, manifests, production) {
-	PORT             = port;
-	API_DIR          = apiDir;
-	API_URL          = apiURL;
-	API_URL_LENGTH   = apiURL.length;
-	API_HOST         = apiHost;
-	DEBUG            = debugFlag;
-	PRODUCTION       = production;
-	REFRESH          = refresh;
-	LOGGING          = logging;
-	VERBOSE          = verbose;
+function configureZerver (options) {
+	PORT             = options.port;
+	API_DIR          = options.apiDir;
+	API_URL          = options.apiURL;
+	API_URL_LENGTH   = options.apiURL.length;
+	API_HOST         = options.apiHost;
+	PRODUCTION       = options.production;
+	REFRESH          = options.refresh;
+	LOGGING          = options.logging;
+	VERBOSE          = options.verbose;
+	LESS_ENABLED     = options.less;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
 
-	if (REFRESH || LOGGING) {
-		DEBUG = true;
-	}
 
-	global.ZERVER_DEBUG = DEBUG;
+	global.ZERVER_DEBUG = !PRODUCTION;
 
-	if (!DEBUG && PRODUCTION) {
+	if (PRODUCTION) {
 		GZIP_ENABLED        = true;
 		COMPILATION_ENABLED = true;
 		INLINING_ENABLED    = true;
@@ -145,10 +152,26 @@ function configureZerver (port, apiDir, apiURL, apiHost, debugFlag, refresh, log
 		CONCAT_FILES        = true;
 	}
 
+	if (LESS_ENABLED) {
+		try {
+			less = require('less');
+		}
+		catch (err) {
+			console.error('--less flag depends on less module, run command:');
+			console.error('npm install less');
+			if ( !PRODUCTION ) {
+				console.error('');
+			}
+			else {
+				process.exit(1);
+			}
+		}
+	}
+
 	updateLastModifiedTime();
 
-	if (manifests) {
-		manifests.split(',').forEach(function (path) {
+	if (options.manifests) {
+		options.manifests.split(',').forEach(function (path) {
 			if (!path[0] !== '/') {
 				path = '/' + path;
 			}
@@ -190,7 +213,6 @@ function getMaxLastModifiedTime (file) {
 		stats = fs.statSync(file);
 	}
 	catch (err) {
-		// console.error('unable to get last mod time for file ' + file);
 		return;
 	}
 
@@ -203,7 +225,6 @@ function getMaxLastModifiedTime (file) {
 		dirListing = fs.readdirSync(file);
 	}
 	catch (err) {
-		// console.error('unable to get last mod time for directory ' + file);
 		return;
 	}
 
@@ -216,7 +237,6 @@ function getMaxLastModifiedTime (file) {
 	});
 
 	if ( !maxModTime ) {
-		// console.error('unable to get last mod time for directory ' + file);
 		return;
 	}
 
@@ -263,7 +283,7 @@ function prefetchManifestFile (pathname, callback) {
 		console.error('zerver: failed to load manifest, ' + pathname);
 		console.error('zerver: ' + msg);
 
-		if ( !DEBUG ) {
+		if (PRODUCTION) {
 			process.exit();
 		}
 	}
@@ -285,7 +305,7 @@ function handleRequest (request, response) {
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
-	if (DEBUG && (REFRESH || LOGGING) && isApiCall && debug.handle(handler)) {
+	if (!PRODUCTION && (REFRESH || LOGGING) && isApiCall && debug.handle(handler)) {
 		return;
 	}
 
@@ -374,7 +394,7 @@ function handleMiddlewareRequest (request, response, next) {
 }
 
 function prepareConcatFiles (type, data, pathname, callback) {
-	if (!CONCAT_FILES || DEBUG || (type !== 'text/html') || (typeof data !== 'string')) {
+	if (!CONCAT_FILES || !PRODUCTION || (type !== 'text/html') || (typeof data !== 'string')) {
 		callback(data);
 		return;
 	}
@@ -423,7 +443,7 @@ function prepareConcatFiles (type, data, pathname, callback) {
 function prepareManifestConcatFiles (data, pathname, callback) {
 	validateManifest(data, pathname);
 
-	if (!CONCAT_FILES || DEBUG || (typeof data !== 'string')) {
+	if (!CONCAT_FILES || !PRODUCTION || (typeof data !== 'string')) {
 		callback(data);
 		return;
 	}
@@ -557,14 +577,14 @@ function validateManifest (data, pathname) {
 		console.error('zerver: invalid manifest, ' + pathname);
 		console.error('zerver: ' + msg);
 
-		if ( !DEBUG ) {
+		if (PRODUCTION) {
 			process.exit();
 		}
 	}
 }
 
 function inlineImages (type, data, pathname, callback) {
-	if (!INLINING_ENABLED || DEBUG || ((type !== 'text/css') && (type !== 'text/less')) || (typeof data !== 'string')) {
+	if (!INLINING_ENABLED || !PRODUCTION || ((type !== 'text/css') && (type !== 'text/less')) || (typeof data !== 'string')) {
 		callback(data);
 		return;
 	}
@@ -616,7 +636,7 @@ function inlineImages (type, data, pathname, callback) {
 
 function compileOutput (type, data, callback) {
 	compileLess(type, data, function (type, data) {
-		if (!COMPILATION_ENABLED || DEBUG) {
+		if (!COMPILATION_ENABLED || !PRODUCTION) {
 			callback(type, data);
 			return;
 		}
@@ -659,7 +679,7 @@ function compileOutput (type, data, callback) {
 }
 
 function compileLess (type, data, callback) {
-	if (type !== 'text/less') {
+	if ((type !== 'text/less') || !less) {
 		callback(type, data);
 		return;
 	}
@@ -885,7 +905,7 @@ function concatRequest (handler, pathname) {
 	if (hasError) {
 		console.error('zerver: failed to load concat file, ' + pathname);
 		console.error('zerver: could not load file, ' + errorFile);
-		if ( !DEBUG ) {
+		if (PRODUCTION) {
 			process.exit();
 		}
 		else {
@@ -917,7 +937,7 @@ function manifestRequest (handler, pathname) {
 			}
 
 			prepareManifestConcatFiles(data, pathname, function (data) {
-				if (DEBUG) {
+				if ( !PRODUCTION ) {
 					updateLastModifiedTime();
 				}
 
@@ -1310,5 +1330,5 @@ function lookupMime (fileName) {
 /* Run in debug mode */
 
 if (require.main === module) {
-	exports.run(parseInt(process.argv[2]), process.argv[3], (process.argv[4]==='1'), (process.argv[5]==='1'), (process.argv[6]==='1'), (process.argv[7]==='1'), process.argv[8], (process.argv[9]==='1'), (process.argv[10]||undefined));
+	exports.run(JSON.parse(new Buffer(process.argv[2], 'base64').toString()));
 }

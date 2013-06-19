@@ -2,8 +2,8 @@
 {
   "author" : "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name" : "zerver",
-  "description" : "modern webapp server",
-  "version" : "0.12.1",
+  "description" : "a modern webapp server",
+  "version" : "0.12.2",
   "license" : "MIT" ,
   "repository" : {
     "type" : "git",
@@ -14,8 +14,7 @@
   },
   "dependencies" : {
     "mime"      : "1.2.7" ,
-    "uglify-js" : "1.3.4" ,
-    "less"      : "1.2.2"
+    "uglify-js" : "1.3.4"
   },
   "main" : "node-client/index.js",
   "bin" : {

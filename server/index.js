@@ -9,16 +9,7 @@ var ZERVER         = __dirname + '/zerver',
 	PACKAGE        = __dirname + '/../package.json',
 	ENV_MATCHER    = /([^\,]+)\=([^\,]+)/g,
 	API_DIR        = 'zerver',
-	CWD            = process.cwd(),
-	CHANGE_TIMEOUT = 1000,
-	DEBUG          = false,
-	REFRESH        = false,
-	LOGGING        = false,
-	PRODUCTION     = false,
-	VERBOSE        = false,
-	PORT           = process.env.PORT || 8888,
-	MANIFESTS	   = [],
-	API_HOST;
+	CHANGE_TIMEOUT = 1000;
 
 startServer();
 
@@ -50,53 +41,21 @@ function processFlags () {
 	commands
 		.version(zerverVersion, '-v, --version')
 		.usage('[options] [dir]')
-		.option('-p, --production', 'enable production mode (caching, concat, minfiy, gzip, etc)')
-		.option('-d, --debug', 'enable debug mode (auto-reload APIs on changes)')
-		.option('-r, --refresh', 'auto-refresh browsers on file changes')
-		.option('-l, --logging', 'stream browser logs to server console')
-		.option('-V, --verbose', 'verbose request logging')
-		.option('-P, --port <n>', 'set server port to listen on', parseInt)
-		.option('-H, --host <str>', 'declare production hostname')
+		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
+		.option('-d, --debug'           , 'no-op (backwards compatibility)')
+		.option('-r, --refresh'         , 'auto-refresh browsers on file changes')
+		.option('-l, --logging'         , 'stream browser logs to server console')
+		.option('-V, --verbose'         , 'verbose request logging')
+		.option('-L, --less'            , 'automatically compile less into css')
+		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||8888)
+		.option('-H, --host <str>'      , 'declare production hostname')
 		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
 		.parse(args);
-
-	if (commands.debug) {
-		DEBUG = true;
-	}
-	if (commands.refresh) {
-		REFRESH = true;
-	}
-	if (commands.logging) {
-		LOGGING = true;
-	}
-	if (commands.verbose) {
-		VERBOSE = true;
-	}
 	if (commands.production) {
-		PRODUCTION = true;
+		commands.refresh = false;
+		commands.logging = false;
 	}
-	if (commands.port) {
-		PORT = commands.port;
-	}
-	if (commands.host) {
-		API_HOST = commands.host;
-	}
-	if (commands.manifest) {
-		MANIFESTS = MANIFESTS.concat( commands.manifest.split(',') );
-	}
-	if (commands.args[0]) {
-		CWD = path.join(process.cwd(), commands.args[0]);
-	}
-
-	if (PRODUCTION) {
-		DEBUG   = false;
-		REFRESH = false;
-		LOGGING = false;
-	}
-	else if (DEBUG || REFRESH || LOGGING) {
-		DEBUG      = true;
-		PRODUCTION = false;
-	}
+	return commands;
 }
 
 function parseShell (s) {
@@ -171,13 +130,25 @@ function setupCLI (processCommand) {
 
 
 function startServer () {
-	processFlags();
+	var commands = processFlags();
 
 	var death    = false,
-		apiDir   = CWD + '/' + API_DIR,
-		apiCheck = new RegExp('^' + CWD + '/' + API_DIR),
-		args     = [ PORT, API_DIR, (DEBUG ? '1' : '0'), (REFRESH ? '1' : '0'), (LOGGING ? '1' : '0'), (VERBOSE ? '1' : '0'), MANIFESTS.join(','), (PRODUCTION ? '1' : '0'), (API_HOST || '')],
-		opts     = { cwd : CWD },
+		cwd      = commands.args[0] ? path.join(process.cwd(),commands.args[0]) : process.cwd(),
+		apiDir   = cwd + '/' + API_DIR,
+		apiCheck = new RegExp('^' + cwd + '/' + API_DIR),
+		args     = [new Buffer(JSON.stringify({
+			port       : commands.port ,
+			apiDir     : apiDir ,
+			apiURL     : apiDir ,
+			refresh    : !!commands.refresh ,
+			logging    : !!commands.logging ,
+			verbose    : !!commands.verbose ,
+			manifests  : (commands.manifest || '') ,
+			production : !!commands.production ,
+			less       : !!commands.less ,
+			apiHost    : commands.host
+		})).toString('base64')],
+		opts     = { cwd : cwd },
 		child, cli;
 
 	function runServer (noRestart) {
@@ -189,7 +160,7 @@ function startServer () {
 			}
 		});
 
-		if (LOGGING) {
+		if (commands.logging) {
 			child.on('message', function (data) {
 				if (data && data.prompt && cli) {
 					cli.prompt();
@@ -207,12 +178,12 @@ function startServer () {
 		catch (err) {}
 	});
 
-	if ( !DEBUG ) {
+	if (commands.production) {
 		runServer(true);
 		return;
 	}
 
-	if (LOGGING) {
+	if (commands.logging) {
 		cli = setupCLI(function (line) {
 			if (child) {
 				try {
@@ -226,7 +197,7 @@ function startServer () {
 	var watcher    = require(WATCHER),
 		lastChange = null;
 
-	watcher.watch(CWD, function (fileName) {
+	watcher.watch(cwd, function (fileName) {
 		if (lastChange === null) {
 			return;
 		}
