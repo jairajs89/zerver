@@ -50,7 +50,6 @@ var ROOT_DIR            = process.cwd(),
 	API_DIR,
 	API_URL,
 	API_URL_LENGTH,
-	API_HOST,
 	API_SCRIPT_MATCH;
 
 var memoryCache = {},
@@ -62,12 +61,11 @@ var memoryCache = {},
 
 /* Run server */
 
-exports.middleware = function (apiDir, apiURL, apiHost) {
+exports.middleware = function (apiDir, apiURL) {
 	configureZerver({
 		port       : 8888    ,
 		apiDir     : apiDir  ,
 		apiURL     : apiURL  ,
-		apiHost    : apiHost ,
 		debug      : false   ,
 		refresh    : false   ,
 		verbose    : false   ,
@@ -127,7 +125,6 @@ function configureZerver (options) {
 	API_DIR          = options.apiDir;
 	API_URL          = options.apiURL;
 	API_URL_LENGTH   = options.apiURL.length;
-	API_HOST         = options.apiHost;
 	PRODUCTION       = options.production;
 	REFRESH          = options.refresh;
 	VERBOSE          = options.verbose;
@@ -194,7 +191,7 @@ function configureZerver (options) {
 
 function fetchAPIs () {
 	apis = require(__dirname + '/apis');
-	apis.setup(API_HOST, API_DIR, REFRESH, !PRODUCTION);
+	apis.setup(API_DIR, REFRESH, !PRODUCTION);
 }
 
 function updateLastModifiedTime () {
@@ -871,11 +868,7 @@ function concatRequest (handler, pathname) {
 		var match = urlParts && API_SCRIPT_MATCH.exec(urlParts.pathname);
 
 		if (match) {
-			var data = generateZerverScript(
-				match[1],
-				handler.request.headers.host,
-				urlParts.query
-			);
+			var data = generateZerverScript(match[1], urlParts.query);
 			if ( !data ) {
 				hasError  = true;
 				errorFile = fileName;
@@ -1192,11 +1185,7 @@ function scriptRequest (handler, pathname) {
 		return;
 	}
 
-	var file = generateZerverScript(
-		match[1],
-		handler.request.headers.host,
-		handler.query
-	);
+	var file = generateZerverScript(match[1], handler.query);
 
 	if ( !file ) {
 		respond404(handler);
@@ -1208,7 +1197,7 @@ function scriptRequest (handler, pathname) {
 	});
 }
 
-function generateZerverScript (apiRoot, host, query) {
+function generateZerverScript (apiRoot, query) {
 	var apiName = apiRoot;
 
 	if (query) {
@@ -1219,7 +1208,7 @@ function generateZerverScript (apiRoot, host, query) {
 		}
 	}
 
-	return apis.getScript(apiRoot, apiName, host, API_URL);
+	return apis.getScript(apiRoot, apiName, API_URL);
 }
 
 function logRequest (handler, status) {

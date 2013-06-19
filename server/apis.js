@@ -6,14 +6,12 @@ var ROOT_DIR         = process.cwd(),
 	CLIENT_JS        = '../browser-client/index.js',
 	INSERT_REFRESH   = '{{__API_REFRESH__}}',
 	INSERT_LOGGING   = '{{__API_LOGGING__}}',
-	INSERT_HOST      = '{{__API_HOST__}}',
 	INSERT_DIR       = '{{__API_DIR__}}',
 	INSERT_NAME      = '{{__API_NAME__}}',
 	INSERT_APIS      = '{{__API_APIS__}}',
 	INSERT_ROOT      = '{{__API_ROOT__}}',
 	INSERT_API       = '{{__API_OBJ__}}',
-	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}',
-	API_HOST;
+	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
 
 var setupComplete  = false,
 	scriptTemplate = fs.readFileSync(__dirname + '/' + CLIENT_JS) + '',
@@ -25,7 +23,7 @@ var setupComplete  = false,
 
 
 
-exports.setup = function (apiHost, apiDir, refresh, logging) {
+exports.setup = function (apiDir, refresh, logging) {
 	if (setupComplete) {
 		throw Error('apis can be setup only once');
 	}
@@ -33,7 +31,6 @@ exports.setup = function (apiHost, apiDir, refresh, logging) {
 
 	REFRESH  = refresh;
 	LOGGING  = logging;
-	API_HOST = apiHost;
 
 	//TODO: validate apiDir
 
@@ -107,12 +104,10 @@ exports.get = function (apiName) {
 
 
 
-exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
+exports.getScript = function (apiRoot, apiName, apiDir) {
 	var isRequire = (apiRoot === 'require'),
 		isRefresh = (apiRoot === 'refresh'),
 		isAPI     = (apiRoot in apiScripts);
-
-	apiHost = API_HOST || apiHost || 'localhost:8888';
 
 	var script;
 
@@ -132,7 +127,6 @@ exports.getScript = function (apiRoot, apiName, apiHost, apiDir) {
 	script = script.replace(INSERT_REFRESH, JSON.stringify(REFRESH));
 	script = script.replace(INSERT_LOGGING, JSON.stringify(LOGGING));
 	script = script.replace(INSERT_NAME   , JSON.stringify(apiName));
-	script = script.replace(INSERT_HOST   , JSON.stringify(apiHost));
 	script = script.replace(INSERT_DIR    , JSON.stringify(apiDir ));
 
 	return script;

@@ -5,7 +5,6 @@
 
 	var apiRefresh   = {{__API_REFRESH__}},
 		apiLogging   = {{__API_LOGGING__}},
-		apiHost      = {{__API_HOST__}},
 		apiDir       = {{__API_DIR__}},
 		apiName      = {{__API_NAME__}},
 		apiRoot      = {{__API_ROOT__}},
@@ -141,7 +140,7 @@
 	}
 
 	function apiCall (tree, args, callback) {
-		var url  = '//' + apiHost + '/' + apiDir,
+		var url  = '/' + apiDir,
 			data = JSON.stringify(args);
 
 		for (var i=0, len=tree.length; i<len; i++) {
@@ -178,33 +177,21 @@
 		var done = false,
 			xhr;
 
-		if ((apiHost !== window.location.host) && (typeof XDomainRequest !== 'undefined')) {
-			xhr = new XDomainRequest();
-
-			xhr.onload = function () {
-				xhrComplete(200);
-			};
-			xhr.onerror = function () {
-				xhrComplete(0);
-			};
+		if (typeof XMLHttpRequest !== 'undefined') {
+			xhr = new XMLHttpRequest();
+		}
+		else if (typeof ActiveXObject !== 'undefined') {
+			xhr = new ActiveXObject('Microsoft.XMLHTTP');
 		}
 		else {
-			if (typeof XMLHttpRequest !== 'undefined') {
-				xhr = new XMLHttpRequest();
-			}
-			else if (typeof ActiveXObject !== 'undefined') {
-				xhr = new ActiveXObject('Microsoft.XMLHTTP');
-			}
-			else {
-				throw Error('browser does not support ajax');
-			}
-
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState === 4) {
-					xhrComplete(xhr.status);
-				}
-			};
+			throw Error('browser does not support ajax');
 		}
+
+		xhr.onreadystatechange = function () {
+			if (xhr.readyState === 4) {
+				xhrComplete(xhr.status);
+			}
+		};
 
 		var timeout = window['ZERVER_TIMEOUT'] || XHR_TIMEOUT;
 
@@ -284,7 +271,7 @@
 				return;
 			}
 
-			var url     = '//' + apiHost + '/' + apiDir + '/_push/message?id='+apiSocketID+'&_='+(+new Date()),
+			var url     = '/'+apiDir+'/_push/message?id='+apiSocketID+'&_='+(+new Date()),
 				payload = JSON.stringify(data);
 
 			ajaxPost(url, payload);
@@ -326,7 +313,7 @@
 		var dying      = false,
 			done       = false,
 			hasConnect = false,
-			url        = '//' + apiHost + '/' + apiDir + '/_push/stream?id='+apiSocketID+'&_='+(+new Date()),
+			url        = '/'+apiDir+'/_push/stream?id='+apiSocketID+'&_='+(+new Date()),
 			xhr        = new XMLHttpRequest();
 
 		xhr.onreadystatechange = function () {

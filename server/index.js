@@ -44,7 +44,6 @@ function processFlags () {
 		.option('-r, --refresh'         , 'auto-refresh browsers on file changes')
 		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
 		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
-		.option('-H, --host <str>'      , 'declare production hostname')
 		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||8888)
 		.option('-V, --verbose'         , 'verbose request logging')
 		.option('-l, --less'            , 'automatically compile less into css')
@@ -141,7 +140,6 @@ function startServer () {
 			manifests  : (commands.manifest || '') ,
 			production : !!commands.production ,
 			less       : !!commands.less ,
-			apiHost    : commands.host
 		})).toString('base64')],
 		opts     = { cwd : cwd },
 		child, cli;
