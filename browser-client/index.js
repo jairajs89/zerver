@@ -1,5 +1,5 @@
 (function (window) {
-	var XHR_TIMEOUT        = 30000,
+	var XHR_TIMEOUT        = 22000,
 		ZERVER_INIT        = 'ZERVER_INIT',
 		ZERVER_KILL_STREAM = 'ZERVER_KILL_STREAM';
 

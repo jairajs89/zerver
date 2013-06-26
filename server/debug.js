@@ -203,7 +203,7 @@ function prepareHandler (streamID, handler) {
 
 	setTimeout(function () {
 		handler.response.end('');
-	}, 30 * 1000);
+	}, 20 * 1000);
 
 	handler.request.on('error', releaseHandler);
 	handler.request.on('close', releaseHandler);

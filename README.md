@@ -41,7 +41,7 @@ exports.logStuff = function (str) {
 ```sh
 # run the server
 zerver website-dir
-# go to http://localhost:8888/ to view the magic
+# go to http://localhost:5000/ to view the magic
 ```
 
 ### What just happened?
@@ -102,7 +102,7 @@ A convenient tool for testing and server-to-server integration is the NodeJS Zer
 ```js
 var zerver = require('zerver');
 
-zerver.get('http://localhost:8888/zerver/', function (myzerver) {
+zerver.get('http://localhost:5000/zerver/', function (myzerver) {
     myzerver.MyAPI.logStuff('hi from another server', function (str, data) {
         console.log(str); // "hi from server"
     });

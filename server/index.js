@@ -44,7 +44,7 @@ function processFlags () {
 		.option('-r, --refresh'         , 'auto-refresh browsers on file changes')
 		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
 		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
-		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||8888)
+		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||5000)
 		.option('-V, --verbose'         , 'verbose request logging')
 		.option('-l, --less'            , 'automatically compile less into css')
 		.parse(args);

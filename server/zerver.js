@@ -63,7 +63,7 @@ var memoryCache = {},
 
 exports.middleware = function (apiDir, apiURL) {
 	configureZerver({
-		port       : 8888    ,
+		port       : 5000    ,
 		apiDir     : apiDir  ,
 		apiURL     : apiURL  ,
 		debug      : false   ,
