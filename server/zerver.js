@@ -10,7 +10,12 @@ var clean  = require(__dirname + '/clean-css'),
 	uglify = require('uglify-js'),
 	url    = require('url'   ),
 	zlib   = require('zlib'  ),
-	less;
+	less, ws;
+
+var _warn = console.warn;
+console.warn = function () {};
+ws = require('websocket').server;
+console.warn = _warn;
 
 var ROOT_DIR            = process.cwd(),
 	GZIPPABLE           = {
@@ -78,17 +83,34 @@ exports.middleware = function (apiDir, apiURL) {
 exports.run = function (options) {
 	configureZerver(options);
 
-	if ( !PRODUCTION ) {
-		debug.setup(API_URL, REFRESH);
-	}
-
-	app = http.createServer(handleRequest).listen(PORT);
+	app = http.createServer(function (request, response) {
+		handleRequest(request, response);
+	});
 
 	app.on('error', function (err) {
 		console.error('zerver: server error');
 		console.error(err);
 		console.error(err.stack);
 	});
+
+	if ( !PRODUCTION ) {
+		debug.setup(API_URL, REFRESH);
+
+		try {
+			new ws({ httpServer : app })
+				.on('request', function (request) {
+					var conn = request.accept('zerver-debug', request.origin);
+					if (handleRequest(request.httpRequest, conn, true) === false) {
+						conn.close();
+					}
+				});
+		}
+		catch (err) {
+			console.error('failed to init debug channel');
+		}
+	}
+
+	app.listen(PORT);
 
 	console.log('zerver running:');
 
@@ -278,11 +300,13 @@ function prefetchManifestFile (pathname, callback) {
 	}
 }
 
-function handleRequest (request, response) {
+function handleRequest (request, response, isWS) {
 	var urlParts = url.parse(request.url, true),
 		handler  = {
 			request  : request                      ,
-			response : response                     ,
+			response : !isWS && response            ,
+			conn     : isWS && response             ,
+			isWS     : isWS                         ,
 			pathname : url.resolve('/', decodeURI(urlParts.pathname)) ,
 			query    : urlParts.search              ,
 			params   : urlParts.query               ,
@@ -296,6 +320,9 @@ function handleRequest (request, response) {
 
 	if (!PRODUCTION && isApiCall && debug.handle(handler)) {
 		return;
+	}
+	if (isWS) {
+		return false;
 	}
 
 	handleRequestErrors(handler);

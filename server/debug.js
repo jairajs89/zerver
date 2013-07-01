@@ -158,11 +158,16 @@ function handleRequest (handler) {
 
 function handleListeningStream (handler) {
 	if ( !handler.params.id ) {
-		handler.response.writeHeader(200, {
-			'Content-Type'  : 'text/plain' ,
-			'Cache-Control' : 'no-cache'
-		});
-		handler.response.end('');
+		if (handler.conn) {
+			handler.conn.close();
+		}
+		else if (handler.response) {
+			handler.response.writeHeader(200, {
+				'Content-Type'  : 'text/plain' ,
+				'Cache-Control' : 'no-cache'
+			});
+			handler.response.end('');
+		}
 		return;
 	}
 
@@ -180,42 +185,64 @@ function handleListeningStream (handler) {
 	stream.handler = handler;
 	stream.emit('reconnect', handler);
 	if (oldHandler) {
-		oldHandler.response.end('');
+		if (oldHandler.conn) {
+			oldHandler.conn.close();
+		}
+		else if (oldHandler.response) {
+			oldHandler.response.end('');
+		}
 	}
 }
 
 function prepareHandler (streamID, handler) {
 	var released = false,
-		_end     = handler.response.end;
+		_end;
 
-	handler.response.end = function () {
-		releaseHandler();
-		return _end.apply(this, arguments);
-	};
+	if (handler.conn) {
+		handler.conn.on('message', function (e) {
+			if (e.type === 'utf8') {
+				deliverMessage(handler, e.utf8Data);
+			}
+		});
+		handler.conn.on('error', releaseHandler);
+		handler.conn.on('close', releaseHandler);
+	}
+	else if (handler.response) {
+		_end = handler.response.end;
+		handler.response.end = function () {
+			releaseHandler();
+			return _end.apply(this, arguments);
+		};
 
-	handler.response.writeHeader(200, {
-		'Content-Type'      : 'text/plain' ,
-		'Cache-Control'     : 'no-cache' ,
-		'Connection'        : 'keep-alive' ,
-		'Transfer-Encoding' : 'chunked'
-	});
+		handler.response.writeHeader(200, {
+			'Content-Type'      : 'text/plain' ,
+			'Cache-Control'     : 'no-cache' ,
+			'Connection'        : 'keep-alive' ,
+			'Transfer-Encoding' : 'chunked'
+		});
+
+		setTimeout(function () {
+			handler.response.end('');
+		}, 20 * 1000);
+
+		handler.request.on('error', releaseHandler);
+		handler.request.on('close', releaseHandler);
+		handler.response.on('end'  , releaseHandler);
+		handler.response.on('error', releaseHandler);
+		handler.response.on('close', releaseHandler);
+	}
+
 	flushOutput(handler);
-
-	setTimeout(function () {
-		handler.response.end('');
-	}, 20 * 1000);
-
-	handler.request.on('error', releaseHandler);
-	handler.request.on('close', releaseHandler);
-	handler.response.on('end'  , releaseHandler);
-	handler.response.on('error', releaseHandler);
-	handler.response.on('close', releaseHandler);
 
 	function releaseHandler () {
 		if (released) {
 			return;
 		}
 		released = true;
+
+		if (handler.conn) {
+			handler.conn.close();
+		}
 
 		var stream = streams.list[streamID];
 
@@ -255,8 +282,13 @@ function createStream (streamID, handler) {
 			return;
 		}
 
-		stream.handler.response.write(JSON.stringify(data) + '\n');
-		flushOutput(stream.handler);
+		if (stream.handler.conn) {
+			stream.handler.conn.send(JSON.stringify(data) + '\n');
+		}
+		else if (stream.handler.response) {
+			stream.handler.response.write(JSON.stringify(data) + '\n');
+			flushOutput(stream.handler);
+		}
 	};
 
 	streams.list[streamID] = stream;
@@ -267,7 +299,12 @@ function createStream (streamID, handler) {
 
 function flushOutput (handler) {
 	for (var i=0; i<10; i++) {
-		handler.response.write(FORCE_FLUSH);
+		if (handler.conn) {
+			handler.conn.send(FORCE_FLUSH);
+		}
+		else if (handler.response) {
+			handler.response.write(FORCE_FLUSH);
+		}
 	}
 }
 
@@ -287,18 +324,22 @@ function handleIncomingMessage (handler) {
 		});
 		handler.response.end('');
 
-		var data;
-		try {
-			data = JSON.parse(rawData);
-		}
-		catch (err) {}
-		if ((typeof data !== 'object') || (data === null)) {
-			return;
-		}
-
-		var stream = streams.list[handler.params.id];
-		if (stream) {
-			stream.emit('message', data);
-		}
+		deliverMessage(handler, rawData);
 	});
+}
+
+function deliverMessage (handler, rawData) {
+	var data;
+	try {
+		data = JSON.parse(rawData);
+	}
+	catch (err) {}
+	if ((typeof data !== 'object') || (data === null)) {
+		return;
+	}
+
+	var stream = streams.list[handler.params.id];
+	if (stream) {
+		stream.emit('message', data);
+	}
 }

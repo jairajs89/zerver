@@ -3,19 +3,20 @@
 		ZERVER_INIT        = 'ZERVER_INIT',
 		ZERVER_KILL_STREAM = 'ZERVER_KILL_STREAM';
 
-	var apiRefresh   = {{__API_REFRESH__}},
-		apiLogging   = {{__API_LOGGING__}},
-		apiDir       = {{__API_DIR__}},
-		apiName      = {{__API_NAME__}},
-		apiRoot      = {{__API_ROOT__}},
-		apiObj       = {{__API_OBJ__}},
-		apiFunctions = {{__API_FUNCTIONS__}},
-		apiData      = {{__API_APIS__}},
-		apis         = {},
+	var apiRefresh    = {{__API_REFRESH__}},
+		apiLogging    = {{__API_LOGGING__}},
+		apiDir        = {{__API_DIR__}},
+		apiName       = {{__API_NAME__}},
+		apiRoot       = {{__API_ROOT__}},
+		apiObj        = {{__API_OBJ__}},
+		apiFunctions  = {{__API_FUNCTIONS__}},
+		apiData       = {{__API_APIS__}},
+		apis          = {},
+		apiSocketPath = '/'+apiDir+'/_push/',
 		apiSocket,
-		apiSocketID  = generateStreamID(),
+		apiSocketID   = generateStreamID(),
 		hadFirstConnect = false,
-		notReady     = [],
+		notReady      = [],
 		isConnected;
 
 	startReadyCheck();
@@ -271,10 +272,15 @@
 				return;
 			}
 
-			var url     = '/'+apiDir+'/_push/message?id='+apiSocketID+'&_='+(+new Date()),
+			var url     = apiSocketPath+'message?id='+apiSocketID+'&_='+(+new Date()),
 				payload = JSON.stringify(data);
 
-			ajaxPost(url, payload);
+			if (isConnected && (isConnected !== true)) {
+				isConnected.send(payload);
+			}
+			else {
+				ajaxPost(url, payload);
+			}
 		}
 
 		function bindToMessage (messageType, func) {
@@ -309,11 +315,86 @@
 		}
 	}
 
+	function openWSStream (onMessage, onClose) {
+		var done       = false,
+			hasConnect = false,
+			text       = '',
+			lastIndex  = 0,
+			conn;
+
+		try {
+			var wsCtor = window['MozWebSocket'] || window.WebSocket;
+			conn = new wsCtor('ws://'+window.location.host+apiSocketPath+'stream?id='+apiSocketID+'&_='+(+new Date()), 'zerver-debug');
+		}
+		catch (err) {
+			setTimeout(function () {
+				finish(false);
+			}, 0);
+			return;
+		}
+
+		conn.onmessage = function (e) {
+			if (done) {
+				return;
+			}
+
+			hasConnect      = true;
+			hadFirstConnect = true;
+			isConnected     = conn;
+
+			text += e.data;
+
+			var currIndex = text.length;
+			if (currIndex === lastIndex) {
+				return;
+			}
+
+			var raw       = text.substring(lastIndex, currIndex),
+				lastBreak = raw.lastIndexOf('\n');
+
+			if (lastBreak === -1) {
+				return;
+			}
+
+			raw = raw.substr(0, lastBreak);
+			lastIndex += raw.length + 1;
+
+			raw.split('\n').forEach(function (line) {
+				if (line && (line[0] !== ';')) {
+					onMessage(line);
+				}
+			});
+		};
+
+		conn.onerror = finish;
+		conn.onclose = finish;
+
+		function finish () {
+			if (done) {
+				return;
+			}
+			done = true;
+
+			isConnected = false;
+			onClose(hasConnect);
+
+			try {
+				conn.close();
+			}
+			catch (err) {}
+		}
+	}
+
 	function openStream (onMessage, onClose) {
+		if (window['MozWebSocket'] || window.WebSocket) {
+			openWSStream(onMessage, onClose);
+			return;
+		}
+
 		var dying      = false,
 			done       = false,
 			hasConnect = false,
-			url        = '/'+apiDir+'/_push/stream?id='+apiSocketID+'&_='+(+new Date()),
+			url        = apiSocketPath+'stream?id='+apiSocketID+'&_='+(+new Date()),
 			xhr        = new XMLHttpRequest();
 
 		xhr.onreadystatechange = function () {
