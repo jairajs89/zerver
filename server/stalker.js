@@ -4,192 +4,99 @@ var fs   = require('fs'  ),
 var watched = [],
 	handles = {};
 
-exports.watch = watchDirectory;
+exports.watch = function (reqPath, fnAdd, fnRemove) {
+	watchFolder(path.resolve(reqPath), fnAdd, fnRemove);
+};
 
 
 
-function watchDirectory (reqPath, fnAdd, fnRemove) {
-	watchFolderTree(path.resolve(reqPath), fnAdd, fnRemove);
-}
-
-
-
-function removeSubDir (dir, fn) {
-	if ( !watched[dir] ) {
-		return;
+function watchFolder (folderPath, fnAdd, fnRemove, shouldPrune, noReset) {
+	if (!noReset && handles[folderPath]) {
+		handles[folderPath].close();
 	}
 
-	if (watched[dir].files) {
-		Object.keys(watched[dir].files).forEach(function (iFile) {
-			var fPath = dir+'/'+iFile;
-			if ( watched[fPath] ) {
-				removeSubDir(fPath, fn);
-			}
-			else {
-				fn && fn(fPath);
-			}
-		});
-	}
-
-	delete watched[dir];
-}
-
-function checkFile (fPath, fn) {
-	var dir  = path.dirname(fPath),
-		base = path.basename(fPath);
-
-	if (typeof watched === 'undefined') {
-		fn && fn(false);
-		return;
-	}
-
-	fs.stat(fPath, function (err, stats) {
-		if (err) {
-			fn && fn(false);
-			return;
-		}
-
-		if ((typeof watched[dir] === 'undefined') || (typeof watched[dir].files === 'undefined')) {
-			fn && fn(false);
-			return;
-		}
-
-		fn && fn(typeof watched[dir].files[base] !== 'undefined');
-	});
-}
-
-function addFile (fPath, fn) {
-	var dir  = path.dirname(fPath),
-		base = path.basename(fPath);
-
-	if (typeof watched[dir] === 'undefined') {
-		watched[dir] = {};
-	}
-	if (typeof watched[dir].files === 'undefined') {
-		watched[dir].files = {};
-	}
-
-	fs.stat(fPath, function (err, stats) {
-		if (err) {
-			return;
-		}
-		watched[dir].files[base] = stats.mtime.valueOf();
-		fn && fn();
-	});
-}
-
-function syncFolder (dir, fnRemove) {
-	if ((typeof watched[dir] === 'undefined') || (typeof watched[dir].files === 'undefined')) {
-		return;
-	}
-
-	Object.keys(watched[dir].files).forEach(function (tFile) {
-		var fPath = path.join(dir, tFile);
-		fs.stat(fPath, function (err, stats) {
-			if ( !err ) {
-				return;
-			}
-
-			if ( watched[fPath] ) {
-				removeSubDir(fPath, fnRemove);
-			}
-			else {
-				delete watched[dir].files[tFile];
-				fnRemove && fnRemove(fPath);
-			}
-		});
-	});
-}
-
-
-
-function watchFolderTree (fPath, fnAdd, fnRemove) {
-	fs.stat(fPath, function (err, stats) {
+	fs.stat(folderPath, function (err, stats) {
 		if (err) {
 			return;
 		}
 
-		if ( stats.isDirectory() ) {
-			checkFile(fPath, function (result) {
-				if ( !result ) {
-					addFile(fPath, function () {
-						if (typeof handles[fPath] === 'object') {
-							handles[fPath].close();
-						}
-						handles[fPath] = fs.watch(fPath, folderChanged(fPath, fnAdd, fnRemove));
-					});
-				}
-			});
-
-			fs.readdir(fPath, function (err, files) {
-				if ( !err ) {
-					files.forEach(function (file) {
-						if (file[0] !== '.') {
-							var rPath = path.join(fPath, file);
-							watchFolderTree(rPath, fnAdd, fnRemove);
-						}
-					});
-				}
-			});
+		if ( stats.isFile() ) {
+			addFile(folderPath, stats);
+			fnAdd(folderPath);
+			return;
 		}
-		else if ( stats.isFile() ) {
-			checkFile(fPath, function (result) {
-				if ( !result ) {
-					addFile(fPath, function () {
-						fnAdd(fPath);
-					});
-				}
-			});
-		}
-	});
-}
-
-function folderChanged (folderPath, fnAdd, fnRemove) {
-	return function (event, filename) {
-		var reset = (event !== 'change');
-
-		if (reset) {
-			handles[folderPath].close();
+		else if ( !stats.isDirectory() ) {
+			return;
 		}
 
-		fs.stat(folderPath, function (err) {
+		addFile(folderPath, stats);
+
+		if ( !noReset ) {
+			handles[folderPath] = fs.watch(folderPath, function (evt) {
+				watchFolder(folderPath, fnAdd, fnRemove, true, (evt === 'change'));
+			});
+		}
+
+		fs.readdir(folderPath, function (err, files) {
 			if (err) {
 				return;
 			}
+			files.forEach(function (file) {
+				if (file[0] === '.') {
+					return;
+				}
+				var fPath = path.join(folderPath, file);
+				watchFolder(fPath, fnAdd, fnRemove);
+			});
+		});
 
-			if (reset) {
-				handles[folderPath] = fs.watch(folderPath, folderChanged(folderPath, fnAdd, fnRemove));
-			}
+		if (shouldPrune) {
+			pruneDir(folderPath, fnRemove);
+		}
+	});
+}
 
-			fs.readdir(folderPath, function (err, files) {
-				if ( !err ) {
-					files.forEach(function (file) {
-						if (file[0] !== '.') {
-							var fPath = path.join(folderPath, file);
-							fs.stat(fPath, function (err, stats) {
-								if (err) {
-									return;
-								}
+function addFile (fPath, stats) {
+	var dir  = path.dirname(fPath),
+		base = path.basename(fPath);
 
-								if ( stats.isFile() ) {
-									checkFile(fPath, function (result) {
-										if ( !result ) {
-											addFile(fPath, function () {
-												return fnAdd && fnAdd(fPath);
-											});
-										}
-									});
-								}
-								else if ( stats.isDirectory() ) {
-									watchFolderTree(fPath, fnAdd, fnRemove);
-								}
-							});
-						}
-					});
+	if ( !watched[dir] ) {
+		watched[dir] = {};
+	}
+	if ( !watched[dir].files ) {
+		watched[dir].files = {};
+	}
+	watched[dir].files[base] = stats.mtime.valueOf();
+}
+
+function pruneDir (dir, fnRemove, force) {
+	if (!watched[dir] || !watched[dir].files) {
+		return;
+	}
+
+	Object.keys(watched[dir].files).forEach(function (file) {
+		var fPath = path.join(dir, file);
+
+		if (force) {
+			pruneFile(fPath, file);
+		}
+		else {
+			fs.stat(fPath, function (err, stats) {
+				if (err) {
+					pruneFile(fPath, file);
 				}
 			});
+		}
+	});
 
-			syncFolder(folderPath, fnRemove);
-		});
-	};
+	function pruneFile (fPath, file) {
+		if ( watched[fPath] ) {
+			pruneDir(fPath, fnRemove, true);
+			delete watched[fPath];
+		}
+		else {
+			delete watched[dir].files[file];
+			fnRemove(fPath);
+		}
+	}
 }
