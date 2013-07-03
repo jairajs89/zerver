@@ -42,6 +42,7 @@ function processFlags () {
 		.version(zerverVersion, '-v, --version')
 		.usage('[options] [dir]')
 		.option('-r, --refresh'         , 'auto-refresh browsers on file changes')
+		.option('-c, --cli'             , 'js shell for connect remote clients')
 		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
 		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
 		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||5000)
@@ -50,6 +51,7 @@ function processFlags () {
 		.parse(args);
 	if (commands.production) {
 		commands.refresh = false;
+		commands.cli     = false;
 	}
 	return commands;
 }
@@ -136,6 +138,7 @@ function startServer () {
 			apiDir     : API_DIR ,
 			apiURL     : API_DIR ,
 			refresh    : !!commands.refresh ,
+			cli        : !!commands.cli ,
 			verbose    : !!commands.verbose ,
 			manifests  : (commands.manifest || '') ,
 			production : !!commands.production ,
@@ -186,14 +189,16 @@ function startServer () {
 		return;
 	}
 
-	cli = setupCLI(function (line) {
-		if (child) {
-			try {
-				child.send({ cli : line });
+	if (commands.cli) {
+		cli = setupCLI(function (line) {
+			if (child) {
+				try {
+					child.send({ cli : line });
+				}
+				catch (err) {}
 			}
-			catch (err) {}
-		}
-	});
+		});
+	}
 
 	var watcher    = require(WATCHER),
 		lastChange = null;

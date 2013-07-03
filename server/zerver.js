@@ -114,27 +114,29 @@ exports.run = function (options) {
 
 	console.log('zerver running:');
 
-	if (PRODUCTION) {
-		console.log('- production: true');
+	console.log('- port: ' + PORT);
+
+	var apiNames = apis.getNames();
+	if ( apiNames.length ) {
+		console.log('- apis: ' + apiNames.join(', '));
 	}
-	else if (REFRESH) {
-		console.log('- refresh: true');
+
+	var manifestList = Object.keys(MANIFESTS);
+	if (manifestList.length) {
+		console.log('- manifests: ' + manifestList.join(', '));
 	}
 
 	if (LESS_ENABLED) {
 		console.log('- less: true');
 	}
-
-	console.log('- port: ' + PORT);
-
-	var apiNames = apis.getNames();
-	if ( apiNames.length ) {
-		console.log('- zerver apis: ' + apiNames.join(', '));
+	if (PRODUCTION) {
+		console.log('- production: true');
 	}
-
-	var manifestList = Object.keys(MANIFESTS);
-	if (manifestList.length) {
-		console.log('- manifest' + (manifestList.length > 1 ? 's' : '') + ': ' + manifestList.join(', '));
+	if (REFRESH) {
+		console.log('- refresh: true');
+	}
+	if (CLI) {
+		console.log('- cli: true');
 	}
 
 	console.log('');
@@ -147,6 +149,7 @@ function configureZerver (options) {
 	API_URL_LENGTH   = options.apiURL.length;
 	PRODUCTION       = options.production;
 	REFRESH          = options.refresh;
+	CLI              = options.cli;
 	VERBOSE          = options.verbose;
 	LESS_ENABLED     = options.less;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
