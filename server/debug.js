@@ -48,7 +48,10 @@ function setupLogging () {
 	streams.on('connection', function (stream) {
 		stream.on('message', function (data) {
 			if (data.type === 'log') {
-				process.send({ log: (data.level+': '+data.message) });
+				try {
+					process.send({ log: (data.level+': '+data.message) });
+				}
+				catch (err) {}
 			}
 		});
 	});
@@ -62,7 +65,10 @@ function setupLogging () {
 
 		if ( !stream ) {
 			console.warn('(no browsers available)');
-			process.send({ prompt: true });
+			try {
+				process.send({ prompt: true });
+			}
+			catch (err) {}
 			return;
 		}
 
@@ -108,7 +114,10 @@ function setupLogging () {
 		}
 
 		function finish () {
-			process.send({ prompt: true });
+			try {
+				process.send({ prompt: true });
+			}
+			catch (err) {}
 		}
 	});
 }

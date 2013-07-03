@@ -148,13 +148,21 @@ function startServer () {
 		child, cli;
 
 	function runServer (noRestart) {
-		child = fork(ZERVER, args, opts);
+		try {
+			child = fork(ZERVER, args, opts);
+		}
+		catch (err) {
+			onDeath();
+			return;
+		}
 
-		child.on('exit', function () {
+		child.on('exit', onDeath);
+
+		function onDeath () {
 			if ( !death ) {
 				noRestart ? process.exit() : runServer();
 			}
-		});
+		}
 
 		if ( !commands.production ) {
 			child.on('message', function (data) {
@@ -164,12 +172,16 @@ function startServer () {
 				if (data.prompt && cli) {
 					cli.prompt();
 				}
-				else if (data.log && cli && cli.isEnabled) {
-					cli.setPrompt('');
-					cli.prompt();
+				else if (data.log) {
+					if (cli && cli.isEnabled) {
+						cli.setPrompt('');
+						cli.prompt();
+					}
 					console.log(data.log);
-					cli.setPrompt('>>> ');
-					cli.prompt();
+					if (cli && cli.isEnabled) {
+						cli.setPrompt('>>> ');
+						cli.prompt();
+					}
 				}
 			});
 		}
