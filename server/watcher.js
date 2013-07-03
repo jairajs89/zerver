@@ -2,17 +2,20 @@ var fs      = require('fs'),
 	path    = require('path'),
 	stalker = require(__dirname + '/stalker');
 
+var MAX_FILES = 1;
+
+var numFiles = 0;
+
 
 
 exports.watch = function (dir, callback) {
+	var files = {};
+
 	if (dir[dir.length-1] === '/') {
 		dir = dir.substr(0, dir.length-1);
 	}
 
-	var filesNames = findSync(dir),
-		files      = {};
-
-	filesNames.forEach(function (fileName) {
+	findSync(dir).forEach(function (fileName) {
 		setupWatcher(fileName);
 	});
 
@@ -29,12 +32,21 @@ exports.watch = function (dir, callback) {
 	);
 
 	function setupWatcher (fileName) {
+		if (numFiles >= MAX_FILES) {
+			return;
+		}
+
 		if ( files[fileName] ) {
 			return;
 		}
 
-		var watcher;
+		for (var parts=fileName.split('/'), i=0, l=parts.length; i<l; i++) {
+			if (parts[i][0] === '.') {
+				return;
+			}
+		}
 
+		var watcher;
 		if (fs.watch) {
 			watcher = fs.watch(fileName, function () {
 				changeDetected(fileName);
@@ -48,11 +60,11 @@ exports.watch = function (dir, callback) {
 		}
 
 		files[fileName] = watcher;
+		numFiles++;
 	}
 
 	function destroyWatcher (fileName) {
 		var watcher = files[fileName];
-
 		if ( !watcher ) {
 			return;
 		}
@@ -65,6 +77,7 @@ exports.watch = function (dir, callback) {
 		}
 
 		delete files[fileName];
+		numFiles--;
 	}
 
 	function changeDetected (fileName) {
@@ -74,55 +87,49 @@ exports.watch = function (dir, callback) {
 
 
 
-// taken from node-findit@0.1.2
-// wasnt included as a dependency because its
-// devDependencies tend to take *really* long
-// to install with all that C compilation.
+function findSync (dir) {
+	var inodes    = {},
+		files     = [],
+		fileQueue = [];
 
-function createInodeChecker () {
-    var inodes = {};
-    return function inodeSeen(inode) {
-        if (inodes[inode]) {
-            return true;
-        } else {
-            inodes[inode] = true;
-            return false;
-        }
-    }
+	prepopulateQueue();
+	processQueue();
+	return files;
+
+	function prepopulateQueue () {
+		var stat = fs.lstatSync(dir);
+		if ( stat.isDirectory() ) {
+			fs.readdirSync(dir).forEach(function (f) {
+				fileQueue.push(path.join(dir, f));
+			});
+		}
+		else {
+			fileQueue.push(dir);
+		}
+	}
+
+	function processQueue () {
+		var file, stat;
+
+		while (fileQueue.length) {
+			if (files.length >= MAX_FILES) {
+				return;
+			}
+
+			file = fileQueue.shift();
+			stat = fs.lstatSync(file);
+			if ( inodes[stat.ino] ) {
+				continue;
+			}
+
+			inodes[stat.ino] = true;
+			files.push(file);
+
+			if ( stat.isDirectory() ) {
+				fs.readdirSync(file).forEach(function (f) {
+					fileQueue.push(path.join(file, f));
+				});
+			}
+		}
+	}
 }
-
-function findSync (dir, options, callback) {
-    cb = arguments[arguments.length - 1];
-    if (typeof(cb) !== 'function') {
-        cb = undefined;
-    }
-    var inodeSeen = createInodeChecker();
-    var files = [];
-    var fileQueue = [];
-    var processFile = function processFile(file) {
-        var stat = fs.lstatSync(file);
-        if (inodeSeen(stat.ino)) {
-            return;
-        }
-        files.push(file);
-        cb && cb(file, stat)
-        if (stat.isDirectory()) {
-            fs.readdirSync(file).forEach(function(f) { fileQueue.push(path.join(file, f)); });
-        } else if (stat.isSymbolicLink()) {
-            if (options && options.follow_symlinks && path.existsSync(file)) {
-                fileQueue.push(fs.realpathSync(file));
-            }
-        }
-    };
-    /* we don't include the starting directory unless it is a file */
-    var stat = fs.lstatSync(dir);
-    if (stat.isDirectory()) {
-        fs.readdirSync(dir).forEach(function(f) { fileQueue.push(path.join(dir, f)); });
-    } else {
-        fileQueue.push(dir);
-    }
-    while (fileQueue.length > 0) {
-        processFile(fileQueue.shift());
-    }
-    return files;
-};

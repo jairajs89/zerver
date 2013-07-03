@@ -172,6 +172,7 @@ function configureZerver (options) {
 			console.error('npm install less');
 			if ( !PRODUCTION ) {
 				console.error('');
+				LESS_ENABLED = false;
 			}
 			else {
 				process.exit(1);

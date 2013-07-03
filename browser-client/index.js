@@ -351,7 +351,6 @@
 
 			var raw       = text.substring(lastIndex, currIndex),
 				lastBreak = raw.lastIndexOf('\n');
-
 			if (lastBreak === -1) {
 				return;
 			}
