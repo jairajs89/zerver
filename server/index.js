@@ -229,14 +229,20 @@ function startServer () {
 			}
 
 			if ( !apiCheck.test(fileName) ) {
-				child.send({ debugRefresh: true });
+				try {
+					child.send({ debugRefresh: true });
+				}
+				catch (err) {}
 				return;
 			}
 
 			console.log('');
 			console.log('reloading debug server');
 
-			child.kill();
+			try {
+				child.kill();
+			}
+			catch (err) {}
 		}, CHANGE_TIMEOUT);
 	});
 
