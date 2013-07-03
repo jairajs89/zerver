@@ -3,7 +3,7 @@ var fs   = require('fs'  ),
 
 var watched  = {},
 	handles  = {},
-	maxFiles = 2000;
+	maxFiles = 1500;
 
 exports.watch = function (reqPath, onChange) {
 	watchFolder(path.resolve(reqPath), onChange);
@@ -30,7 +30,7 @@ function watchFolder (folderPath, onChange, shouldPrune, noReset) {
 					onChange(folderPath);
 				});
 			} catch (err) {
-				maxFiles = Object.keys(handles).length;
+				maxFiles = parseInt(Object.keys(handles).length * 0.75);
 			}
 			addFile(folderPath, stats);
 			onChange(folderPath);
@@ -48,7 +48,7 @@ function watchFolder (folderPath, onChange, shouldPrune, noReset) {
 					watchFolder(folderPath, onChange, true, (evt === 'change'));
 				});
 			} catch (err) {
-				maxFiles = Object.keys(handles).length;
+				maxFiles = parseInt(Object.keys(handles).length * 0.75);
 			}
 		}
 

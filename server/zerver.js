@@ -10,11 +10,11 @@ var clean  = require(__dirname + '/clean-css'),
 	uglify = require('uglify-js'),
 	url    = require('url'   ),
 	zlib   = require('zlib'  ),
-	less, ws;
+	less, WebSocketServer;
 
 var _warn = console.warn;
 console.warn = function () {};
-ws = require('websocket').server;
+WebSocketServer = require('websocket').server;
 console.warn = _warn;
 
 var ROOT_DIR            = process.cwd(),
@@ -97,7 +97,7 @@ exports.run = function (options) {
 		debug.setup(API_URL, REFRESH);
 
 		try {
-			new ws({ httpServer : app })
+			new WebSocketServer({ httpServer : app })
 				.on('request', function (request) {
 					var conn = request.accept('zerver-debug', request.origin);
 					if (handleRequest(request.httpRequest, conn, true) === false) {
