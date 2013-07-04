@@ -581,14 +581,14 @@ function validateManifest (data, pathname) {
 			return;
 		}
 
-		var fileName = path.join(ROOT_DIR, linePath);
+		var fileName = path.join(ROOT_DIR, linePath),
+			fileData;
 
 		try {
-			if ( !fs.readFileSync(fileName) ) {
-				throw '';
-			}
-		}
-		catch (err) {
+			fileData = fs.readFileSync(fileName);
+		} catch (err) {}
+
+		if ( !fileData ) {
 			handleFailure('failed to load file, ' + originalLine);
 		}
 	});
