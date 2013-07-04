@@ -25,6 +25,9 @@ function watchFolder (folderPath, onChange, shouldPrune, noReset) {
 			if ( handles[folderPath] ) {
 				handles[folderPath].close();
 			}
+			else {
+				onChange(folderPath);
+			}
 			try {
 				handles[folderPath] = fs.watch(folderPath, function () {
 					onChange(folderPath);
@@ -33,7 +36,6 @@ function watchFolder (folderPath, onChange, shouldPrune, noReset) {
 				maxFiles = parseInt(Object.keys(handles).length * 0.75);
 			}
 			addFile(folderPath, stats);
-			onChange(folderPath);
 			return;
 		}
 		else if ( !stats.isDirectory() ) {
@@ -113,9 +115,9 @@ function pruneDir (dir, onChange, force) {
 			if ( handles[fPath] ) {
 				handles[fPath].close();
 				delete handles[fPath];
+				onChange(fPath);
 			}
 			delete watched[dir].files[file];
-			onChange(fPath);
 		}
 	}
 }
