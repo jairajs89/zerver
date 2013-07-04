@@ -645,6 +645,14 @@
 			}
 
 			window.addEventListener('error', function (msg, fileName, lineNum) {
+				var evt;
+				if (msg && msg.message) {
+					evt      = msg;
+					msg      = evt.message;
+					fileName = evt.fileName;
+					lineNum  = evt.lineno;
+				}
+
 				var err = msg + '';
 				if (fileName) {
 					err += ' (' + fileName;
