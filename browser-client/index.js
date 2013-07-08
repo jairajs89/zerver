@@ -1,7 +1,8 @@
 (function (window) {
 	var XHR_TIMEOUT        = 22000,
 		ZERVER_INIT        = 'ZERVER_INIT',
-		ZERVER_KILL_STREAM = 'ZERVER_KILL_STREAM';
+		ZERVER_KILL_STREAM = 'ZERVER_KILL_STREAM',
+		IS_ANDROID         = /\bAndroid\b/gi.test(navigator.userAgent);
 
 	var apiRefresh    = {{__API_REFRESH__}},
 		apiLogging    = {{__API_LOGGING__}},
@@ -385,7 +386,7 @@
 	}
 
 	function openStream (onMessage, onClose) {
-		if (window['MozWebSocket'] || window.WebSocket) {
+		if ((window['MozWebSocket'] || window.WebSocket) && !IS_ANDROID) {
 			openWSStream(onMessage, onClose);
 			return;
 		}
