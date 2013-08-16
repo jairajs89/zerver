@@ -1,5 +1,5 @@
 {
-  "name" : "Express App",
+  "name" : "express-app",
   "version" : "0.0.1",
   "engine" : {
     "node" : "0.8.x",
