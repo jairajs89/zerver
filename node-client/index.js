@@ -5,7 +5,7 @@ exports.get        = createRemoteZerver;
 
 var urllib   = require('url'),
 	http     = require('http'),
-	zerver   = require(__dirname + '/zerver'),
+	zerver   = require(__dirname + '/../server/zerver'),
 	globalServer;
 
 function createMiddlewareClient (apiDir, apiURL) {

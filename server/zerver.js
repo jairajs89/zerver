@@ -68,14 +68,14 @@ var memoryCache = {},
 
 exports.middleware = function (apiDir, apiURL) {
 	configureZerver({
-		port       : 5000    ,
-		apiDir     : apiDir  ,
-		apiURL     : apiURL  ,
-		debug      : false   ,
-		refresh    : false   ,
-		verbose    : false   ,
-		manifests  : ''      ,
-		production : false
+		port       : 5000   ,
+		apiDir     : apiDir ,
+		apiURL     : apiURL ,
+		debug      : false  ,
+		refresh    : false  ,
+		verbose    : false  ,
+		manifests  : ''     ,
+		production : true
 	});
 	return handleMiddlewareRequest;
 };
@@ -603,6 +603,35 @@ function validateManifest (data, pathname) {
 	}
 }
 
+function inlineScriptsAndStyles (type, data, pathname, callback) {
+	if (!INLINING_ENABLED || !PRODUCTION || (type !== 'text/html') || (typeof data !== 'string')) {
+		callback(data);
+		return;
+	}
+
+	data = data.replace(SCRIPT_MATCH, function (original, relativeURL) {
+		var fileData = inlineFile(pathname, original, relativeURL);
+		if (typeof fileData === 'undefined') {
+			return original;
+		}
+
+		//TODO: minify fileData
+		return '<script>\n'+fileData+'\n</script>';
+	});
+
+	data = data.replace(STYLES_MATCH, function (original, relativeURL) {
+		var fileData = inlineFile(pathname, original, relativeURL);
+		if (typeof fileData === 'undefined') {
+			return original;
+		}
+
+		//TODO: minify fileData
+		return '<style>\n'+fileData+'\n</style>';
+	});
+
+	callback(data);
+}
+
 function inlineImages (type, data, pathname, callback) {
 	if (!INLINING_ENABLED || !PRODUCTION || ((type !== 'text/css') && (type !== 'text/less')) || (typeof data !== 'string')) {
 		callback(data);
@@ -610,48 +639,50 @@ function inlineImages (type, data, pathname, callback) {
 	}
 
 	data = data.replace(CSS_IMAGE, function (original, relativeURL) {
-		var urlParts;
-
-		try {
-			urlParts = url.parse(relativeURL, true);
-		}
-		catch (err) {
+		var fileData = inlineFile(pathname, original, relativeURL);
+		if (typeof fileData === 'undefined') {
 			return original;
 		}
 
-		if ( !urlParts.query.inline ) {
-			return original;
-		}
-
-
-		var absoluteURL;
-
-		try {
-			absoluteURL = url.resolve(pathname, urlParts.pathname);
-		}
-		catch (err) {
-			return original;
-		}
-
-
-		var fileName = path.join(ROOT_DIR, absoluteURL),
-			fileData;
-
-		try {
-			fileData = fs.readFileSync(fileName).toString('base64');
-		}
-		catch (err) {
-			return original;
-		}
-
-
-		var mimeType = lookupMime(fileName),
-			dataURL  = 'data:'+mimeType+';base64,'+fileData;
-
+		var mimeType = lookupMime(relativeURL.split('?')[0]),
+			dataURL  = 'data:'+mimeType+';base64,'+fileData.toString('base64');
 		return 'url(' + dataURL + ')';
 	});
 
 	callback(data);
+}
+
+function inlineFile (pathname, original, relativeURL) {
+	var urlParts;
+	try {
+		urlParts = url.parse(relativeURL, true);
+	}
+	catch (err) {
+		return;
+	}
+
+	if ( !urlParts.query.inline ) {
+		return;
+	}
+
+	var absoluteURL;
+	try {
+		absoluteURL = url.resolve(pathname, urlParts.pathname);
+	}
+	catch (err) {
+		return;
+	}
+
+	var fileName = path.join(ROOT_DIR, absoluteURL),
+		fileData;
+	try {
+		fileData = fs.readFileSync(fileName);
+	}
+	catch (err) {
+		return;
+	}
+
+	return fileData;
 }
 
 function compileOutput (type, data, callback) {
@@ -795,11 +826,13 @@ function respond (handler, status, type, data, headers) {
 
 function respondBinary (handler, status, type, data, headers) {
 	prepareConcatFiles(type, data, handler.pathname, function (data) {
-		inlineImages(type, data, handler.pathname, function (data) {
-			compileOutput(type, data, function (type, data) {
-				setupGZipOutput(type, data, headers, function (data, headers) {
-					headers['Content-Type'] = type;
-					finishResponse(handler, status, headers, data, true);
+		inlineScriptsAndStyles(type, data, handler.pathname, function (data) {
+			inlineImages(type, data, handler.pathname, function (data) {
+				compileOutput(type, data, function (type, data) {
+					setupGZipOutput(type, data, headers, function (data, headers) {
+						headers['Content-Type'] = type;
+						finishResponse(handler, status, headers, data, true);
+					});
 				});
 			});
 		});
