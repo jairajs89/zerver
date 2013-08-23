@@ -169,20 +169,21 @@ function startServer () {
 				if ( !data ) {
 					return;
 				}
-				if (data.prompt && cli) {
-					cli.prompt();
-				}
-				else if (data.log) {
-					if (cli && cli.isEnabled) {
-						cli.setPrompt('');
+				try {
+					if (data.prompt && cli) {
 						cli.prompt();
+					} else if (data.log) {
+						if (cli && cli.isEnabled) {
+							cli.setPrompt('');
+							cli.prompt();
+						}
+						console.log(data.log);
+						if (cli && cli.isEnabled) {
+							cli.setPrompt('>>> ');
+							cli.prompt();
+						}
 					}
-					console.log(data.log);
-					if (cli && cli.isEnabled) {
-						cli.setPrompt('>>> ');
-						cli.prompt();
-					}
-				}
+				} catch (err) {}
 			});
 		}
 	}
