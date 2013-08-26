@@ -614,8 +614,7 @@ function inlineScriptsAndStyles (type, data, pathname, callback) {
 		if (typeof fileData === 'undefined') {
 			return original;
 		}
-
-		//TODO: minify fileData
+		fileData = compileOutput('application/javascript', fileData.toString());
 		return '<script>\n'+fileData+'\n</script>';
 	});
 
@@ -624,18 +623,17 @@ function inlineScriptsAndStyles (type, data, pathname, callback) {
 		if (typeof fileData === 'undefined') {
 			return original;
 		}
-
-		//TODO: minify fileData
+		fileData = inlineImages('text/css', fileData.toString(), pathname);
+		fileData = compileOutput('text/css', fileData);
 		return '<style>\n'+fileData+'\n</style>';
 	});
 
 	callback(data);
 }
 
-function inlineImages (type, data, pathname, callback) {
+function inlineImages (type, data, pathname) {
 	if (!INLINING_ENABLED || !PRODUCTION || ((type !== 'text/css') && (type !== 'text/less')) || (typeof data !== 'string')) {
-		callback(data);
-		return;
+		return data;
 	}
 
 	data = data.replace(CSS_IMAGE, function (original, relativeURL) {
@@ -649,7 +647,7 @@ function inlineImages (type, data, pathname, callback) {
 		return 'url(' + dataURL + ')';
 	});
 
-	callback(data);
+	return data;
 }
 
 function inlineFile (pathname, original, relativeURL) {
@@ -677,56 +675,46 @@ function inlineFile (pathname, original, relativeURL) {
 		fileData;
 	try {
 		fileData = fs.readFileSync(fileName);
-	}
-	catch (err) {
+	} catch (err) {
 		return;
 	}
 
 	return fileData;
 }
 
-function compileOutput (type, data, callback) {
-	compileLess(type, data, function (type, data) {
-		if (!COMPILATION_ENABLED || !PRODUCTION) {
-			callback(type, data);
-			return;
-		}
+function compileOutput (type, data) {
+	if (!COMPILATION_ENABLED || !PRODUCTION) {
+		return data;
+	}
 
-		var code;
+	var code;
+	switch (type) {
+		case 'application/javascript':
+		case 'text/javascript':
+			data = data.replace(DEBUG_LINES, '');
+			try {
+				var ast = uglify.parser.parse(data);
+				ast     = uglify.uglify.ast_mangle(ast);
+				ast     = uglify.uglify.ast_squeeze(ast);
+				code    = uglify.uglify.gen_code(ast);
+			} catch (err) {}
+			if (code) {
+				data = code;
+			}
+			return data;
 
-		switch (type) {
-			case 'application/javascript':
-			case 'text/javascript':
-				data = data.replace(DEBUG_LINES, '');
-				try {
-					var ast = uglify.parser.parse(data);
-					ast     = uglify.uglify.ast_mangle(ast);
-					ast     = uglify.uglify.ast_squeeze(ast);
-					code    = uglify.uglify.gen_code(ast);
-				}
-				catch (err) {}
-				if (code) {
-					data = code;
-				}
-				callback(type, data);
-				break;
+		case 'text/css':
+			try{
+				code = clean.process(data);
+			} catch(err){}
+			if (code) {
+				data = code;
+			}
+			return data;
 
-			case 'text/css':
-				try{
-					code = clean.process(data);
-				}
-				catch(err){}
-				if (code) {
-					data = code;
-				}
-				callback(type, data);
-				break;
-
-			default:
-				callback(type, data);
-				break;
-		}
-	});
+		default:
+			return data;
+	}
 }
 
 function compileLess (type, data, callback) {
@@ -827,12 +815,12 @@ function respond (handler, status, type, data, headers) {
 function respondBinary (handler, status, type, data, headers) {
 	prepareConcatFiles(type, data, handler.pathname, function (data) {
 		inlineScriptsAndStyles(type, data, handler.pathname, function (data) {
-			inlineImages(type, data, handler.pathname, function (data) {
-				compileOutput(type, data, function (type, data) {
-					setupGZipOutput(type, data, headers, function (data, headers) {
-						headers['Content-Type'] = type;
-						finishResponse(handler, status, headers, data, true);
-					});
+			data = inlineImages(type, data, handler.pathname);
+			compileLess(type, data, function (type, data) {
+				data = compileOutput(type, data);
+				setupGZipOutput(type, data, headers, function (data, headers) {
+					headers['Content-Type'] = type;
+					finishResponse(handler, status, headers, data, true);
 				});
 			});
 		});
