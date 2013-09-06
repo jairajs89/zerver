@@ -1,15 +1,16 @@
 /* Imports and static vars */
 
-var clean  = require(__dirname + '/clean-css'),
-	debug  = require(__dirname + '/debug'),
-	crypto = require('crypto'),
-	fs     = require('fs'    ),
-	http   = require('http'  ),
-	mime   = require('mime'  ),
-	path   = require('path'  ),
-	uglify = require('uglify-js'),
-	url    = require('url'   ),
-	zlib   = require('zlib'  ),
+var clean   = require(__dirname + '/clean-css'),
+	debug   = require(__dirname + '/debug'    ),
+	cookies = require(__dirname + '/cookies'  ),
+	crypto  = require('crypto'   ),
+	fs      = require('fs'       ),
+	http    = require('http'     ),
+	mime    = require('mime'     ),
+	path    = require('path'     ),
+	uglify  = require('uglify-js'),
+	url     = require('url'      ),
+	zlib    = require('zlib'     ),
 	less, WebSocketServer;
 
 var _warn = console.warn;
@@ -322,6 +323,8 @@ function handleRequest (request, response, isWS) {
 		pathname  = handler.pathname,
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
+	setupCookieHandler(handler);
+
 	if (!PRODUCTION && isApiCall && debug.handle(handler)) {
 		return;
 	}
@@ -332,6 +335,37 @@ function handleRequest (request, response, isWS) {
 	handleRequestErrors(handler);
 
 	tryResponseFromCache(handler, pathname, isApiCall, dynamicResponse);
+}
+
+function setupCookieHandler (handler) {
+	var oldCookies = cookies.parse(handler.request.headers.cookie),
+		newCookies = {};
+
+	handler.cookies = {
+		get    : getCookie ,
+		set    : setCookie ,
+		output : getOutput
+	};
+
+	function getCookie (name) {
+		if (typeof name !== 'string') {
+			throw TypeError('cookie name must be a string, got '+name);
+		}
+		return oldCookies[name];
+	}
+
+	function setCookie (name, value, options) {
+		var headerValue = cookies.serialise(name, value, options);
+		newCookies[name] = headerValue;
+	}
+
+	function getOutput () {
+		var headers = [];
+		for (var name in newCookies) {
+			headers.push( newCookies[name] );
+		}
+		return headers;
+	}
 }
 
 function handleRequestErrors (handler) {
@@ -767,6 +801,13 @@ function finishResponse (handler, status, headers, data, isBinary, noCache) {
 		etag = '"' + hash.digest('hex') + '"';
 		headers['ETag'] = etag;
 		headers['Vary'] = 'Accept-Encoding';
+	}
+
+	if (handler.cookies) {
+		var newCookies = handler.cookies.output();
+		if (newCookies && newCookies.length) {
+			headers['Set-Cookie'] = newCookies;
+		}
 	}
 
 	var response = handler.response;
