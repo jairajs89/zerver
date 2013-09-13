@@ -35,7 +35,6 @@
 			return;
 		}
 		window[ZERVER_INIT] = true;
-
 		if (apiRefresh) {
 			setupAutoRefresh();
 		}
