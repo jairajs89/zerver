@@ -476,6 +476,13 @@ function prepareConcatFiles (type, data, pathname, callback) {
 			return original;
 		}
 
+		if (aboslutePath.substr(1) === concatPath) {
+			if ( concatCache[aboslutePath].join() !== files.join() ){
+				throw new Error("Files for " + concatPath + " not matching cache manifest." +  '\n'
+								+ "Ensure that the order and names of the files are the same in both html and manifest files");
+			}
+		}
+
 		concatCache[aboslutePath] = files;
 
 		switch (fileType) {
