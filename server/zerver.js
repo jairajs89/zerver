@@ -538,7 +538,7 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 			var sectionLength 	= i-concatIndex+1,
 				concatList    	= lines.splice(concatIndex, sectionLength),
 				relPath 		= relativePath(pathname, concatFile);
-				
+
 			concatList.shift();
 			concatList.pop();
 			i -= sectionLength;
