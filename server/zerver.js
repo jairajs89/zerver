@@ -455,7 +455,7 @@ function prepareConcatFiles (type, data, pathname, callback) {
 
 	data = data.replace(CONCAT_MATCH, function (original, concatPath, concatables) {
 		var files        = [],
-			aboslutePath = relativePath(pathname, concatPath),
+			absolutePath = relativePath(pathname, concatPath),
 			fileType, match;
 
 		if ( !fileType ) {
@@ -476,14 +476,13 @@ function prepareConcatFiles (type, data, pathname, callback) {
 			return original;
 		}
 
-		if (aboslutePath.substr(1) === concatPath) {
-			if ( concatCache[aboslutePath].join() !== files.join() ){
-				throw new Error("Files for " + concatPath + " not matching cache manifest." +  '\n'
-								+ "Ensure that the order and names of the files are the same in both html and manifest files");
+		if (absolutePath in concatCache) {
+			if (concatCache[absolutePath].join('\n') !== files.join('\n')) {
+				throw Error('Concat files did not match: '+absolutePath+'\nEnsure that the order and names of the files are the same in both HTML and manifest files');
 			}
 		}
 
-		concatCache[aboslutePath] = files;
+		concatCache[absolutePath] = files;
 
 		switch (fileType) {
 			case 'js':
@@ -493,7 +492,7 @@ function prepareConcatFiles (type, data, pathname, callback) {
 				return '<link rel="stylesheet" href="'+concatPath+'">';
 
 			default:
-				delete concatCache[aboslutePath];
+				delete concatCache[absolutePath];
 				return original;
 		}
 	});
@@ -535,9 +534,9 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 			}
 		}
 		else if ( MANIFEST_CONCAT_END.test( lines[i] ) ) {
-			var sectionLength 	= i-concatIndex+1,
-				concatList    	= lines.splice(concatIndex, sectionLength),
-				relPath 		= relativePath(pathname, concatFile);
+			var sectionLength = i-concatIndex+1,
+				concatList    = lines.splice(concatIndex, sectionLength),
+				relPath       = relativePath(pathname, concatFile);
 
 			concatList.shift();
 			concatList.pop();
@@ -547,14 +546,13 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 			lines.splice(i+1, 0, concatFile);
 			l++;
 
-			if ( concatCache[relPath] ){
-				if ( concatCache[relPath].join('') !== concatList.join('') ){
-					throw new Error("Files for " + relPath + " not matching cache manifest." +  '\n'
-								+ "Ensure that the order and names of the files are the same in both html and manifest files");	
+			if (relPath in concatCache) {
+				if (concatCache[relPath].join('\n') !== concatList.join('\n')) {
+					throw Error('Concat files did not match: '+relPath+'\nEnsure that the order and names of the files are the same in both HTML and manifest files');
 				}
 			}
-			concatCache[relPath] = concatList;
 
+			concatCache[relPath] = concatList;
 			concatFile = null;
 		}
 		else if ( !lines[i] ) {
