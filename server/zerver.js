@@ -187,15 +187,15 @@ function configureZerver (options) {
 	updateLastModifiedTime();
 
 	if (options.manifests) {
-		options.manifests.split(',').forEach(function (path) {
-			if (!path[0] !== '/') {
-				path = '/' + path;
+		options.manifests.split(',').forEach(function (p) {
+			if (!p[0] !== path.sep) {
+				p = path.sep + p;
 			}
 
-			MANIFESTS[path] = true;
+			MANIFESTS[p] = true;
 			HAS_MANIFEST    = true;
 
-			prefetchManifestFile(path);
+			prefetchManifestFile(p);
 		});
 	}
 
@@ -260,12 +260,11 @@ function getMaxLastModifiedTime (file) {
 }
 
 function relativePath (path1, path2) {
-	if (path2[0] === '/') {
+	if (path2[0] === path.sep) {
 		return path2;
 	}
-
-	if (path1[path1.length-1] !== '/') {
-		return path.resolve(path1, '../'+path2);
+	if (path1[path1.length-1] !== path.sep) {
+		return path.resolve(path1, '..' + path.sep + path2);
 	}
 	else {
 		return path.resolve(path1, path2);
@@ -274,6 +273,8 @@ function relativePath (path1, path2) {
 
 function prefetchManifestFile (pathname, callback) {
 	var fileName = path.join(ROOT_DIR, pathname);
+	console.log("prefetchManifestFile ----------------------- ");
+	console.log(fileName);
 
 	fs.stat(fileName, function (err, stats) {
 		if (err || !stats.isFile()) {
@@ -312,7 +313,7 @@ function handleRequest (request, response, isWS) {
 			response : !isWS && response            ,
 			conn     : isWS && response             ,
 			isWS     : isWS                         ,
-			pathname : url.resolve('/', decodeURI(urlParts.pathname)) ,
+			pathname : url.resolve(path.sep, decodeURI(urlParts.pathname)) ,
 			query    : urlParts.search              ,
 			params   : urlParts.query               ,
 			hash     : urlParts.hash                ,
@@ -321,7 +322,7 @@ function handleRequest (request, response, isWS) {
 			type     : null
 		},
 		pathname  = handler.pathname,
-		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
+		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === path.sep+API_URL+path.sep;
 
 	setupCookieHandler(handler);
 
@@ -439,7 +440,7 @@ function handleMiddlewareRequest (request, response, next) {
 	var urlParts = url.parse(request.url),
 		pathname = decodeURI(urlParts.pathname);
 
-	if (pathname.substr(0, API_URL_LENGTH + 2) !== '/'+API_URL+'/') {
+	if (pathname.substr(0, API_URL_LENGTH + 2) !== path.sep+API_URL+path.sep) {
 		next();
 		return;
 	}
@@ -574,9 +575,11 @@ function validateManifest (data, pathname) {
 		return;
 	}
 
-	if (pathname[0] !== '/') {
-		pathname = '/' + pathname;
+	if (pathname[0] !== path.sep) {
+		pathname = path.sep + pathname;
 	}
+	pathname = path.normalize(pathname);
+
 
 	var lines     = data.split('\n'),
 		firstLine = lines.shift().trim(),
@@ -589,8 +592,9 @@ function validateManifest (data, pathname) {
 
 	lines.forEach(function (line) {
 		line = line.split('#')[0].trim();
-
-		if ( !line ) {
+		line = path.normalize(line);
+		
+		if ( line.length < 2 ) {
 			return;
 		}
 
@@ -611,7 +615,7 @@ function validateManifest (data, pathname) {
 		if (line.substr(0,2) === '//') {
 			line = 'http:' + line;
 		}
-
+		// console.log(line);
 		var urlParts;
 		try {
 			urlParts = url.parse(line);
@@ -624,7 +628,12 @@ function validateManifest (data, pathname) {
 			return;
 		}
 
-		var linePath = relativePath(pathname, urlParts.pathname);
+		// var linePath = relativePath(pathname, urlParts.pathname);
+		var linePath = path.resolve(urlParts.pathname);
+		// console.log('-----------------------');
+		// console.log(pathname);
+		// console.log(urlParts.pathname);
+		// console.log(linePath);
 
 		if ( API_SCRIPT_MATCH.test(linePath) ) {
 			return;
@@ -634,8 +643,11 @@ function validateManifest (data, pathname) {
 			fileData;
 
 		try {
-			fileData = fs.readFileSync(fileName);
-		} catch (err) {}
+			console.log(linePath);
+			fileData = fs.readFileSync(linePath);
+		} catch (err) {
+			// console.log(err);
+		}
 
 		if ( !fileData ) {
 			handleFailure('failed to load file, ' + originalLine);
@@ -919,9 +931,9 @@ function fileRequest (handler, fileName) {
 		}
 
 		if ( stats.isDirectory() ) {
-			if (handler.pathname[handler.pathname.length - 1] !== '/') {
+			if (handler.pathname[handler.pathname.length - 1] !== path.sep) {
 				respond(handler, 301, 'text/plain', '', {
-					'Location' : handler.pathname + '/' + (handler.query || '') + (handler.hash || '')
+					'Location' : handler.pathname + path.sep + (handler.query || '') + (handler.hash || '')
 				});
 			}
 			else {
@@ -963,7 +975,7 @@ function concatRequest (handler, pathname) {
 			return;
 		}
 
-		var urlPath = url.resolve('/', fileName);
+		var urlPath = url.resolve(path.sep, fileName);
 
 		var urlParts;
 		try {
@@ -1049,12 +1061,12 @@ function APIRequest (handler, pathname) {
 
 	pathname = pathname.substr(API_URL_LENGTH + 1);
 
-	if (pathname === '/') {
+	if (pathname === path.sep) {
 		APISchemeRequest(handler);
 		return;
 	}
 
-	var apiParts = pathname.substr(1).split('/');
+	var apiParts = pathname.substr(1).split(path.sep);
 
 	if (apiParts.length < 2) {
 		respond500(handler);
