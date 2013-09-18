@@ -273,8 +273,6 @@ function relativePath (path1, path2) {
 
 function prefetchManifestFile (pathname, callback) {
 	var fileName = path.join(ROOT_DIR, pathname);
-	console.log("prefetchManifestFile ----------------------- ");
-	console.log(fileName);
 
 	fs.stat(fileName, function (err, stats) {
 		if (err || !stats.isFile()) {
@@ -628,12 +626,7 @@ function validateManifest (data, pathname) {
 			return;
 		}
 
-		// var linePath = relativePath(pathname, urlParts.pathname);
 		var linePath = path.resolve(urlParts.pathname);
-		// console.log('-----------------------');
-		// console.log(pathname);
-		// console.log(urlParts.pathname);
-		// console.log(linePath);
 
 		if ( API_SCRIPT_MATCH.test(linePath) ) {
 			return;
@@ -643,7 +636,6 @@ function validateManifest (data, pathname) {
 			fileData;
 
 		try {
-			console.log(linePath);
 			fileData = fs.readFileSync(linePath);
 		} catch (err) {
 			// console.log(err);
