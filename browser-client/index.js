@@ -80,6 +80,7 @@
 	}
 
 	function setupFunction (obj, key, tree) {
+		console.log("setupFunction");
 		return function () {
 			var errorHandlers = [],
 				defered       = {
@@ -141,6 +142,7 @@
 	}
 
 	function apiCall (tree, args, callback) {
+		console.log("apiCall");
 		var url  = '/' + apiDir,
 			data = JSON.stringify(args);
 
@@ -175,6 +177,7 @@
 	}
 
 	function ajaxPost (url, data, callback) {
+		console.log("ajaxPost");
 		var done = false,
 			xhr;
 
@@ -222,6 +225,7 @@
 	}
 
 	function setupSocket (handler) {
+		console.log("setupSocket");
 		if (Object.prototype.toString.call(apiSocket) == '[object Array]') {
 			apiSocket.push(handler);
 			return;
@@ -244,6 +248,7 @@
 	}
 
 	function createAPISocket (callback) {
+		console.log("createAPISocket");
 		var listeners = [],
 			socket    = {
 				send : sendMessage ,
@@ -268,6 +273,8 @@
 		callback(socket);
 
 		function sendMessage (data) {
+
+			console.log("sendMessage");
 			if (hadFirstConnect && !isConnected) {
 				return;
 			}
