@@ -132,7 +132,7 @@ function startServer () {
 
 	var death    = false,
 		cwd      = commands.args[0] ? path.join(process.cwd(),commands.args[0]) : process.cwd(),
-		apiCheck = new RegExp('^' + cwd + '/' + API_DIR),
+		apiCheck = new RegExp('^' + cwd + path.spec + API_DIR),
 		args     = [new Buffer(JSON.stringify({
 			port       : commands.port ,
 			apiDir     : API_DIR ,

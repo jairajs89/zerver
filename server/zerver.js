@@ -153,7 +153,7 @@ function configureZerver (options) {
 	CLI              = options.cli;
 	VERBOSE          = options.verbose;
 	LESS_ENABLED     = options.less;
-	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
+	API_SCRIPT_MATCH = new RegExp('\\'+path.sep+API_URL+'\\'+path.sep+'([^\\'+path.sep+']+)\\.js');
 	MANIFESTS        = {};
 
 
