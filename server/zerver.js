@@ -153,7 +153,7 @@ function configureZerver (options) {
 	CLI              = options.cli;
 	VERBOSE          = options.verbose;
 	LESS_ENABLED     = options.less;
-	API_SCRIPT_MATCH = new RegExp('\\'+path.sep+API_URL+'\\'+path.sep+'([^\\'+path.sep+']+)\\.js');
+	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
 
 
@@ -311,7 +311,7 @@ function handleRequest (request, response, isWS) {
 			response : !isWS && response            ,
 			conn     : isWS && response             ,
 			isWS     : isWS                         ,
-			pathname : url.resolve(path.sep, decodeURI(urlParts.pathname)) ,
+			pathname : url.resolve('/', decodeURI(urlParts.pathname)) ,
 			query    : urlParts.search              ,
 			params   : urlParts.query               ,
 			hash     : urlParts.hash                ,
@@ -320,7 +320,7 @@ function handleRequest (request, response, isWS) {
 			type     : null
 		},
 		pathname  = handler.pathname,
-		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === path.sep+API_URL+path.sep;
+		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
 
 	setupCookieHandler(handler);
 
@@ -438,7 +438,7 @@ function handleMiddlewareRequest (request, response, next) {
 	var urlParts = url.parse(request.url),
 		pathname = decodeURI(urlParts.pathname);
 
-	if (pathname.substr(0, API_URL_LENGTH + 2) !== path.sep+API_URL+path.sep) {
+	if (pathname.substr(0, API_URL_LENGTH + 2) !== '/'+API_URL+'/') {
 		next();
 		return;
 	}
@@ -923,12 +923,7 @@ function fileRequest (handler, fileName) {
 		}
 
 		if ( stats.isDirectory() ) {
-			if (handler.pathname[handler.pathname.length - 1] !== path.sep) {
-
-				console.log(handler.pathname);
-				console.log(handler.query);
-				console.log(handler.hash);
-
+			if (handler.pathname[handler.pathname.length - 1] !== '/') {
 				respond(handler, 301, 'text/plain', '', {
 					'Location' : handler.pathname + '/' + (handler.query || '') + (handler.hash || '')
 				});
