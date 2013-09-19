@@ -260,11 +260,11 @@ function getMaxLastModifiedTime (file) {
 }
 
 function relativePath (path1, path2) {
-	if (path2[0] === path.sep) {
+	if (path2[0] === '/') {
 		return path2;
 	}
-	if (path1[path1.length-1] !== path.sep) {
-		return path.resolve(path1, '..' + path.sep + path2);
+	if (path1[path1.length-1] !== '/') {
+		return path.resolve(path1, '../' + path2);
 	}
 	else {
 		return path.resolve(path1, path2);
@@ -573,8 +573,8 @@ function validateManifest (data, pathname) {
 		return;
 	}
 
-	if (pathname[0] !== path.sep) {
-		pathname = path.sep + pathname;
+	if (pathname[0] !== '/') {
+		pathname = '/' + pathname;
 	}
 	pathname = path.normalize(pathname);
 
@@ -966,7 +966,7 @@ function concatRequest (handler, pathname) {
 			return;
 		}
 
-		var urlPath = url.resolve(path.sep, fileName);
+		var urlPath = url.resolve('/', fileName);
 
 		var urlParts;
 		try {
@@ -1052,12 +1052,12 @@ function APIRequest (handler, pathname) {
 
 	pathname = pathname.substr(API_URL_LENGTH + 1);
 
-	if (pathname === path.sep) {
+	if (pathname === '/') {
 		APISchemeRequest(handler);
 		return;
 	}
 
-	var apiParts = pathname.substr(1).split(path.sep);
+	var apiParts = pathname.substr(1).split('/');
 
 	if (apiParts.length < 2) {
 		respond500(handler);
