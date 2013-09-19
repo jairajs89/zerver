@@ -25,8 +25,6 @@ var setupComplete  = false,
 
 
 exports.setup = function (apiDir, refresh, logging) {
-
-
 	if (setupComplete) {
 		throw Error('apis can be setup only once');
 	}

@@ -578,7 +578,6 @@ function validateManifest (data, pathname) {
 	}
 	pathname = path.normalize(pathname);
 
-
 	var lines     = data.split('\n'),
 		firstLine = lines.shift().trim(),
 		section   = 'CACHE:';
