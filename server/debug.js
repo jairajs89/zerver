@@ -1,4 +1,5 @@
-var EventEmitter = require('events').EventEmitter;
+var EventEmitter = require('events').EventEmitter,
+	path = require('path');
 
 var API_URL, REFRESH,
 	DEBUG_PREFIX,
@@ -17,9 +18,8 @@ FORCE_FLUSH += '\n';
 exports.setup  = setupDebugMode;
 exports.handle = handleRequest;
 
-
-
 function setupDebugMode (apiURL, refresh) {
+
 	if (enabled) {
 		return;
 	}
@@ -36,6 +36,7 @@ function setupDebugMode (apiURL, refresh) {
 
 function setupAutoRefresh () {
 	process.on('message', function (data) {
+		console.log("Process Message");
 		if (data && data.debugRefresh) {
 			for (var streamID in streams.list) {
 				streams.list[streamID].send({ type : 'refresh' });
@@ -46,7 +47,9 @@ function setupAutoRefresh () {
 
 function setupLogging () {
 	streams.on('connection', function (stream) {
+		console.log("--Connection--");
 		stream.on('message', function (data) {
+			console.log("MESSAGE");
 			if (data.type === 'log') {
 				try {
 					process.send({ log: (data.level+': '+data.message) });
@@ -140,6 +143,7 @@ function getSingleStream () {
 
 
 function handleRequest (handler) {
+	console.log("Handle Request");
 	if ( !enabled ) {
 		return false;
 	}

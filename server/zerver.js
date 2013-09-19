@@ -924,8 +924,13 @@ function fileRequest (handler, fileName) {
 
 		if ( stats.isDirectory() ) {
 			if (handler.pathname[handler.pathname.length - 1] !== path.sep) {
+
+				console.log(handler.pathname);
+				console.log(handler.query);
+				console.log(handler.hash);
+
 				respond(handler, 301, 'text/plain', '', {
-					'Location' : handler.pathname + path.sep + (handler.query || '') + (handler.hash || '')
+					'Location' : handler.pathname + '/' + (handler.query || '') + (handler.hash || '')
 				});
 			}
 			else {
