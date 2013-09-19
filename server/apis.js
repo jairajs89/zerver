@@ -1,10 +1,10 @@
-var fs 	 = require('fs'), 
-	path = require('path');
+var fs 		= require('fs'), 
+	path 	= require('path');
 
 var ROOT_DIR         = process.cwd(),
 	REFRESH          = false,
 	LOGGING          = false,
-	CLIENT_JS        = '..'+path.sep+'browser-client'+path.sep+'index.js',
+	CLIENT_JS        = '..' + path.sep + 'browser-client' + path.sep + 'index.js',
 	INSERT_REFRESH   = '{{__API_REFRESH__}}',
 	INSERT_LOGGING   = '{{__API_LOGGING__}}',
 	INSERT_DIR       = '{{__API_DIR__}}',

@@ -1,12 +1,14 @@
-var EventEmitter = require('events').EventEmitter,
-	path = require('path');
+var EventEmitter  	= require('events').EventEmitter,
+	path 			= require('path');
 
-var API_URL, REFRESH,
+var API_URL, 
+	REFRESH,
 	DEBUG_PREFIX,
 	FORCE_FLUSH;
 
 var enabled = false,
 	streams = new EventEmitter();
+
 streams.list = {};
 
 FORCE_FLUSH = '';

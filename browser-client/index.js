@@ -268,7 +268,6 @@
 		callback(socket);
 
 		function sendMessage (data) {
-
 			if (hadFirstConnect && !isConnected) {
 				return;
 			}
@@ -497,7 +496,6 @@
 
 		setupSocket(function () {
 			apiSocket.on('message', function (data) {
-				console.log("Some message");
 				if (data.type !== 'refresh') {
 					return;
 				}
