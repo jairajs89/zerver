@@ -188,8 +188,8 @@ function configureZerver (options) {
 
 	if (options.manifests) {
 		options.manifests.split(',').forEach(function (p) {
-			if (!p[0] !== path.sep) {
-				p = path.sep + p;
+			if (!p[0] !== '/') {
+				p = '/' + p;
 			}
 
 			MANIFESTS[p] = true;
