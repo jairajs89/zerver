@@ -49,10 +49,7 @@ exports.setup = function (apiDir, refresh, logging) {
 	apiNames.forEach(function (fileName) {
 		var len = fileName.length;
 
-		console.log(fileName);
-
 		if (fileName.substr(len-3) !== '.js') {
-			console.log("lalalalal");
 			return;
 		}
 
@@ -165,8 +162,6 @@ function setupAPIObj (api, obj, functions) {
 
 	for (var key in api) {
 		value = api[key];
-		console.log(key);
-		console.log(value);
 		switch (typeof value) {
 			case 'function':
 				if ((typeof value.type !== 'string') || (value.type.toLowerCase() !== 'get')) {
