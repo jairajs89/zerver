@@ -72,10 +72,10 @@ Note: any server code in a subdirectory of `website-dir/zerver` will not be avai
 Example usage
 
 ```sh
-zerver -r -c website-dir # Runs the server with auto-refresh and the interactive js shell activated
+zerver -r -c website-dir # Runs the server with auto-refresh and cli activated
 ```
 
--r, --refresh           
+-r, --refresh
 Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) will automatically refresh when any of its code is edited. You can edit code and immediately see feedback on how it effects your running webapp.
 
 -c, --cli               
@@ -103,7 +103,7 @@ The cache.manifest can be used to speed up loading times by caching files and mi
 
 For example if you have the following in your cache manifest file: 
 
-```
+```sh
 # zerver:js/main.min.js
 js/cards.js
 js/app.js
@@ -121,18 +121,21 @@ And the following in your HTML file:
 <!-- /zerver -->
 ```
 
-This will create a file called main.min.js containing everything from cards, app and main in a minified format.
+This will create a file called `main.min.js` containing everything from `cards.js`, `app.js` and `main.js` in a minified format.
 Note that for this to work the order, names and number of files must match across both the html and manifest file.
 
 The type of files that can be minified are listed below:
-    - application/json
-    - application/javascript    
-    - text/javascript           
-    - text/css                  
-    - text/less
-    - text/html                 
-    - text/plain
-    - text/cache-manifest
+
+```js
+application/json
+application/javascript    
+text/javascript           
+text/css                  
+text/less
+text/html                 
+text/plain
+text/cache-manifest
+```
 
 less depends on the less module run command: npm install less --save (--save flag saves the dependancy to your package.json file)
 
