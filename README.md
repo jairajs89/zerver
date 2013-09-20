@@ -65,8 +65,6 @@ Note: any server code in a subdirectory of `website-dir/zerver` will not be avai
 </script>
 ```
 
-# Tools
-
 ## Zerver options
 
 ```sh
@@ -213,8 +211,8 @@ Another way to save time when running zerver is to add your default run configur
     "start" : "zerver --manifest=cache.manifest --port=5000 -rlc web"
   }
 }
-// Sample package.json file for a zerver application
 ```
+Sample package.json file for a zerver application
 
 This setup allows you to simply enter `npm start` to run the command `zerver --manifest=cache.manifest --port=5000 -rlc web`.
 
