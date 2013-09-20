@@ -67,34 +67,61 @@ Note: any server code in a subdirectory of `website-dir/zerver` will not be avai
 
 # Tools
 
-### Options
-
-Example usage
+### Zerver options
 
 ```sh
-zerver -r -c website-dir # Runs the server with auto-refresh and cli activated
+# run server on a different port
+zerver --port=8000 website-dir
+
+# automatically append a comment timestamp whenever
+# a HTML5 cache.manifest is requested
+zerver -d --manifest=path/to/cache.manifest website-dir
+
+# in production mode this will always have
+# the timestamp of the time of deploy
+zerver --manifest=path/to/cache.manifest website-dir
 ```
 
+```sh
+# General usage
+zerver [options] website-dir
+
 -r, --refresh
-Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) will automatically refresh when any of its code is edited. You can edit code and immediately see feedback on how it effects your running webapp.
+# Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) will automatically refresh when any of its code is edited. You can edit code and immediately see feedback on how it effects your running webapp.
 
 -c, --cli               
-Creates a js shell to communicate with remote clients, press tab to enable. Any code run in this shell will be run on the client.
+# Creates a js shell to communicate with remote clients, press tab to enable. Any code run in this shell will be run on the client.
 
--P, --port <n>          
-Set server port to listen on, defaults to process.env.PORT||5000
-
--V, --verbose           
-Enable verbose request logging
+-V, --verbose 
+# Enable verbose request logging
 
 -l, --less    
-Automatically compile less into css (requires the less node module to work run: npm install less)
+# Automatically compile less into css (requires the less node module to work run: npm install less)
 
--m, --manifest <paths>  
-Declare HTML5 appCache manifest files eg. --manifest=cache.manifest  (If the manifest is located in web/cache.manifest)
+-p, --production 
+# Enables production mode (caching, concat, minfiy, gzip, etc)
+```
 
--p, --production        
-Enables production mode (caching, concat, minfiy, gzip, etc)
+### Default options
+
+You can specify default options in an environment variable,
+to avoid having to type them every time
+```sh
+export ZERVER_FLAGS='-drl'
+```
+
+### Cross origin
+
+Zerver can automatically make a script available to multiple host origins. This is especially useful if you are including a Zerver script from a subdomain of your webapp.
+
+```js
+// in website-dir/zerver/MyAPI.js
+
+// all any website to include your zerver script
+exports._crossOrigin = '*';
+```
+
+The value of `exports._crossOrigin` is exactly what will be served as the `Allow-Access-Control-Origin` header for cross origin requests if acceptable.
 
 
 ### Manifest file
@@ -164,46 +191,6 @@ zerver.get('http://localhost:5000/zerver/', function (myzerver) {
     });
 });
 ```
-
-# Advanced usage
-
-### Zerver options
-
-```sh
-# run server on a different port
-zerver --port=8000 website-dir
-```
-
-```sh
-# automatically append a comment timestamp whenever
-# a HTML5 cache.manifest is requested
-zerver -d --manifest=path/to/cache.manifest website-dir
-
-# in production mode this will always have
-# the timestamp of the time of deploy
-zerver --manifest=path/to/cache.manifest website-dir
-```
-
-### Default options
-
-You can specify default options in an environment variable,
-to avoid having to type them every time
-```sh
-export ZERVER_FLAGS='-drl'
-```
-
-### Cross origin
-
-Zerver can automatically make a script available to multiple host origins. This is especially useful if you are including a Zerver script from a subdomain of your webapp.
-
-```js
-// in website-dir/zerver/MyAPI.js
-
-// all any website to include your zerver script
-exports._crossOrigin = '*';
-```
-
-The value of `exports._crossOrigin` is exactly what will be served as the `Allow-Access-Control-Origin` header for cross origin requests if acceptable.
 
 ### Script names
 
