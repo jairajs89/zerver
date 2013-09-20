@@ -17,7 +17,7 @@ website-dir/zerver/MyAPI.js
 ```
 
 Everything in `website-dir` will be served as static content except for code in `zerver/` which will run on the server.
-
+Only files on the topmost level of the zerver folder will be saved as api's i.e. files in subfolders under zerver will not be used unless they are specifically required in one of the main api files. 
 ```js
 // in website-dir/zerver/MyAPI.js
 // this runs on the server
@@ -67,24 +67,22 @@ Note: any server code in a subdirectory of `website-dir/zerver` will not be avai
 
 # Tools
 
-### Zerver options
+## Zerver options
 
 ```sh
+# General usage
+zerver [options] website-dir
+
 # run server on a different port
 zerver --port=8000 website-dir
 
 # automatically append a comment timestamp whenever
 # a HTML5 cache.manifest is requested
-zerver -d --manifest=path/to/cache.manifest website-dir
+zerver --manifest=path/to/cache.manifest website-dir
 
 # in production mode this will always have
 # the timestamp of the time of deploy
 zerver --manifest=path/to/cache.manifest website-dir
-```
-
-```sh
-# General usage
-zerver [options] website-dir
 
 -r, --refresh
 # Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) 
@@ -106,11 +104,52 @@ zerver [options] website-dir
 # Enables production mode (caching, concat, minfiy, gzip, etc)
 ```
 
-### Manifest file
+### Command Line Interface
 
-The cache.manifest can be used to speed up loading times by caching files and minifying groups of files into one.
+The command line interface (the `cli` flag) allows you to communicate with the client during development
 
-For example if you have the following in your cache manifest file: 
+For example:
+
+```sh
+zerver -cli website-dir
+
+# Press tab to enable the cli
+>>> 
+# The following line will cause all clients listening to the server to refresh
+>>> window.location.reload();
+
+# You can also log things from the client
+# The following line logs all the functions
+# that are available in 'MyAPI'
+>>> console.log(Object.keys(MyAPI));
+log: ["function1FromMyApi", "function2FromMyApi"]
+# Since anything that is logged on the client gets
+# sent to the server you can see the result right in the command line
+```
+
+## Production mode
+
+Passing the `--production` flag on startup enables zervers production features.
+
+### Inlining files
+
+Given the following link
+
+```html
+<link rel="stylesheet" href="/css/app.min.css?inline=1">
+```
+
+Zerver will create a `<style>` tag in place and place the css there instead, reducing the amount of requests to load files.
+
+The same can be done with images inside the css file
+
+```css
+background-image: url(/img/background.png?inline=1);
+```
+
+### Gzip and minifying
+
+Given the following files in your manifest.
 
 ```sh
 # zerver:js/main.min.js
@@ -130,22 +169,22 @@ And the following in your HTML file:
 <!-- /zerver -->
 ```
 
-This will create a file called `main.min.js` containing everything from `cards.js`, `app.js` and `main.js` in a minified format.
-Files are only minified when the production flag is passed on startup.
-Note that for this to work the order, names and number of files must match across both the html and manifest file.
+When the server is run on production these files will be gzipped & minified into a file called `main.min.js`
 
-The type of files that can be minified are listed below:
+### Manifest file
 
-```js
-application/json
-application/javascript    
-text/javascript           
-text/css                  
-text/less
-text/html                 
-text/plain
-text/cache-manifest
+The cache manifest file is a simple text file that lists the resources the browser should cache for offline access.
+It should be referenced at the top of your html file like this:
+
+```html
+<html manifest="cache.manifest">
+...
+</html>
 ```
+The cache manifest allows you to specify which files the browser should cache and make available to offline users. Your app will load and work correctly, even if the user presses the refresh button while they're offline.
+
+The advantage that zerver brings with the cache manifest is that zerver will refresh the cache whenever a file is changed.
+This fixes the main drawback to developing with a cache as now you will always be working with the most up to date versions of the edited files.
 
 ### Default options
 
@@ -174,7 +213,7 @@ Another way to save time when running zerver is to add your default run configur
     "start" : "zerver --manifest=cache.manifest --port=5000 -rlc web"
   }
 }
-# Sample package.json file for a zerver application
+// Sample package.json file for a zerver application
 ```
 
 This setup allows you to simply enter `npm start` to run the command `zerver --manifest=cache.manifest --port=5000 -rlc web`.
