@@ -4,7 +4,7 @@ Zerver is a lightweight Node.js-based webserver that lets you seamlessly make se
 
 ```sh
 npm install -g zerver
-# or add zerver to your package.json dependencies
+# or add zerver to your package.json dependencies and run npm install
 ```
 
 # Basic usage
@@ -67,21 +67,74 @@ Note: any server code in a subdirectory of `website-dir/zerver` will not be avai
 
 # Tools
 
-### Debug mode
+### Options
+
+Example usage
 
 ```sh
-zerver -d website-dir
+zerver -r -c website-dir # Runs the server with auto-refresh and the interactive js shell activated
 ```
 
-Zerver will automatically reload the server modules when any server-side code is edited. This is allows for rapid development and testing of server-side code.
-
-### Auto-refresh mode
-
-```sh
-zerver -dr website-dir
-```
-
+-r, --refresh           
 Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) will automatically refresh when any of its code is edited. You can edit code and immediately see feedback on how it effects your running webapp.
+
+-c, --cli               
+Creates a js shell to communicate with remote clients, press tab to enable. Any code run in this shell will be run on the client.
+
+-P, --port <n>          
+Set server port to listen on, defaults to process.env.PORT||5000
+
+-V, --verbose           
+Enable verbose request logging
+
+-l, --less    
+Automatically compile less into css (requires the less node module to work run: npm install less)
+
+-m, --manifest <paths>  
+Declare HTML5 appCache manifest files eg. --manifest=cache.manifest  (If the manifest is located in web/cache.manifest)
+
+-p, --production        
+Enables production mode (caching, concat, minfiy, gzip, etc)
+
+
+### Manifest file
+
+The cache.manifest can be used to speed up loading times by caching files and minifying groups of files into one.
+
+For example if you have the following in your cache manifest file: 
+
+```
+# zerver:js/main.min.js
+js/cards.js
+js/app.js
+js/main.js
+# /zerver
+```
+
+And the following in your HTML file:
+
+```html
+<!-- zerver:js/main.min.js -->
+<script src="js/cards.js"></script>
+<script src="js/app.js"></script>
+<script src="js/main.js"></script>
+<!-- /zerver -->
+```
+
+This will create a file called main.min.js containing everything from cards, app and main in a minified format.
+Note that for this to work the order, names and number of files must match across both the html and manifest file.
+
+The type of files that can be minified are listed below:
+    - application/json
+    - application/javascript    
+    - text/javascript           
+    - text/css                  
+    - text/less
+    - text/html                 
+    - text/plain
+    - text/cache-manifest
+
+less depends on the less module run command: npm install less --save (--save flag saves the dependancy to your package.json file)
 
 # ExpressJS integration
 
