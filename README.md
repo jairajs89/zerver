@@ -87,42 +87,24 @@ zerver --manifest=path/to/cache.manifest website-dir
 zerver [options] website-dir
 
 -r, --refresh
-# Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) will automatically refresh when any of its code is edited. You can edit code and immediately see feedback on how it effects your running webapp.
+# Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) 
+# will automatically refresh when any of its code is edited. 
+# You can edit code and immediately see feedback on how it effects your running webapp.
 
 -c, --cli               
-# Creates a js shell to communicate with remote clients, press tab to enable. Any code run in this shell will be run on the client.
+# Creates a js shell to communicate with remote clients, press tab to enable. 
+# Any code run in this shell will be run on the client.
 
 -V, --verbose 
 # Enable verbose request logging
 
 -l, --less    
-# Automatically compile less into css (requires the less node module to work run: npm install less)
+# Automatically compile less into css 
+# Requires the less node module to work run: npm install less
 
 -p, --production 
 # Enables production mode (caching, concat, minfiy, gzip, etc)
 ```
-
-### Default options
-
-You can specify default options in an environment variable,
-to avoid having to type them every time
-```sh
-export ZERVER_FLAGS='-drl'
-```
-
-### Cross origin
-
-Zerver can automatically make a script available to multiple host origins. This is especially useful if you are including a Zerver script from a subdomain of your webapp.
-
-```js
-// in website-dir/zerver/MyAPI.js
-
-// all any website to include your zerver script
-exports._crossOrigin = '*';
-```
-
-The value of `exports._crossOrigin` is exactly what will be served as the `Allow-Access-Control-Origin` header for cross origin requests if acceptable.
-
 
 ### Manifest file
 
@@ -149,6 +131,7 @@ And the following in your HTML file:
 ```
 
 This will create a file called `main.min.js` containing everything from `cards.js`, `app.js` and `main.js` in a minified format.
+Files are only minified when the production flag is passed on startup.
 Note that for this to work the order, names and number of files must match across both the html and manifest file.
 
 The type of files that can be minified are listed below:
@@ -164,7 +147,51 @@ text/plain
 text/cache-manifest
 ```
 
-less depends on the less module run command: npm install less --save (--save flag saves the dependancy to your package.json file)
+### Default options
+
+You can specify default options in an environment variable,
+to avoid having to type them every time
+```sh
+export ZERVER_FLAGS='-drl'
+```
+
+### Running as an npm script
+
+Another way to save time when running zerver is to add your default run configurations to an npm script in your `package.json`
+
+```json
+{
+  "name"    : "zerver-sample" ,
+  "version" : "0.0.1" ,
+  "engines" : {
+    "node"  : "0.8.x" ,
+    "npm"   : "1.1.x"
+  },
+  "dependencies" : {
+    "zerver" : "0.12.9"
+  },
+  "scripts" : {
+    "start" : "zerver --manifest=cache.manifest --port=5000 -rlc web"
+  }
+}
+# Sample package.json file for a zerver application
+```
+
+This setup allows you to simply enter `npm start` to run the command `zerver --manifest=cache.manifest --port=5000 -rlc web`.
+
+
+### Cross origin
+
+Zerver can automatically make a script available to multiple host origins. This is especially useful if you are including a Zerver script from a subdomain of your webapp.
+
+```js
+// in website-dir/zerver/MyAPI.js
+
+// all any website to include your zerver script
+exports._crossOrigin = '*';
+```
+
+The value of `exports._crossOrigin` is exactly what will be served as the `Allow-Access-Control-Origin` header for cross origin requests if acceptable.
 
 # ExpressJS integration
 
