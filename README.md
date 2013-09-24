@@ -216,20 +216,6 @@ Sample package.json file for a zerver application
 
 This setup allows you to simply enter `npm start` to run the command `zerver --manifest=cache.manifest --port=5000 -rlc web`.
 
-
-### Cross origin
-
-Zerver can automatically make a script available to multiple host origins. This is especially useful if you are including a Zerver script from a subdomain of your webapp.
-
-```js
-// in website-dir/zerver/MyAPI.js
-
-// all any website to include your zerver script
-exports._crossOrigin = '*';
-```
-
-The value of `exports._crossOrigin` is exactly what will be served as the `Allow-Access-Control-Origin` header for cross origin requests if acceptable.
-
 # ExpressJS integration
 
 Zerver integrates well with Express, providing the same functionality to any existing webapp.
