@@ -50,6 +50,7 @@ var ROOT_DIR            = process.cwd(),
 	LESS_ENABLED        = false,
 	MANIFESTS,
 	CACHE_CONTROL,
+	MANUAL_CACHE,
 	REFRESH,
 	VERBOSE,
 	PORT,
@@ -155,6 +156,7 @@ function configureZerver (options) {
 	LESS_ENABLED     = options.less;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
+	MANUAL_CACHE     = {};
 
 
 	global.ZERVER_DEBUG = !PRODUCTION;
@@ -209,9 +211,56 @@ function configureZerver (options) {
 		CACHE_CONTROL = 'public, max-age=14400';
 	}
 
+	if (options.cache && PRODUCTION) {
+		options.cache.split(',').forEach(function (segment) {
+			var parts = segment.split(':'),
+				path, life;
+
+			switch (parts.length) {
+				case 1:
+					life = parseInt(parts[0]);
+					break;
+				case 2:
+					path = parts[0];
+					life = parseInt(parts[1]);
+					break;
+				default:
+					break;
+			}
+
+			if (!life && (life !== 0)) {
+				console.error('invalid cache directive: ' + segment);
+				return;
+			}
+			if (life < 0) {
+				console.error('invalid cache directive: ' + segment);
+				return;
+			}
+			if ( !path ) {
+				console.error('invalid cache directive: ' + segment);
+				return;
+			}
+
+			if ( !path ) {
+				CACHE_CONTROL = 'public, max-age='+life;
+			} else {
+				MANUAL_CACHE[path] = 'public, max-age='+life;
+			}
+		});
+	}
+
 	fetchAPIs();
 
 	http.globalAgent.maxSockets = 50;
+}
+
+function getCacheLife (path) {
+	for (var prefix in MANUAL_CACHE) {
+		if (path.substr(0, prefix.length) === prefix) {
+			return MANUAL_CACHE[prefix];
+		}
+	}
+	return CACHE_CONTROL;
 }
 
 function fetchAPIs () {
@@ -935,7 +984,7 @@ function fileRequest (handler, fileName) {
 			}
 
 			respondBinary(handler, 200, lookupMime(fileName), file, {
-				'Cache-Control' : CACHE_CONTROL
+				'Cache-Control' : getCacheLife(handler.pathname)
 			});
 		});
 	});
@@ -1005,7 +1054,7 @@ function concatRequest (handler, pathname) {
 	}
 	else {
 		respondBinary(handler, 200, lookupMime(pathname), file, {
-			'Cache-Control' : CACHE_CONTROL
+			'Cache-Control' : getCacheLife(handler.pathname)
 		});
 	}
 }
@@ -1297,7 +1346,7 @@ function scriptRequest (handler, pathname) {
 	}
 
 	respond(handler, 200, 'application/javascript', file, {
-		'Cache-Control' : CACHE_CONTROL
+		'Cache-Control' : getCacheLife(handler.pathname)
 	});
 }
 

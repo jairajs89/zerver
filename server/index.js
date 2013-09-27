@@ -48,6 +48,7 @@ function processFlags () {
 		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||5000)
 		.option('-V, --verbose'         , 'verbose request logging')
 		.option('-l, --less'            , 'automatically compile less into css')
+		.option('--cache <paths>'       , 'set specific cache life for resources')
 		.parse(args);
 	if (commands.production) {
 		commands.refresh = false;
@@ -143,6 +144,7 @@ function startServer () {
 			manifests  : (commands.manifest || '') ,
 			production : !!commands.production ,
 			less       : !!commands.less ,
+			cache      : (commands.cache || '') ,
 		})).toString('base64')],
 		opts     = { cwd : cwd },
 		child, cli;
