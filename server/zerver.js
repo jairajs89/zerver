@@ -29,6 +29,10 @@ var ROOT_DIR            = process.cwd(),
 		'text/plain'             : true ,
 		'text/cache-manifest'    : true
 	},
+	HIDDEN_HEADERS      = [
+		'host'   , 'connection', 'user-agent'     , 'if-none-match'  ,
+		'referer', 'accept'    , 'accept-encoding', 'accept-language'
+	],
 	SLASH               = /\//g,
 	DEBUG_LINES         = /\s*\;\;\;.*/g,
 	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
@@ -1421,8 +1425,7 @@ function logRequest (handler, status) {
 
 	if (SHOW_HEADERS) {
 		for (var header in handler.request.headers) {
-			//TODO
-			if (['host', 'connection', 'user-agent', 'referer', 'accept', 'accept-encoding', 'accept-language'].indexOf(header) === -1) {
+			if (HIDDEN_HEADERS.indexOf(header) === -1) {
 				console.log('  ' + header+': '+handler.request.headers[header]);
 			}
 		}
