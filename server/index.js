@@ -47,6 +47,7 @@ function processFlags () {
 		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
 		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||5000)
 		.option('-V, --verbose'         , 'verbose request logging')
+		.option('-h, --headers'         , 'show headers in logs')
 		.option('-l, --less'            , 'automatically compile less into css')
 		.option('--cache <paths>'       , 'set specific cache life for resources')
 		.parse(args);
@@ -141,6 +142,7 @@ function startServer () {
 			refresh    : !!commands.refresh ,
 			cli        : !!commands.cli ,
 			verbose    : !!commands.verbose ,
+			headers    : !!commands.headers ,
 			manifests  : (commands.manifest || '') ,
 			production : !!commands.production ,
 			less       : !!commands.less ,

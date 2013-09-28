@@ -48,6 +48,7 @@ var ROOT_DIR            = process.cwd(),
 	HAS_MANIFEST        = false,
 	PRODUCTION          = false,
 	LESS_ENABLED        = false,
+	SHOW_HEADERS        = false,
 	MANIFESTS,
 	CACHE_CONTROL,
 	MANUAL_CACHE,
@@ -153,6 +154,7 @@ function configureZerver (options) {
 	REFRESH          = options.refresh;
 	CLI              = options.cli;
 	VERBOSE          = options.verbose;
+	SHOW_HEADERS     = options.headers,
 	LESS_ENABLED     = options.less;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
@@ -1380,16 +1382,28 @@ function logRequest (handler, status) {
 	switch (handler.type) {
 		case 'file':
 		case 'script':
-			logType = 'FILE    ';
+			logType = 'FILE';
+			if (!VERBOSE && !SHOW_HEADERS) {
+				logType += '    ';
+			}
 			break;
 		case 'manifest':
 			logType = 'MANIFEST';
+			if (!VERBOSE && !SHOW_HEADERS) {
+				logType += '';
+			}
 			break;
 		case 'scheme':
-			logType = 'SCHEME  ';
+			logType = 'SCHEME';
+			if (!VERBOSE && !SHOW_HEADERS) {
+				logType += '  ';
+			}
 			break;
 		case 'api':
-			logType = 'API     ';
+			logType = 'API';
+			if (!VERBOSE && !SHOW_HEADERS) {
+				logType += '     ';
+			}
 			pathname = pathname.substr(2 + API_URL_LENGTH).replace(SLASH, '.') + '()';
 			break;
 	}
@@ -1403,7 +1417,18 @@ function logRequest (handler, status) {
 		if (handler.referrer) {
 			console.log('  referrer=' + handler.referrer);
 		}
+	}
 
+	if (SHOW_HEADERS) {
+		for (var header in handler.request.headers) {
+			//TODO
+			if (['host', 'connection', 'user-agent', 'referer', 'accept', 'accept-encoding', 'accept-language'].indexOf(header) === -1) {
+				console.log('  ' + header+': '+handler.request.headers[header]);
+			}
+		}
+	}
+
+	if (VERBOSE || SHOW_HEADERS) {
 		console.log('');
 	}
 }
