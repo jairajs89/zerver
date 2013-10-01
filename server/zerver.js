@@ -531,6 +531,10 @@ function prepareConcatFiles (type, data, pathname, callback) {
 			return original;
 		}
 
+		files = files.map(function (fileName) {
+			return relativePath(pathname, fileName);
+		});
+
 		if (absolutePath in concatCache) {
 			if (concatCache[absolutePath].join('\n') !== files.join('\n')) {
 				throw Error('Concat files did not match: '+absolutePath+'\nEnsure that the order and names of the files are the same in both HTML and manifest files');
@@ -595,6 +599,9 @@ function prepareManifestConcatFiles (data, pathname, callback) {
 
 			concatList.shift();
 			concatList.pop();
+			concatList = concatList.map(function (fileName) {
+				return relativePath(pathname, fileName);
+			});
 			i -= sectionLength;
 			l -= sectionLength;
 
