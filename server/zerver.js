@@ -1390,7 +1390,7 @@ function logRequest (handler, status) {
 	var timeParts = process.hrtime(handler.time),
 		timeMs    = (timeParts[0] * 1000 + timeParts[1] / 1000000);
 
-	profilerEndRequest(timeMs);
+	profilerEndRequest(status, timeMs);
 
 	if (PRODUCTION && !VERBOSE) {
 		return;
@@ -1524,6 +1524,8 @@ function setupProfiler () {
 				memory          : process.memoryUsage().heapUsed,
 				uptime          : parseInt(process.uptime()),
 				requests        : PROFILER.requests,
+				missing         : PROFILER.missing,
+				error           : PROFILER.error,
 				openConnections : PROFILER.openRequests,
 			};
 			if (PROFILER.requests) {
@@ -1538,6 +1540,8 @@ function setupProfiler () {
 
 	function reset () {
 		PROFILER.requests = 0;
+		PROFILER.missing = 0;
+		PROFILER.error = 0;
 		PROFILER.responseTime = 0;
 	}
 }
@@ -1570,9 +1574,14 @@ function profilerWatchRequest (request, response) {
 	}
 }
 
-function profilerEndRequest (timeMs) {
+function profilerEndRequest (status, timeMs) {
 	if (PROFILER) {
 		PROFILER.requests += 1
+		if (status === 404) {
+			PROFILER.missing += 1;
+		} else if (status >= 400) {
+			PROFILER.error += 1;
+		}
 		PROFILER.responseTime += timeMs;
 	}
 }
