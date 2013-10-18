@@ -53,6 +53,7 @@ var ROOT_DIR            = process.cwd(),
 	PRODUCTION          = false,
 	LESS_ENABLED        = false,
 	SHOW_HEADERS        = false,
+	PROFILER            = false,
 	MANIFESTS,
 	CACHE_CONTROL,
 	MANUAL_CACHE,
@@ -91,6 +92,7 @@ exports.run = function (options) {
 	configureZerver(options);
 
 	app = http.createServer(function (request, response) {
+		profilerWatchRequest(request, response);
 		handleRequest(request, response);
 	});
 
@@ -145,6 +147,9 @@ exports.run = function (options) {
 	if (CLI) {
 		console.log('- cli: true');
 	}
+	if (PROFILER) {
+		console.log('- profiler: true');
+	}
 
 	console.log('');
 };
@@ -166,6 +171,10 @@ function configureZerver (options) {
 
 
 	global.ZERVER_DEBUG = !PRODUCTION;
+
+	if (options.profile) {
+		setupProfiler();
+	}
 
 	if (PRODUCTION) {
 		GZIP_ENABLED        = true;
@@ -1378,6 +1387,11 @@ function generateZerverScript (apiRoot, query) {
 }
 
 function logRequest (handler, status) {
+	var timeParts = process.hrtime(handler.time),
+		timeMs    = (timeParts[0] * 1000 + timeParts[1] / 1000000);
+
+	profilerEndRequest(timeMs);
+
 	if (PRODUCTION && !VERBOSE) {
 		return;
 	}
@@ -1386,9 +1400,8 @@ function logRequest (handler, status) {
 		agent       = handler.request.headers['user-agent'],
 		statusField = (status === 200) ? '' : '['+status+'] ',
 		pathname    = handler.pathname,
-		timeParts   = process.hrtime(handler.time),
-		timeMs      = (timeParts[0] * 1000 + timeParts[1] / 1000000) + '',
-		time        = '[' + timeMs.substr(0, timeMs.indexOf('.')+3) + 'ms] ';
+		timeStr     = timeMs + '',
+		time        = '[' + timeStr.substr(0, timeStr.indexOf('.')+3) + 'ms] ';
 
 	switch (handler.type) {
 		case 'file':
@@ -1493,6 +1506,73 @@ function lookupMime (fileName) {
 	}
 	else {
 		return mime.lookup(fileName);
+	}
+}
+
+
+
+function setupProfiler () {
+	PROFILER = { openRequests: 0 };
+	reset();
+
+	setInterval(function () {
+		try {
+			var usage = {
+				time            : Date.now(),
+				pid             : process.pid,
+				memory          : process.memoryUsage().headUsed,
+				uptime          : process.uptime(),
+				requests        : PROFILER.requests,
+				openConnections : PROFILER.openRequests,
+			};
+			if (PROFILER.requests) {
+				usage.avgResponse = Math.round(100*PROFILER.responseTime/PROFILER.requests)/100;
+			} else {
+				usage.avgResponse = 0;
+			}
+			console.log( JSON.stringify(usage) );
+		} catch (err) {}
+		reset();
+	}, 1000);
+
+	function reset () {
+		PROFILER.requests = 0;
+		PROFILER.responseTime = 0;
+	}
+}
+
+function profilerWatchRequest (request, response) {
+	if ( !PROFILER ) {
+		return;
+	}
+
+	PROFILER.openRequests += 1;
+
+	var responseEnd = response.end,
+		done        = false;
+
+	request.on('error', finish);
+	response.on('error', finish);
+
+	response.end = function () {
+		finish();
+		response.end = responseEnd;
+		response.end.apply(this, arguments);
+	};
+
+	function finish () {
+		if (done) {
+			return;
+		}
+		done = true;
+		PROFILER.openRequests -= 1;
+	}
+}
+
+function profilerEndRequest (timeMs) {
+	if (PROFILER) {
+		PROFILER.requests += 1
+		PROFILER.responseTime += timeMs;
 	}
 }
 
