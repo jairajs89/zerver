@@ -1520,8 +1520,8 @@ function setupProfiler () {
 			var usage = {
 				time            : Date.now(),
 				pid             : process.pid,
-				memory          : process.memoryUsage().headUsed,
-				uptime          : process.uptime(),
+				memory          : process.memoryUsage().heapUsed,
+				uptime          : parseInt(process.uptime()),
 				requests        : PROFILER.requests,
 				openConnections : PROFILER.openRequests,
 			};
