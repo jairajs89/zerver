@@ -53,7 +53,7 @@ var ROOT_DIR            = process.cwd(),
 	PRODUCTION          = false,
 	LESS_ENABLED        = false,
 	SHOW_HEADERS        = false,
-	PROFILER            = false,
+	STATS               = false,
 	MANIFESTS,
 	CACHE_CONTROL,
 	MANUAL_CACHE,
@@ -92,7 +92,7 @@ exports.run = function (options) {
 	configureZerver(options);
 
 	app = http.createServer(function (request, response) {
-		profilerWatchRequest(request, response);
+		statsWatchRequest(request, response);
 		handleRequest(request, response);
 	});
 
@@ -147,8 +147,8 @@ exports.run = function (options) {
 	if (CLI) {
 		console.log('- cli: true');
 	}
-	if (PROFILER) {
-		console.log('- profiler: true');
+	if (STATS) {
+		console.log('- stats: true');
 	}
 
 	console.log('');
@@ -172,8 +172,8 @@ function configureZerver (options) {
 
 	global.ZERVER_DEBUG = !PRODUCTION;
 
-	if (options.profile) {
-		setupProfiler();
+	if (options.stats) {
+		setupStats();
 	}
 
 	if (PRODUCTION) {
@@ -1390,7 +1390,7 @@ function logRequest (handler, status) {
 	var timeParts = process.hrtime(handler.time),
 		timeMs    = (timeParts[0] * 1000 + timeParts[1] / 1000000);
 
-	profilerEndRequest(status, timeMs);
+	statsEndRequest(status, timeMs);
 
 	if (PRODUCTION && !VERBOSE) {
 		return;
@@ -1511,25 +1511,25 @@ function lookupMime (fileName) {
 
 
 
-function setupProfiler () {
-	PROFILER = { openRequests: 0 };
+function setupStats () {
+	STATS = { openRequests: 0 };
 	reset();
 
 	setInterval(function () {
 		try {
 			var usage = {
-				type            : 'profile',
+				type            : 'stats',
 				time            : Date.now(),
 				pid             : process.pid,
 				memory          : process.memoryUsage().heapUsed,
 				uptime          : parseInt(process.uptime()),
-				requests        : PROFILER.requests,
-				missing         : PROFILER.missing,
-				error           : PROFILER.error,
-				openConnections : PROFILER.openRequests,
+				requests        : STATS.requests,
+				missing         : STATS.missing,
+				error           : STATS.error,
+				openConnections : STATS.openRequests,
 			};
-			if (PROFILER.requests) {
-				usage.avgResponse = Math.round(100*PROFILER.responseTime/PROFILER.requests)/100;
+			if (STATS.requests) {
+				usage.avgResponse = Math.round(100*STATS.responseTime/STATS.requests)/100;
 			} else {
 				usage.avgResponse = 0;
 			}
@@ -1539,19 +1539,19 @@ function setupProfiler () {
 	}, 1000);
 
 	function reset () {
-		PROFILER.requests = 0;
-		PROFILER.missing = 0;
-		PROFILER.error = 0;
-		PROFILER.responseTime = 0;
+		STATS.requests = 0;
+		STATS.missing = 0;
+		STATS.error = 0;
+		STATS.responseTime = 0;
 	}
 }
 
-function profilerWatchRequest (request, response) {
-	if ( !PROFILER ) {
+function statsWatchRequest (request, response) {
+	if ( !STATS ) {
 		return;
 	}
 
-	PROFILER.openRequests += 1;
+	STATS.openRequests += 1;
 
 	var responseEnd = response.end,
 		done        = false;
@@ -1570,19 +1570,19 @@ function profilerWatchRequest (request, response) {
 			return;
 		}
 		done = true;
-		PROFILER.openRequests -= 1;
+		STATS.openRequests -= 1;
 	}
 }
 
-function profilerEndRequest (status, timeMs) {
-	if (PROFILER) {
-		PROFILER.requests += 1
+function statsEndRequest (status, timeMs) {
+	if (STATS) {
+		STATS.requests += 1
 		if (status === 404) {
-			PROFILER.missing += 1;
+			STATS.missing += 1;
 		} else if (status >= 400) {
-			PROFILER.error += 1;
+			STATS.error += 1;
 		}
-		PROFILER.responseTime += timeMs;
+		STATS.responseTime += timeMs;
 	}
 }
 

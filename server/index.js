@@ -49,7 +49,7 @@ function processFlags () {
 		.option('-V, --verbose'         , 'verbose request logging')
 		.option('-h, --headers'         , 'show headers in logs')
 		.option('-l, --less'            , 'automatically compile less into css')
-		.option('--profile'             , 'periodically print cpu/memory usage')
+		.option('-s, --stats'           , 'periodically print memory usage and other stats')
 		.option('--cache <paths>'       , 'set specific cache life for resources')
 		.parse(args);
 	if (commands.production) {
@@ -148,7 +148,7 @@ function startServer () {
 			production : !!commands.production ,
 			less       : !!commands.less ,
 			cache      : (commands.cache || '') ,
-			profile    : !!commands.profile ,
+			stats      : !!commands.stats ,
 		})).toString('base64')],
 		opts     = { cwd : cwd },
 		child, cli;
