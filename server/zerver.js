@@ -1518,6 +1518,7 @@ function setupProfiler () {
 	setInterval(function () {
 		try {
 			var usage = {
+				type            : 'profile',
 				time            : Date.now(),
 				pid             : process.pid,
 				memory          : process.memoryUsage().heapUsed,
