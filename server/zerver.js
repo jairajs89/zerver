@@ -31,7 +31,8 @@ var ROOT_DIR            = process.cwd(),
 	},
 	HIDDEN_HEADERS      = [
 		'host'   , 'connection', 'user-agent'     , 'if-none-match'  ,
-		'referer', 'accept'    , 'accept-encoding', 'accept-language'
+		'referer', 'accept'    , 'accept-encoding', 'accept-language',
+		'content-length'
 	],
 	SLASH               = /\//g,
 	DEBUG_LINES         = /\s*\;\;\;.*/g,
@@ -1429,6 +1430,7 @@ function logRequest (handler, status) {
 			pathname     : handler.pathname,
 			query        : handler.query,
 			params       : handler.params,
+			host         : handler.request.headers['host'],
 			ip           : getClientHost(handler.request),
 			protocol     : getClientProtocol(handler.request),
 			status       : status,
@@ -1439,7 +1441,12 @@ function logRequest (handler, status) {
 			logs.referrer = handler.referrer;
 		}
 		if (SHOW_HEADERS) {
-			logs.headers - handler.request.headers;
+			logs.headers = {};
+			for (var key in handler.request.headers) {
+				if (HIDDEN_HEADERS.indexOf(key) === -1) {
+					logs.headers[key] = handler.request.headers[key];
+				}
+			}
 		}
 		handler.log(logs);
 		return;
