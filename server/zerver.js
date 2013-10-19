@@ -68,6 +68,7 @@ var ROOT_DIR            = process.cwd(),
 var memoryCache = {},
 	fileCache   = {},
 	concatCache = {},
+	cacheQueue  = {},
 	app, apis, lastModTimestamp;
 
 
@@ -370,22 +371,23 @@ function prefetchManifestFile (pathname, callback) {
 }
 
 function handleRequest (request, response, isWS) {
-	var urlParts = url.parse(request.url, true),
-		handler  = {
-			request  : request                      ,
-			response : !isWS && response            ,
-			conn     : isWS && response             ,
-			isWS     : isWS                         ,
-			pathname : url.resolve('/', decodeURI(urlParts.pathname)) ,
-			query    : urlParts.search              ,
-			params   : urlParts.query               ,
-			hash     : urlParts.hash                ,
-			referrer : request.headers['referrer'] || request.headers['referer'] ,
-			time     : process.hrtime()             ,
-			type     : null
-		},
-		pathname  = handler.pathname,
-		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/';
+	var urlParts  = url.parse(request.url, true),
+		pathname  = url.resolve('/', decodeURI(urlParts.pathname)),
+		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/',
+		handler   = {
+			request   : request           ,
+			response  : !isWS && response ,
+			conn      : isWS && response  ,
+			isWS      : isWS              ,
+			pathname  : pathname          ,
+			isApiCall : isApiCall         ,
+			query     : urlParts.search   ,
+			params    : urlParts.query    ,
+			hash      : urlParts.hash     ,
+			referrer  : request.headers['referrer'] || request.headers['referer'] ,
+			time      : process.hrtime()  ,
+			type      : null
+		};
 
 	setupCookieHandler(handler);
 
@@ -465,7 +467,17 @@ function handleRequestErrors (handler) {
 }
 
 function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
-	if (!CACHE_ENABLED || isApiCall || !(pathname in memoryCache)) {
+	if (pathname in cacheQueue) {
+		cacheQueue[pathname].push([handler, function () {
+			tryResponseFromCache(handler, pathname, isApiCall, fallback);
+		}]);
+		return;
+	}
+
+	if ( !(pathname in memoryCache) ) {
+		if (CACHE_ENABLED && !isApiCall) {
+			cacheQueue[pathname] = [];
+		}
 		fallback(handler, pathname, isApiCall);
 		return;
 	}
@@ -474,10 +486,10 @@ function tryResponseFromCache (handler, pathname, isApiCall, fallback) {
 	handler.type = args.type;
 
 	if (args.etag === handler.request.headers['if-none-match']) {
-		finishResponse(handler, 304, args.headers, '', false, true);
+		finishResponse(handler, 304, args.headers, '', false);
 	}
 	else {
-		finishResponse(handler, args.status, args.headers, fileCache[pathname], args.isBinary, true);
+		finishResponse(handler, args.status, args.headers, fileCache[pathname], args.isBinary);
 	}
 }
 
@@ -851,8 +863,8 @@ function compileLess (type, data, callback) {
 	});
 }
 
-function setupGZipOutput (type, data, headers, callback) {
-	if (!GZIP_ENABLED || !(type in GZIPPABLE)) {
+function setupGZipOutput (handler, status, type, data, headers, callback) {
+	if (!GZIP_ENABLED || !(type in GZIPPABLE) || handler.isApiCall || (status !== 200)) {
 		callback(data, headers);
 		return;
 	}
@@ -873,13 +885,14 @@ function setupGZipOutput (type, data, headers, callback) {
 
 /* Request handler */
 
-function finishResponse (handler, status, headers, data, isBinary, noCache) {
+function finishResponse (handler, status, headers, data, isBinary) {
 	var pathname    = handler.pathname,
 		type        = handler.type,
-		shouldCache = (!noCache && CACHE_ENABLED && (type !== 'api') && (type !== 'scheme') && (status === 200) && !(pathname in memoryCache)),
+		canCache    = (CACHE_ENABLED && !handler.isApiCall),
+		shouldCache = (status === 200),
 		hash, etag;
 
-	if (shouldCache) {
+	if (canCache && shouldCache) {
 		hash = crypto.createHash('md5');
 		hash.update(data);
 		etag = '"' + hash.digest('hex') + '"';
@@ -906,7 +919,7 @@ function finishResponse (handler, status, headers, data, isBinary, noCache) {
 		response.end();
 	}
 
-	if (shouldCache) {
+	if (canCache && shouldCache && !(pathname in memoryCache)) {
 		memoryCache[pathname] = {
 			type     : type     ,
 			status   : status   ,
@@ -930,6 +943,20 @@ function finishResponse (handler, status, headers, data, isBinary, noCache) {
 	}
 
 	logRequest(handler, status);
+
+	if (canCache && cacheQueue[pathname]) {
+		var callbacks = cacheQueue[pathname];
+		delete cacheQueue[pathname];
+		if (pathname in memoryCache) {
+			for (var i=0, l=callbacks.length; i<l; i++) {
+				callbacks[i][1]();
+			}
+		} else {
+			for (var i=0, l=callbacks.length; i<l; i++) {
+				respond500(callbacks[i][0]);
+			}
+		}
+	}
 }
 
 function respond (handler, status, type, data, headers) {
@@ -943,7 +970,7 @@ function respondBinary (handler, status, type, data, headers) {
 			data = inlineImages(type, data, handler.pathname);
 			compileLess(type, data, function (type, data) {
 				data = compileOutput(type, data);
-				setupGZipOutput(type, data, headers, function (data, headers) {
+				setupGZipOutput(handler, status, type, data, headers, function (data, headers) {
 					headers['Content-Type'] = type;
 					finishResponse(handler, status, headers, data, true);
 				});
@@ -1335,7 +1362,7 @@ function getRequest (handler, api) {
 			data = buffer;
 		}
 
-		finishResponse(handler, status, headers, data, isBinary, true);
+		finishResponse(handler, status, headers, data, isBinary);
 	}
 }
 
