@@ -54,6 +54,7 @@ var ROOT_DIR            = process.cwd(),
 	LESS_ENABLED        = false,
 	SHOW_HEADERS        = false,
 	STATS               = false,
+	JSON_LOGGING        = false,
 	MANIFESTS,
 	CACHE_CONTROL,
 	MANUAL_CACHE,
@@ -93,7 +94,6 @@ exports.run = function (options) {
 	configureZerver(options);
 
 	app = http.createServer(function (request, response) {
-		statsWatchRequest(request, response);
 		handleRequest(request, response);
 	});
 
@@ -164,7 +164,8 @@ function configureZerver (options) {
 	REFRESH          = options.refresh;
 	CLI              = options.cli;
 	VERBOSE          = options.verbose;
-	SHOW_HEADERS     = options.headers,
+	SHOW_HEADERS     = options.headers;
+	JSON_LOGGING     = options.json;
 	LESS_ENABLED     = options.less;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
@@ -375,20 +376,22 @@ function handleRequest (request, response, isWS) {
 		pathname  = url.resolve('/', decodeURI(urlParts.pathname)),
 		isApiCall = pathname.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/',
 		handler   = {
-			request   : request           ,
-			response  : !isWS && response ,
-			conn      : isWS && response  ,
-			isWS      : isWS              ,
-			pathname  : pathname          ,
-			isApiCall : isApiCall         ,
-			query     : urlParts.search   ,
-			params    : urlParts.query    ,
-			hash      : urlParts.hash     ,
+			request   : request               ,
+			response  : !isWS && response     ,
+			conn      : isWS && response      ,
+			isWS      : isWS                  ,
+			pathname  : pathname              ,
+			isApiCall : isApiCall             ,
+			query     : urlParts.search       ,
+			params    : urlParts.query        ,
+			hash      : urlParts.hash         ,
 			referrer  : request.headers['referrer'] || request.headers['referer'] ,
-			time      : process.hrtime()  ,
-			type      : null
+			time      : process.hrtime()      ,
+			log       : createRequestLogger(request, response) ,
+			type      : null                  ,
 		};
 
+	statsWatchRequest(handler, request, response);
 	setupCookieHandler(handler);
 
 	if (!PRODUCTION && isApiCall && debug.handle(handler)) {
@@ -1419,6 +1422,29 @@ function logRequest (handler, status) {
 
 	statsEndRequest(status, timeMs);
 
+	if (JSON_LOGGING) {
+		var logs = {
+			method       : handler.request.method,
+			requestType  : handler.type,
+			pathname     : handler.pathname,
+			query        : handler.query,
+			params       : handler.params,
+			ip           : getClientHost(handler.request),
+			protocol     : getClientProtocol(handler.request),
+			status       : status,
+			responseTime : timeMs,
+		};
+		if (VERBOSE) {
+			logs.agent = handler.request.headers['user-agent'];
+			logs.referrer = handler.referrer;
+		}
+		if (SHOW_HEADERS) {
+			logs.headers - handler.request.headers;
+		}
+		handler.log(logs);
+		return;
+	}
+
 	if (PRODUCTION && !VERBOSE) {
 		return;
 	}
@@ -1480,6 +1506,24 @@ function logRequest (handler, status) {
 
 	if (VERBOSE || SHOW_HEADERS) {
 		console.log('');
+	}
+}
+
+function getClientHost (request) {
+	var host = request.headers['x-forwarded-for'];
+	if (host) {
+		return host.split(',')[0];
+	} else {
+		return request.connection.remoteAddress;
+	}
+}
+
+function getClientProtocol (request) {
+	var proto = request.headers['x-forwarded-proto'];
+	if (proto) {
+		return proto.split(',')[0];
+	} else {
+		return 'http';
 	}
 }
 
@@ -1573,12 +1617,10 @@ function setupStats () {
 	}
 }
 
-function statsWatchRequest (request, response) {
-	if ( !STATS ) {
-		return;
+function statsWatchRequest (handler, request, response) {
+	if (STATS) {
+		STATS.openRequests += 1;
 	}
-
-	STATS.openRequests += 1;
 
 	var responseEnd = response.end,
 		done        = false;
@@ -1593,11 +1635,14 @@ function statsWatchRequest (request, response) {
 	};
 
 	function finish () {
+		process.nextTick(handler.log.flush);
 		if (done) {
 			return;
 		}
 		done = true;
-		STATS.openRequests -= 1;
+		if (STATS) {
+			STATS.openRequests -= 1;
+		}
 	}
 }
 
@@ -1610,6 +1655,54 @@ function statsEndRequest (status, timeMs) {
 			STATS.error += 1;
 		}
 		STATS.responseTime += timeMs;
+	}
+}
+
+function createRequestLogger (request, response) {
+	var flushed = false,
+		logs;
+	clearLogs();
+	logger.flush = flushLogs;
+	return logger;
+
+	function clearLogs () {
+		logs = { type: 'request' };
+	}
+
+	function logger (map, singleValue) {
+		var map2;
+		switch (typeof map) {
+			case 'string':
+				map2 = {};
+				map2[map] = singleValue;
+				map = map2;
+			case 'object':
+				if (map !== null) {
+					for (key in map) {
+						logs[key] = map[key];
+					}
+					if (flushed) {
+						flushLogs();
+					}
+					break;
+				}
+			default:
+				console.error('zerver: log request failed, map='+map);
+		}
+	}
+
+	function flushLogs () {
+		for (key in logs) {
+			logs.type = 'request';
+			try {
+				console.log(JSON.stringify(logs));
+			} catch (err) {
+				console.error('zerver: log flush failed');
+			}
+			break;
+		}
+		clearLogs();
+		flushed = true;
 	}
 }
 

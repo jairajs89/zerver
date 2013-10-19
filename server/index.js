@@ -50,6 +50,7 @@ function processFlags () {
 		.option('-h, --headers'         , 'show headers in logs')
 		.option('-l, --less'            , 'automatically compile less into css')
 		.option('-s, --stats'           , 'periodically print memory usage and other stats')
+		.option('-j, --json'            , 'requests get logged as json')
 		.option('--cache <paths>'       , 'set specific cache life for resources')
 		.parse(args);
 	if (commands.production) {
@@ -149,6 +150,7 @@ function startServer () {
 			less       : !!commands.less ,
 			cache      : (commands.cache || '') ,
 			stats      : !!commands.stats ,
+			json       : !!commands.json ,
 		})).toString('base64')],
 		opts     = { cwd : cwd },
 		child, cli;
