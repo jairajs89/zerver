@@ -206,7 +206,7 @@ function startServer () {
 	});
 
 	if (commands.production) {
-		runServer(true);
+		runServer();
 		return;
 	}
 
