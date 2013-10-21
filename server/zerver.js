@@ -788,8 +788,7 @@ function inlineFile (pathname, original, relativeURL) {
 	var urlParts;
 	try {
 		urlParts = url.parse(relativeURL, true);
-	}
-	catch (err) {
+	} catch (err) {
 		return;
 	}
 
@@ -800,19 +799,28 @@ function inlineFile (pathname, original, relativeURL) {
 	var absoluteURL;
 	try {
 		absoluteURL = url.resolve(pathname, urlParts.pathname);
-	}
-	catch (err) {
-		return;
-	}
-
-	var fileName = path.join(ROOT_DIR, absoluteURL),
-		fileData;
-	try {
-		fileData = fs.readFileSync(fileName);
 	} catch (err) {
 		return;
 	}
 
+	var fileData;
+	if (absoluteURL.substr(0, API_URL_LENGTH + 2) === '/'+API_URL+'/') {
+		var match = API_SCRIPT_MATCH.exec(urlParts.pathname);
+		if ( !match ) {
+			return;
+		}
+		fileData = generateZerverScript(match[1], urlParts.search);
+		if ( !fileData ) {
+			return;
+		}
+	} else {
+		var fileName = path.join(ROOT_DIR, absoluteURL);
+		try {
+			fileData = fs.readFileSync(fileName);
+		} catch (err) {
+			return;
+		}
+	}
 	return fileData;
 }
 
@@ -1673,7 +1681,7 @@ function createRequestLogger (request, response) {
 	return logger;
 
 	function clearLogs () {
-		logs = { type: 'request' };
+		logs = {};
 	}
 
 	function logger (map, singleValue) {
