@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-var commander = require(__dirname + '/commander'),
-	path      = require('path'),
+var path      = require('path'),
+	commander = require(__dirname + path.sep + 'commander'),
 	fork      = require('child_process').fork;
 
-var ZERVER         = __dirname + '/zerver',
-	WATCHER        = __dirname + '/watcher',
-	PACKAGE        = __dirname + '/../package.json',
+var ZERVER         = __dirname + path.sep + 'zerver',
+	WATCHER        = __dirname + path.sep + 'watcher',
+	PACKAGE        = __dirname + path.sep + '..' + path.sep + 'package.json',
 	ENV_MATCHER    = /([^\,]+)\=([^\,]+)/g,
 	API_DIR        = 'zerver',
 	CHANGE_TIMEOUT = 1000;
@@ -136,7 +136,7 @@ function startServer () {
 
 	var death    = false,
 		cwd      = commands.args[0] ? path.join(process.cwd(),commands.args[0]) : process.cwd(),
-		apiCheck = new RegExp('^' + cwd + '/' + API_DIR),
+		apiCheck = new RegExp('^' + cwd + path.sep + API_DIR),
 		args     = [new Buffer(JSON.stringify({
 			port       : commands.port ,
 			apiDir     : API_DIR ,

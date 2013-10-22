@@ -1,9 +1,10 @@
-var fs = require('fs');
+var fs 		= require('fs'), 
+	path 	= require('path');
 
 var ROOT_DIR         = process.cwd(),
 	REFRESH          = false,
 	LOGGING          = false,
-	CLIENT_JS        = '../browser-client/index.js',
+	CLIENT_JS        = '..' + path.sep + 'browser-client' + path.sep + 'index.js',
 	INSERT_REFRESH   = '{{__API_REFRESH__}}',
 	INSERT_LOGGING   = '{{__API_LOGGING__}}',
 	INSERT_DIR       = '{{__API_DIR__}}',
@@ -14,7 +15,7 @@ var ROOT_DIR         = process.cwd(),
 	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
 
 var setupComplete  = false,
-	scriptTemplate = fs.readFileSync(__dirname + '/' + CLIENT_JS) + '',
+	scriptTemplate = fs.readFileSync(__dirname + path.sep + CLIENT_JS) + '',
 	apiNames       = [],
 	apis           = {},
 	apiScripts     = {},
@@ -35,9 +36,11 @@ exports.setup = function (apiDir, refresh, logging) {
 	//TODO: validate apiDir
 
 	try {
-		apiNames = fs.readdirSync('./' + apiDir);
+		apiNames = fs.readdirSync('.' + path.sep + apiDir);
 	}
-	catch (err) {}
+	catch (err) {
+		throw err;
+	}
 
 	var templateData = {};
 
@@ -49,7 +52,7 @@ exports.setup = function (apiDir, refresh, logging) {
 		}
 
 		var apiName  = fileName.substr(0, len-3),
-			fileName = ROOT_DIR + '/' + apiDir + '/' + apiName;
+			fileName = ROOT_DIR + path.sep + apiDir + path.sep + apiName;
 
 		var api = require(fileName);
 		apis[apiName] = api;
@@ -157,7 +160,6 @@ function setupAPIObj (api, obj, functions) {
 
 	for (var key in api) {
 		value = api[key];
-
 		switch (typeof value) {
 			case 'function':
 				if ((typeof value.type !== 'string') || (value.type.toLowerCase() !== 'get')) {

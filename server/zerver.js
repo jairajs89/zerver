@@ -207,15 +207,15 @@ function configureZerver (options) {
 	updateLastModifiedTime();
 
 	if (options.manifests) {
-		options.manifests.split(',').forEach(function (path) {
-			if (!path[0] !== '/') {
-				path = '/' + path;
+		options.manifests.split(',').forEach(function (p) {
+			if (!p[0] !== '/') {
+				p = '/' + p;
 			}
 
-			MANIFESTS[path] = true;
+			MANIFESTS[p] = true;
 			HAS_MANIFEST    = true;
 
-			prefetchManifestFile(path);
+			prefetchManifestFile(p);
 		});
 	}
 
@@ -330,9 +330,8 @@ function relativePath (path1, path2) {
 	if (path2[0] === '/') {
 		return path2;
 	}
-
 	if (path1[path1.length-1] !== '/') {
-		return path.resolve(path1, '../'+path2);
+		return path.resolve(path1, '../' + path2);
 	}
 	else {
 		return path.resolve(path1, path2);
@@ -662,6 +661,7 @@ function validateManifest (data, pathname) {
 	if (pathname[0] !== '/') {
 		pathname = '/' + pathname;
 	}
+	pathname = path.normalize(pathname);
 
 	var lines     = data.split('\n'),
 		firstLine = lines.shift().trim(),
@@ -674,8 +674,9 @@ function validateManifest (data, pathname) {
 
 	lines.forEach(function (line) {
 		line = line.split('#')[0].trim();
-
-		if ( !line ) {
+		line = path.normalize(line);
+		
+		if ( line.length < 2 ) {
 			return;
 		}
 
@@ -696,7 +697,7 @@ function validateManifest (data, pathname) {
 		if (line.substr(0,2) === '//') {
 			line = 'http:' + line;
 		}
-
+		// console.log(line);
 		var urlParts;
 		try {
 			urlParts = url.parse(line);
@@ -709,7 +710,7 @@ function validateManifest (data, pathname) {
 			return;
 		}
 
-		var linePath = relativePath(pathname, urlParts.pathname);
+		var linePath = path.resolve(urlParts.pathname);
 
 		if ( API_SCRIPT_MATCH.test(linePath) ) {
 			return;
@@ -719,8 +720,10 @@ function validateManifest (data, pathname) {
 			fileData;
 
 		try {
-			fileData = fs.readFileSync(fileName);
-		} catch (err) {}
+			fileData = fs.readFileSync(linePath);
+		} catch (err) {
+			// console.log(err);
+		}
 
 		if ( !fileData ) {
 			handleFailure('failed to load file, ' + originalLine);
