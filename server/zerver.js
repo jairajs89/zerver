@@ -5,6 +5,7 @@ var clean   = require(__dirname + '/clean-css'),
 	cookies = require(__dirname + '/cookies'  ),
 	crypto  = require('crypto'   ),
 	fs      = require('fs'       ),
+	path    = require('path'     ),
 	http    = require('http'     ),
 	mime    = require('mime'     ),
 	path    = require('path'     ),
@@ -206,18 +207,28 @@ function configureZerver (options) {
 
 	updateLastModifiedTime();
 
-	if (options.manifests) {
-		options.manifests.split(',').forEach(function (path) {
-			if (!path[0] !== '/') {
-				path = '/' + path;
-			}
-
-			MANIFESTS[path] = true;
-			HAS_MANIFEST    = true;
-
-			prefetchManifestFile(path);
-		});
+	if (options.manifest) {
+		console.error("WARNING: --manifest option is deprecated and does nothing!");
+		console.error("(manifests are detected automatically)");
 	}
+
+	if (!options.disableManifest) {
+		MANIFESTS = detectManifests(ROOT_DIR);
+
+		if (options.ignoreManifest) {
+			options.ignoreManifest.split(',').forEach(function(p){
+				var ignorePath = path.relative(ROOT_DIR, p);
+				if (MANIFESTS[ignorePath]) {
+					delete MANIFESTS[ignorePath];
+				} else {
+					console.error("WARNING: ignored manifest " + ignorePath + " was not a cache manifest anyway.");
+				}
+			});
+		}
+		HAS_MANIFEST = Object.keys(MANIFESTS).length > 0;
+	} else {
+		console.log("Cache manifest handling disabled.");
+    }
 
 	if ( !PRODUCTION ) {
 		CACHE_CONTROL = 'no-cache';
@@ -337,6 +348,35 @@ function relativePath (path1, path2) {
 	else {
 		return path.resolve(path1, path2);
 	}
+}
+
+function detectManifests(root, myPath) {
+
+	if (!myPath) {
+		myPath = root;
+	}
+
+	var ret = {};
+	var stats = fs.statSync(myPath);
+
+	if (stats.isFile()) {
+		var ext = path.extname(myPath).toLowerCase();
+		if (ext == ".appcache" || ext == ".manifest"){
+			var f = "" + fs.readFileSync(myPath, 'utf8');
+			if (f.indexOf("CACHE MANIFEST")) {
+				console.log("WARNING!", myPath, "has an extension like a cache manifest, but does not start with CACHE MANIFEST");
+			} else {
+				ret[path.relative(root, myPath)] = true;
+			}
+		}
+	} else if (stats.isDirectory()) {
+		fs.readdirSync(myPath).forEach(function(child){
+			for (var manifest in detectManifests(root, path.join(myPath, child))) {
+				ret[manifest] = true;
+			}
+		});
+	}
+	return ret		
 }
 
 function prefetchManifestFile (pathname, callback) {
