@@ -41,17 +41,19 @@ function processFlags () {
 	commands
 		.version(zerverVersion, '-v, --version')
 		.usage('[options] [dir]')
-		.option('-r, --refresh'         , 'auto-refresh browsers on file changes')
-		.option('-c, --cli'             , 'js shell for connect remote clients')
-		.option('-m, --manifest <paths>', 'declare HTML5 appCache manifest files')
-		.option('-p, --production'      , 'enable production mode (caching, concat, minfiy, gzip, etc)')
-		.option('-P, --port <n>'        , 'set server port to listen on', parseInt, process.env.PORT||5000)
-		.option('-V, --verbose'         , 'verbose request logging')
-		.option('-h, --headers'         , 'show headers in logs')
-		.option('-l, --less'            , 'automatically compile less into css')
-		.option('-s, --stats'           , 'periodically print memory usage and other stats')
-		.option('-j, --json'            , 'requests get logged as json')
-		.option('--cache <paths>'       , 'set specific cache life for resources')
+		.option('-r, --refresh'         	, 'auto-refresh browsers on file changes')
+		.option('-c, --cli'             	, 'js shell for connect remote clients')
+		.option('-m, --manifest <paths>'    , 'deprecated. does nothing and prints a warning.')
+		.option('--disable-manifest'        , 'disable processing for ALL HTML5 appCache manifest files')
+		.option('--ignore-manifest <paths>' , 'disable processing for a particular HTML5 appCache manifest file')
+		.option('-p, --production'      	, 'enable production mode (caching, concat, minfiy, gzip, etc)')
+		.option('-P, --port <n>'        	, 'set server port to listen on', parseInt, process.env.PORT||5000)
+		.option('-V, --verbose'         	, 'verbose request logging')
+		.option('-h, --headers'         	, 'show headers in logs')
+		.option('-l, --less'            	, 'automatically compile less into css')
+		.option('-s, --stats'           	, 'periodically print memory usage and other stats')
+		.option('-j, --json'            	, 'requests get logged as json')
+		.option('--cache <paths>'       	, 'set specific cache life for resources')
 		.parse(args);
 	if (commands.production) {
 		commands.refresh = false;
@@ -138,19 +140,21 @@ function startServer () {
 		cwd      = commands.args[0] ? path.join(process.cwd(),commands.args[0]) : process.cwd(),
 		apiCheck = new RegExp('^' + cwd + '/' + API_DIR),
 		args     = [new Buffer(JSON.stringify({
-			port       : commands.port ,
-			apiDir     : API_DIR ,
-			apiURL     : API_DIR ,
-			refresh    : !!commands.refresh ,
-			cli        : !!commands.cli ,
-			verbose    : !!commands.verbose ,
-			headers    : !!commands.headers ,
-			manifests  : (commands.manifest || '') ,
-			production : !!commands.production ,
-			less       : !!commands.less ,
-			cache      : (commands.cache || '') ,
-			stats      : !!commands.stats ,
-			json       : !!commands.json ,
+			port       		: commands.port ,
+			apiDir     		: API_DIR ,
+			apiURL     		: API_DIR ,
+			refresh    		: !!commands.refresh ,
+			cli        		: !!commands.cli ,
+			verbose    		: !!commands.verbose ,
+			headers    		: !!commands.headers ,
+			manifest        : (commands.manifest || ''),
+			disableManifest : !!commands.disableManifest,
+			ignoreManifest 	: (commands.ignoreManifest || ''),
+			production 		: !!commands.production ,
+			less      		: !!commands.less ,
+			cache      		: (commands.cache || '') ,
+			stats      		: !!commands.stats ,
+			json       		: !!commands.json ,
 		})).toString('base64')],
 		opts     = { cwd : cwd },
 		child, cli;
