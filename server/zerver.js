@@ -190,15 +190,13 @@ function configureZerver (options) {
 	if (LESS_ENABLED) {
 		try {
 			less = require('less');
-		}
-		catch (err) {
+		} catch (err) {
 			console.error('--less flag depends on less module, run command:');
 			console.error('npm install less');
 			if ( !PRODUCTION ) {
 				console.error('');
 				LESS_ENABLED = false;
-			}
-			else {
+			} else {
 				process.exit(1);
 			}
 		}
@@ -207,35 +205,32 @@ function configureZerver (options) {
 	updateLastModifiedTime();
 
 	if (options.manifest) {
-		console.error("WARNING: --manifest option is deprecated and does nothing!");
-		console.error("(manifests are detected automatically)");
+		console.error('WARNING: --manifest option is deprecated and does nothing!');
+		console.error('(manifests are detected automatically)');
 	}
 
 	if (!options.disableManifest) {
 		MANIFESTS = detectManifests(ROOT_DIR);
-
 		if (options.ignoreManifest) {
-			options.ignoreManifest.split(',').forEach(function(p){
+			options.ignoreManifest.split(',').forEach(function (p) {
 				var ignorePath = path.relative(ROOT_DIR, p);
-				if (MANIFESTS[ignorePath]) {
+				if ( MANIFESTS[ignorePath] ) {
 					delete MANIFESTS[ignorePath];
 				} else {
-					console.error("WARNING: ignored manifest " + ignorePath + " was not a cache manifest anyway.");
+					console.error('WARNING: ignored manifest ' + ignorePath + ' was not a cache manifest anyway.');
 				}
 			});
 		}
 		HAS_MANIFEST = Object.keys(MANIFESTS).length > 0;
 	} else {
-		console.log("Cache manifest handling disabled.");
-    }
+		console.log('Cache manifest handling disabled.');
+	}
 
 	if ( !PRODUCTION ) {
 		CACHE_CONTROL = 'no-cache';
-	}
-	else if (HAS_MANIFEST) {
+	} else if (HAS_MANIFEST) {
 		CACHE_CONTROL = 'public, max-age=300';
-	}
-	else {
+	} else {
 		CACHE_CONTROL = 'public, max-age=14400';
 	}
 
@@ -350,32 +345,33 @@ function relativePath (path1, path2) {
 }
 
 function detectManifests(root, myPath) {
-
-	if (!myPath) {
+	if ( !myPath ) {
 		myPath = root;
 	}
 
-	var ret = {};
-	var stats = fs.statSync(myPath);
+	var ret   = {},
+		stats = fs.statSync(myPath);
 
-	if (stats.isFile()) {
+	if ( stats.isFile() ) {
 		var ext = path.extname(myPath).toLowerCase();
-		if (ext == ".appcache" || ext == ".manifest"){
-			var f = "" + fs.readFileSync(myPath, 'utf8');
-			if (f.indexOf("CACHE MANIFEST")) {
-				console.log("WARNING!", myPath, "has an extension like a cache manifest, but does not start with CACHE MANIFEST");
+		if (ext == '.appcache' || ext == '.manifest'){
+			var f = ('' + fs.readFileSync(myPath, 'utf8')).trim();
+			if ( f.indexOf('CACHE MANIFEST') ) {
+				console.log('WARNING!', myPath, 'has an extension like a cache manifest, but does not start with CACHE MANIFEST');
 			} else {
 				ret[path.relative(root, myPath)] = true;
 			}
 		}
-	} else if (stats.isDirectory()) {
-		fs.readdirSync(myPath).forEach(function(child){
-			for (var manifest in detectManifests(root, path.join(myPath, child))) {
+	} else if ( stats.isDirectory() ) {
+		fs.readdirSync(myPath).forEach(function (child) {
+			var subManifests = detectManifests(root, path.join(myPath, child));
+			for (var manifest in subManifests) {
 				ret[manifest] = true;
 			}
 		});
 	}
-	return ret		
+
+	return ret;
 }
 
 function prefetchManifestFile (pathname, callback) {
