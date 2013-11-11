@@ -209,7 +209,7 @@ function configureZerver (options) {
 		console.error('(manifests are detected automatically)');
 	}
 
-	if (!options.disableManifest) {
+	if ( !options.disableManifest ) {
 		MANIFESTS = detectManifests(ROOT_DIR);
 		if (options.ignoreManifest) {
 			options.ignoreManifest.split(',').forEach(function (p) {
@@ -222,6 +222,15 @@ function configureZerver (options) {
 			});
 		}
 		HAS_MANIFEST = Object.keys(MANIFESTS).length > 0;
+		Object.keys(MANIFESTS).forEach(function (pathname) {
+			if (pathname[0] !== '/') {
+				delete MANIFESTS[pathname];
+				MANIFESTS['/'+pathname] = true;
+			}
+		});
+		for (var pathname in MANIFESTS) {
+			prefetchManifestFile(pathname);
+		}
 	} else {
 		console.log('Cache manifest handling disabled.');
 	}
@@ -338,8 +347,7 @@ function relativePath (path1, path2) {
 
 	if (path1[path1.length-1] !== '/') {
 		return path.resolve(path1, '../'+path2);
-	}
-	else {
+	} else {
 		return path.resolve(path1, path2);
 	}
 }
