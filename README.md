@@ -17,7 +17,7 @@ website-dir/zerver/MyAPI.js
 ```
 
 Everything in `website-dir` will be served as static content except for code in `zerver/` which will run on the server.
-Only files on the topmost level of the zerver folder will be saved as api's i.e. files in subfolders under zerver will not be used unless they are specifically required in one of the main api files. 
+Only files on the topmost level of the zerver folder will be saved as api's i.e. files in subfolders under zerver will not be used unless they are specifically required in one of the main api files.
 ```js
 // in website-dir/zerver/MyAPI.js
 // this runs on the server
@@ -74,31 +74,23 @@ zerver [options] website-dir
 # run server on a different port
 zerver --port=8000 website-dir
 
-# automatically append a comment timestamp whenever
-# a HTML5 cache.manifest is requested
-zerver --manifest=path/to/cache.manifest website-dir
-
-# in production mode this will always have
-# the timestamp of the time of deploy
-zerver --manifest=path/to/cache.manifest website-dir
-
 -r, --refresh
-# Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) 
-# will automatically refresh when any of its code is edited. 
+# Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`)
+# will automatically refresh when any of its code is edited.
 # You can edit code and immediately see feedback on how it effects your running webapp.
 
--c, --cli               
-# Creates a js shell to communicate with remote clients, press tab to enable. 
+-c, --cli
+# Creates a js shell to communicate with remote clients, press tab to enable.
 # Any code run in this shell will be run on the client.
 
--V, --verbose 
+-V, --verbose
 # Enable verbose request logging
 
--l, --less    
-# Automatically compile less into css 
+-l, --less
+# Automatically compile less into css
 # Requires the less node module to work run: npm install less
 
--p, --production 
+-p, --production
 # Enables production mode (caching, concat, minfiy, gzip, etc)
 ```
 
@@ -112,7 +104,7 @@ For example:
 zerver -cli website-dir
 
 # Press tab to enable the cli
->>> 
+>>>
 # The following line will cause all clients listening to the server to refresh
 >>> window.location.reload();
 
@@ -171,8 +163,8 @@ When the server is run on production these files will be gzipped & minified into
 
 ### Manifest file
 
-The cache manifest file is a simple text file that lists the resources the browser should cache for offline access.
-It should be referenced at the top of your html file like this:
+Zerver has automatic support for HTML5 appcache manifests. This means that Zerver will automatically detect their presence and make sure that clients always update when files referenced in the manifest have changed.
+The cache manifest file is a simple text file that lists the resources the browser should cache for offline access. It should be referenced at the top of your html file like this:
 
 ```html
 <html manifest="cache.manifest">
@@ -181,13 +173,12 @@ It should be referenced at the top of your html file like this:
 ```
 The cache manifest allows you to specify which files the browser should cache and make available to offline users. Your app will load and work correctly, even if the user presses the refresh button while they're offline.
 
-The advantage that zerver brings with the cache manifest is that zerver will refresh the cache whenever a file is changed.
-This fixes the main drawback to developing with a cache as now you will always be working with the most up to date versions of the edited files.
+The advantage that Zerver brings with the cache manifest is that it will refresh the cache whenever files are changed.
+This fixes the main drawback of developing with a manifest as now you will always be working with the most up to date versions of the edited files.
 
 ### Default options
 
-You can specify default options in an environment variable,
-to avoid having to type them every time
+You can specify default options in an environment variable, to avoid having to type them every time or having different setups for different environments in which the code will run
 ```sh
 export ZERVER_FLAGS='-drl'
 ```
@@ -201,20 +192,20 @@ Another way to save time when running zerver is to add your default run configur
   "name"    : "zerver-sample" ,
   "version" : "0.0.1" ,
   "engines" : {
-    "node"  : "0.8.x" ,
-    "npm"   : "1.1.x"
+    "node" : "0.10.21" ,
+    "npm"  : "1.3.11"
   },
   "dependencies" : {
-    "zerver" : "0.12.9"
+    "zerver" : "0.14.1"
   },
   "scripts" : {
-    "start" : "zerver --manifest=cache.manifest --port=5000 -rlc web"
+    "start" : "zerver -rlc web"
   }
 }
 ```
 Sample package.json file for a zerver application
 
-This setup allows you to simply enter `npm start` to run the command `zerver --manifest=cache.manifest --port=5000 -rlc web`.
+This setup allows you to simply enter `npm start` to run the command `zerver -rlc web`.
 
 # ExpressJS integration
 
