@@ -4,7 +4,7 @@ Zerver is a lightweight Node.js-based webserver that lets you seamlessly make se
 
 ```sh
 npm install -g zerver
-# or add zerver to your package.json dependencies
+# or add zerver to your package.json dependencies and run npm install
 ```
 
 # Basic usage
@@ -17,7 +17,7 @@ website-dir/zerver/MyAPI.js
 ```
 
 Everything in `website-dir` will be served as static content except for code in `zerver/` which will run on the server.
-
+Only files on the topmost level of the zerver folder will be saved as api's i.e. files in subfolders under zerver will not be used unless they are specifically required in one of the main api files. 
 ```js
 // in website-dir/zerver/MyAPI.js
 // this runs on the server
@@ -65,23 +65,156 @@ Note: any server code in a subdirectory of `website-dir/zerver` will not be avai
 </script>
 ```
 
-# Tools
-
-### Debug mode
+## Zerver options
 
 ```sh
-zerver -d website-dir
+# General usage
+zerver [options] website-dir
+
+# run server on a different port
+zerver --port=8000 website-dir
+
+# automatically append a comment timestamp whenever
+# a HTML5 cache.manifest is requested
+zerver --manifest=path/to/cache.manifest website-dir
+
+# in production mode this will always have
+# the timestamp of the time of deploy
+zerver --manifest=path/to/cache.manifest website-dir
+
+-r, --refresh
+# Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) 
+# will automatically refresh when any of its code is edited. 
+# You can edit code and immediately see feedback on how it effects your running webapp.
+
+-c, --cli               
+# Creates a js shell to communicate with remote clients, press tab to enable. 
+# Any code run in this shell will be run on the client.
+
+-V, --verbose 
+# Enable verbose request logging
+
+-l, --less    
+# Automatically compile less into css 
+# Requires the less node module to work run: npm install less
+
+-p, --production 
+# Enables production mode (caching, concat, minfiy, gzip, etc)
 ```
 
-Zerver will automatically reload the server modules when any server-side code is edited. This is allows for rapid development and testing of server-side code.
+### Command Line Interface
 
-### Auto-refresh mode
+The command line interface (the `cli` flag) allows you to communicate with the client during development
+
+For example:
 
 ```sh
-zerver -dr website-dir
+zerver -cli website-dir
+
+# Press tab to enable the cli
+>>> 
+# The following line will cause all clients listening to the server to refresh
+>>> window.location.reload();
+
+# You can also log things from the client
+# The following line logs all the functions
+# that are available in 'MyAPI'
+>>> console.log(Object.keys(MyAPI));
+log: ["function1FromMyApi", "function2FromMyApi"]
+# Since anything that is logged on the client gets
+# sent to the server you can see the result right in the command line
 ```
 
-Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`) will automatically refresh when any of its code is edited. You can edit code and immediately see feedback on how it effects your running webapp.
+## Production mode
+
+Passing the `--production` flag on startup enables zervers production features.
+
+### Inlining files
+
+Given the following link
+
+```html
+<link rel="stylesheet" href="/css/app.min.css?inline=1">
+```
+
+Zerver will create a `<style>` tag in place and place the css there instead, reducing the amount of requests to load files.
+
+The same can be done with images inside the css file
+
+```css
+background-image: url(/img/background.png?inline=1);
+```
+
+### Gzip and minifying
+
+Given the following files in your manifest.
+
+```sh
+# zerver:js/main.min.js
+js/cards.js
+js/app.js
+js/main.js
+# /zerver
+```
+
+And the following in your HTML file:
+
+```html
+<!-- zerver:js/main.min.js -->
+<script src="js/cards.js"></script>
+<script src="js/app.js"></script>
+<script src="js/main.js"></script>
+<!-- /zerver -->
+```
+
+When the server is run on production these files will be gzipped & minified into a file called `main.min.js`
+
+### Manifest file
+
+The cache manifest file is a simple text file that lists the resources the browser should cache for offline access.
+It should be referenced at the top of your html file like this:
+
+```html
+<html manifest="cache.manifest">
+...
+</html>
+```
+The cache manifest allows you to specify which files the browser should cache and make available to offline users. Your app will load and work correctly, even if the user presses the refresh button while they're offline.
+
+The advantage that zerver brings with the cache manifest is that zerver will refresh the cache whenever a file is changed.
+This fixes the main drawback to developing with a cache as now you will always be working with the most up to date versions of the edited files.
+
+### Default options
+
+You can specify default options in an environment variable,
+to avoid having to type them every time
+```sh
+export ZERVER_FLAGS='-drl'
+```
+
+### Running as an npm script
+
+Another way to save time when running zerver is to add your default run configurations to an npm script in your `package.json`
+
+```json
+{
+  "name"    : "zerver-sample" ,
+  "version" : "0.0.1" ,
+  "engines" : {
+    "node"  : "0.8.x" ,
+    "npm"   : "1.1.x"
+  },
+  "dependencies" : {
+    "zerver" : "0.12.9"
+  },
+  "scripts" : {
+    "start" : "zerver --manifest=cache.manifest --port=5000 -rlc web"
+  }
+}
+```
+Sample package.json file for a zerver application
+
+This setup allows you to simply enter `npm start` to run the command `zerver --manifest=cache.manifest --port=5000 -rlc web`.
 
 # ExpressJS integration
 
@@ -108,46 +241,6 @@ zerver.get('http://localhost:5000/zerver/', function (myzerver) {
     });
 });
 ```
-
-# Advanced usage
-
-### Zerver options
-
-```sh
-# run server on a different port
-zerver --port=8000 website-dir
-```
-
-```sh
-# automatically append a comment timestamp whenever
-# a HTML5 cache.manifest is requested
-zerver -d --manifest=path/to/cache.manifest website-dir
-
-# in production mode this will always have
-# the timestamp of the time of deploy
-zerver --manifest=path/to/cache.manifest website-dir
-```
-
-### Default options
-
-You can specify default options in an environment variable,
-to avoid having to type them every time
-```sh
-export ZERVER_FLAGS='-drl'
-```
-
-### Cross origin
-
-Zerver can automatically make a script available to multiple host origins. This is especially useful if you are including a Zerver script from a subdomain of your webapp.
-
-```js
-// in website-dir/zerver/MyAPI.js
-
-// all any website to include your zerver script
-exports._crossOrigin = '*';
-```
-
-The value of `exports._crossOrigin` is exactly what will be served as the `Allow-Access-Control-Origin` header for cross origin requests if acceptable.
 
 ### Script names
 
