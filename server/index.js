@@ -9,7 +9,9 @@ var ZERVER         = __dirname + path.sep + 'zerver',
 	PACKAGE        = __dirname + path.sep + '..' + path.sep + 'package.json',
 	ENV_MATCHER    = /([^\,]+)\=([^\,]+)/g,
 	API_DIR        = 'zerver',
-	CHANGE_TIMEOUT = 1000;
+	CHANGE_TIMEOUT = 1000,
+	MAX_AGE        = 2000,
+	MAX_TRIES      = 3;
 
 startServer();
 
@@ -136,10 +138,12 @@ function setupCLI (processCommand) {
 function startServer () {
 	var commands = processFlags();
 
-	var death    = false,
-		cwd      = commands.args[0] ? path.join(process.cwd(),commands.args[0]) : process.cwd(),
-		apiCheck = new RegExp('^' + cwd + path.sep + API_DIR),
-		args     = [new Buffer(JSON.stringify({
+	var death       = false,
+		cwd         = commands.args[0] ? path.join(process.cwd(),commands.args[0]) : process.cwd(),
+		apiCheck    = new RegExp('^' + cwd + path.sep + API_DIR),
+		opts        = { cwd : cwd },
+		prodRetries = [],
+		args        = [new Buffer(JSON.stringify({
 			port            : commands.port ,
 			apiDir          : API_DIR ,
 			apiURL          : API_DIR ,
@@ -156,10 +160,30 @@ function startServer () {
 			stats           : !!commands.stats ,
 			json            : !!commands.json ,
 		})).toString('base64')],
-		opts     = { cwd : cwd },
 		child, cli;
 
-	function runServer (noRestart) {
+	if (commands.production) {
+		setInterval(function () {
+			var now = Date.now();
+			prodRetries = prodRetries.filter(function (time) {
+				return time > (now-MAX_AGE);
+			});
+		}, MAX_AGE/2);
+	}
+
+	function shouldRetry() {
+		if ( !commands.production ) {
+			return true;
+		} else if (prodRetries.length >= MAX_TRIES) {
+			console.error('zerver: max retries due to exceptions exceeded');
+			return false;
+		} else {
+			prodRetries.push( Date.now() );
+			return true;
+		}
+	}
+
+	function runServer () {
 		try {
 			child = fork(ZERVER, args, opts);
 		}
@@ -172,7 +196,7 @@ function startServer () {
 
 		function onDeath () {
 			if ( !death ) {
-				noRestart ? process.exit() : runServer();
+				!shouldRetry() ? process.exit() : runServer();
 			}
 		}
 
