@@ -34,6 +34,7 @@ var ROOT_DIR            = process.cwd(),
 		'referer', 'accept'    , 'accept-encoding', 'accept-language',
 		'content-length'
 	],
+	MISSING_HACK_PATH   = '@missing',
 	SLASH               = /\//g,
 	DEBUG_LINES         = /\s*\;\;\;.*/g,
 	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
@@ -66,8 +67,7 @@ var ROOT_DIR            = process.cwd(),
 	API_URL,
 	API_URL_LENGTH,
 	API_SCRIPT_MATCH,
-	MISSING_FILE,
-	MISSING_DATA;
+	MISSING_FILE;
 
 var memoryCache = {},
 	fileCache   = {},
@@ -284,9 +284,9 @@ function configureZerver (options) {
 	}
 
 	if (options.missing) {
-		MISSING_FILE = options.missing;
+		MISSING_FILE = path.join(ROOT_DIR, options.missing);
 		try {
-			MISSING_DATA = fs.readFileSync(path.join(ROOT_DIR, options.missing), 'binary');
+			fs.readFileSync(path.join(ROOT_DIR, options.missing), 'binary');
 		} catch (err) {
 			console.error('zerver: failed to load 404 page, ' + options.missing);
 			console.error('zerver: ' + err);
@@ -571,6 +571,33 @@ function dynamicResponse (handler, pathname, isApiCall) {
 	else {
 		APIRequest(handler, pathname);
 	}
+}
+
+function try404FromCache(handler, fallback) {
+	var pathname = MISSING_HACK_PATH;
+
+	if (pathname in cacheQueue) {
+		cacheQueue[pathname].push([handler, function () {
+			try404FromCache(handler, fallback);
+		}]);
+		return;
+	}
+
+	if ( !(pathname in memoryCache) ) {
+		if (CACHE_ENABLED) {
+			cacheQueue[pathname] = [];
+		}
+		fallback(handler);
+		return;
+	}
+
+	var args = memoryCache[pathname];
+	handler.type = 'file';
+	finishResponse(handler, args.status, args.headers, fileCache[pathname], args.isBinary);
+}
+
+function dynamic404(handler) {
+	fileRequest(handler, MISSING_FILE, true);
 }
 
 function handleMiddlewareRequest (request, response, next) {
@@ -955,11 +982,11 @@ function setupGZipOutput (handler, status, type, data, headers, callback) {
 
 /* Request handler */
 
-function finishResponse (handler, status, headers, data, isBinary) {
-	var pathname    = handler.pathname,
+function finishResponse (handler, status, headers, data, isBinary, is404) {
+	var pathname    = (is404 ? MISSING_HACK_PATH : handler.pathname),
 		type        = handler.type,
 		canCache    = (CACHE_ENABLED && !handler.isApiCall),
-		shouldCache = (status === 200),
+		shouldCache = (is404 || status === 200),
 		hash, etag;
 
 	if (canCache && shouldCache) {
@@ -1015,16 +1042,23 @@ function finishResponse (handler, status, headers, data, isBinary) {
 	logRequest(handler, status);
 
 	if (canCache && cacheQueue[pathname]) {
-		var callbacks = cacheQueue[pathname];
-		delete cacheQueue[pathname];
-		if (pathname in memoryCache) {
-			for (var i=0, l=callbacks.length; i<l; i++) {
-				callbacks[i][1]();
-			}
-		} else {
-			for (var i=0, l=callbacks.length; i<l; i++) {
-				respond500(callbacks[i][0]);
-			}
+		flushCallbacks(pathname, pathname);
+		if (is404) {
+			flushCallbacks(handler.pathname, pathname);
+		}
+	}
+}
+
+function flushCallbacks(pathname, key) {
+	var callbacks = cacheQueue[pathname];
+	delete cacheQueue[pathname];
+	if (key in memoryCache) {
+		for (var i=0, l=callbacks.length; i<l; i++) {
+			callbacks[i][1]();
+		}
+	} else {
+		for (var i=0, l=callbacks.length; i<l; i++) {
+			respond500(callbacks[i][0]);
 		}
 	}
 }
@@ -1034,7 +1068,7 @@ function respond (handler, status, type, data, headers) {
 	finishResponse(handler, status, headers, data, false);
 }
 
-function respondBinary (handler, status, type, data, headers) {
+function respondBinary (handler, status, type, data, headers, is404) {
 	prepareConcatFiles(type, data, handler.pathname, function (data) {
 		inlineScriptsAndStyles(type, data, handler.pathname, function (data) {
 			data = inlineImages(type, data, handler.pathname);
@@ -1042,17 +1076,17 @@ function respondBinary (handler, status, type, data, headers) {
 				data = compileOutput(type, data);
 				setupGZipOutput(handler, status, type, data, headers, function (data, headers) {
 					headers['Content-Type'] = type;
-					finishResponse(handler, status, headers, data, true);
+					finishResponse(handler, status, headers, data, true, is404);
 				});
 			});
 		});
 	});
 }
 
-function respond404 (handler) {
-	if (MISSING_FILE) {
-		respondBinary(handler, 404, lookupMime(MISSING_FILE), MISSING_DATA, {
-			'Cache-Control' : 'no-cache'
+function respond404 (handler, forceKill) {
+	if (MISSING_FILE && !forceKill) {
+		try404FromCache(handler, function () {
+			dynamic404(handler);
 		});
 	} else {
 		respond(handler, 404, 'text/plain', '404\n', {
@@ -1085,10 +1119,10 @@ function pathRequest (handler, pathname) {
 	fileRequest(handler, fileName);
 }
 
-function fileRequest (handler, fileName) {
+function fileRequest (handler, fileName, is404) {
 	fs.stat(fileName, function (err, stats) {
 		if (err) {
-			respond404(handler);
+			respond404(handler, is404);
 			return;
 		}
 
@@ -1099,7 +1133,7 @@ function fileRequest (handler, fileName) {
 				});
 			}
 			else {
-				fileRequest(handler, fileName + 'index.html');
+				fileRequest(handler, fileName + 'index.html', is404);
 			}
 			return;
 		}
@@ -1110,9 +1144,9 @@ function fileRequest (handler, fileName) {
 				return;
 			}
 
-			respondBinary(handler, 200, lookupMime(fileName), file, {
-				'Cache-Control' : getCacheLife(handler.pathname)
-			});
+			respondBinary(handler, (is404 ? 404 : 200), lookupMime(fileName), file, {
+				'Cache-Control' : (is404 ? 'no-cache' : getCacheLife(handler.pathname))
+			}, is404);
 		});
 	});
 }
