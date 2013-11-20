@@ -56,7 +56,7 @@ function processFlags () {
 		.option('-s, --stats'               , 'periodically print memory usage and other stats')
 		.option('-j, --json'                , 'requests get logged as json')
 		.option('--cache <paths>'           , 'set specific cache life for resources')
-        .option('--missing <paths>'         , 'set a custom 404 page')
+		.option('--missing <paths>'         , 'set a custom 404 page')
 		.parse(args);
 	if (commands.production) {
 		commands.refresh = false;
@@ -66,23 +66,23 @@ function processFlags () {
 }
 
 function parseShell (s) {
-    return s.match(/(['"])((\\\1|[^\1])*?)\1|(\\ |\S)+/g)
-        .map(function (s) {
-            if (/^'/.test(s)) {
-                return s
-                    .replace(/^'|'$/g, '')
-                    .replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
-                ;
-            }
-            else if (/^"/.test(s)) {
-                return s
-                    .replace(/^"|"$/g, '')
-                    .replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
-                ;
-            }
-            else return s.replace(/\\([ "'\\$`(){}!#&*|])/g, '$1');
-        })
-    ;
+	return s.match(/(['"])((\\\1|[^\1])*?)\1|(\\ |\S)+/g)
+		.map(function (s) {
+			if (/^'/.test(s)) {
+				return s
+					.replace(/^'|'$/g, '')
+					.replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
+				;
+			}
+			else if (/^"/.test(s)) {
+				return s
+					.replace(/^"|"$/g, '')
+					.replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
+				;
+			}
+			else return s.replace(/\\([ "'\\$`(){}!#&*|])/g, '$1');
+		})
+	;
 }
 
 
@@ -158,7 +158,7 @@ function startServer () {
 			production      : !!commands.production ,
 			less            : !!commands.less ,
 			cache           : (commands.cache || '') ,
-			missing			: (commands.missing || '') ,
+			missing         : (commands.missing || '') ,
 			stats           : !!commands.stats ,
 			json            : !!commands.json ,
 		})).toString('base64')],

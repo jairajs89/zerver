@@ -159,7 +159,6 @@ exports.run = function (options) {
 };
 
 function configureZerver (options) {
-
 	PORT             = options.port;
 	API_DIR          = options.apiDir;
 	API_URL          = options.apiURL;
@@ -284,15 +283,13 @@ function configureZerver (options) {
 		});
 	}
 
-	if(options.missing) {
+	if (options.missing) {
 		MISSING_FILE = options.missing;
 		try {
-			MISSING_DATA = fs.readFileSync(options.missing, 'binary');
-		}
-		catch(err) {
+			MISSING_DATA = fs.readFileSync(path.join(ROOT_DIR, options.missing), 'binary');
+		} catch (err) {
 			console.error('zerver: failed to load 404 page, ' + options.missing);
 			console.error('zerver: ' + err);
-
 			if (PRODUCTION) {
 				process.exit();
 			}
@@ -1054,12 +1051,14 @@ function respondBinary (handler, status, type, data, headers) {
 
 function respond404 (handler) {
 	if (MISSING_FILE) {
-		respondBinary(handler, 200, lookupMime(MISSING_FILE), MISSING_DATA, {
-			'Cache-Control' : getCacheLife(handler.pathname)
+		respondBinary(handler, 404, lookupMime(MISSING_FILE), MISSING_DATA, {
+			'Cache-Control' : 'no-cache'
+		});
+	} else {
+		respond(handler, 404, 'text/plain', '404\n', {
+			'Cache-Control' : 'no-cache'
 		});
 	}
-
-	respond(handler, 404, 'text/plain', '404\n', {});
 }
 
 function respond405 (handler) {
