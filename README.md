@@ -180,7 +180,7 @@ This fixes the main drawback of developing with a manifest as now you will alway
 
 You can specify default options in an environment variable, to avoid having to type them every time or having different setups for different environments in which the code will run
 ```sh
-export ZERVER_FLAGS='-drl'
+export ZERVER_FLAGS='-rlc'
 ```
 
 ### Running as an npm script
@@ -196,7 +196,7 @@ Another way to save time when running zerver is to add your default run configur
     "npm"  : "1.3.11"
   },
   "dependencies" : {
-    "zerver" : "0.14.1"
+    "zerver" : "0.14.3"
   },
   "scripts" : {
     "start" : "zerver -rlc web"
