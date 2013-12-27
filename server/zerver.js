@@ -834,7 +834,7 @@ function inlineScriptsAndStyles (type, data, pathname, callback) {
 			return original;
 		}
 		fileData = compileOutput('application/javascript', fileData.toString());
-		return '<script>\n'+fileData+'\n</script>';
+		return '<script>//<![CDATA[\n'+fileData+'\n//]]></script>';
 	});
 
 	data = data.replace(STYLES_MATCH, function (original, relativeURL) {
