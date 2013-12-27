@@ -73,7 +73,7 @@ function StaticFiles(rootDir, options, callback) {
 			} else if ( !path ) {
 				self.defaultCache = life;
 			} else {
-				self.customCache[path] = life;
+				self.customCache[relativePath('/',path)] = life;
 			}
 		});
 	}
@@ -90,6 +90,7 @@ function StaticFiles(rootDir, options, callback) {
 		self.manifests = detectManifests(self.root, self.ignores);
 		if (options.ignoreManifest) {
 			options.ignoreManifest.split(',').forEach(function (pathname) {
+				pathname = relativePath('/', pathname);
 				if ( self.manifests[pathname] ) {
 					delete self.manifests[pathname];
 				} else {
@@ -166,37 +167,37 @@ StaticFiles.prototype.cacheFile = function (pathname, callback) {
 			'Cache-Control' : self.getCacheControl(pathname),
 		};
 
-	self.prepareManifest(pathname, headers, body, function (headers, body) {
-		self.inlineManifestFiles(pathname, headers, body, function (headers, body) {
-			self.prepareManifestConcatFiles(pathname, headers, body, function (headers, body) {
-				self.prepareConcatFiles(pathname, headers, body, function (headers, body) {
-					self.inlineScripts(pathname, headers, body, function (headers, body) {
-						self.inlineStyles(pathname, headers, body, function (headers, body) {
-							self.inlineImages(pathname, headers, body, function (headers, body) {
-								self.compileOutput(pathname, headers, body, function (headers, body) {
-									self.gzipOutput(pathname, headers, body, function (headers, body) {
-										var hash = crypto.createHash('md5');
-										hash.update(body);
-										headers['ETag'] = '"'+hash.digest('hex')+'"';
-										headers['Vary'] = 'Accept-Encoding';
-
-										self.cache[pathname] = {
-											headers : headers ,
-											body    : body    ,
-										};
-										if (altPath) {
-											self.cache[altPath] = self.cache[pathname];
-										}
-										callback(headers, body);
-									});
-								});
-							});
-						});
-					});
-				});
-			});
+	asyncForEach([
+		'prepareManifest',
+		'inlineManifestFiles',
+		'prepareManifestConcatFiles',
+		'prepareConcatFiles',
+		'inlineScripts',
+		'inlineStyles',
+		'inlineImages',
+		'compileOutput',
+		'gzipOutput',
+	], function (transform, next) {
+		self[transform](pathname, headers, body, function (newHeaders, newBody) {
+			headers = newHeaders;
+			body    = newBody;
+			next();
 		});
-	});
+	}, function () {
+		var hash = crypto.createHash('md5');
+		hash.update(body);
+		headers['ETag'] = '"'+hash.digest('hex')+'"';
+		headers['Vary'] = 'Accept-Encoding';
+
+		self.cache[pathname] = {
+			headers : headers ,
+			body    : body    ,
+		};
+		if (altPath) {
+			self.cache[altPath] = self.cache[pathname];
+		}
+		callback(headers, body);
+	})
 };
 
 StaticFiles.prototype.cacheConcatFile = function (pathname, callback) {

@@ -1,15 +1,26 @@
 var assert      = require('assert'),
 	extend      = require('util')._extend,
 	fs          = require('fs'),
+	zlib        = require('zlib'),
 	StaticFiles = require(__dirname+'/../server/static');
 
-var time             = new Date(),
-	postfix          = '\n# Zerver timestamp: '+time,
-	_fs_readdirSync  = fs.readdirSync,
-	_fs_readFileSync = fs.readFileSync,
-	_fs_statSync     = fs.statSync;
+var time    = new Date(),
+	postfix = '\n# Zerver timestamp: '+time;
 
 
+
+prepareTest({ disableManifest: true }, {
+	'manifest.appcache' : 'CACHE MANIFEST\nmain.js',
+}, function (cache, files) {
+	var data = cache.get('/manifest.appcache');
+	assert.equal(data.body, files['manifest.appcache']);
+});
+prepareTest({ ignoreManifest: 'manifest.appcache' }, {
+	'manifest.appcache' : 'CACHE MANIFEST\nmain.js',
+}, function (cache, files) {
+	var data = cache.get('/manifest.appcache');
+	assert.equal(data.body, files['manifest.appcache']);
+});
 
 prepareTest({ inline: true }, {
 	'index.html'        : '<script src="main.js?inline=1"></script>',
@@ -47,11 +58,47 @@ prepareTest({ concat: true }, {
 	assert.equal(data4.body, files['alt.js']+'\n'+files['alt.js']);
 });
 
+prepareTest({ compile: true, inline: true }, {
+	'index.html' : '<script src="main.js?inline=1"></script>',
+	'main.js'    : 'console.log("hello, world");',
+	'main.css'   : '#a { color : red }',
+}, function (cache, files) {
+	var data1 = cache.get('/main.js');
+	assert.equal(data1.body, 'console.log("hello, world")');
+
+	var data2 = cache.get('/main.css');
+	assert.equal(data2.body, '#a{color:red}');
+
+	var data3 = cache.get('/index.html');
+	assert.equal(data3.body, '<script>//<![CDATA[\nconsole.log("hello, world")\n//]]></script>');
+});
+
+prepareTest({ gzip: true }, {
+	'index.html' : '<script src="main.js?inline=1"></script>',
+	'main.js'    : 'console.log("hello, world");',
+	'main.css'   : '#a { color : red }',
+	'i.png'      : new Buffer('aaaa', 'base64'),
+}, function (cache, files) {
+	var data1 = cache.get('/index.html');
+	zlib.gzip(files['index.html'], function (_, body) {
+		assert.deepEqual(data1.body, body);
+	});
+
+	var data2 = cache.get('/main.js');
+	zlib.gzip(files['main.js'], function (_, body) {
+		assert.deepEqual(data2.body, body);
+	});
+
+	var data3 = cache.get('/main.css');
+	zlib.gzip(files['main.css'], function (_, body) {
+		assert.deepEqual(data3.body, body);
+	});
+
+	var data4 = cache.get('/i.png');
+	assert.deepEqual(data4.body, files['i.png']);
+});
 
 
-fs.readdirSync  = _fs_readdirSync;
-fs.readFileSync = _fs_readFileSync;
-fs.statSync     = _fs_statSync;
 
 function prepareTest(options, files, callback) {
 	var root = '';
