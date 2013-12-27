@@ -1,17 +1,18 @@
 /* Imports and static vars */
 
-var clean   = require(__dirname + '/clean-css'),
-	debug   = require(__dirname + '/debug'    ),
-	cookies = require(__dirname + '/cookies'  ),
-	crypto  = require('crypto'   ),
-	fs      = require('fs'       ),
-	http    = require('http'     ),
-	mime    = require('mime'     ),
-	path    = require('path'     ),
-	uglify  = require('uglify-js'),
-	url     = require('url'      ),
-	zlib    = require('zlib'     ),
-	less, WebSocketServer;
+var StaticFiles = require(__dirname + '/static/'  ),
+	clean       = require(__dirname + '/clean-css'),
+	debug       = require(__dirname + '/debug'    ),
+	cookies     = require(__dirname + '/cookies'  ),
+	crypto      = require('crypto'   ),
+	fs          = require('fs'       ),
+	http        = require('http'     ),
+	mime        = require('mime'     ),
+	path        = require('path'     ),
+	uglify      = require('uglify-js'),
+	url         = require('url'      ),
+	zlib        = require('zlib'     ),
+	WebSocketServer;
 
 var _warn = console.warn;
 console.warn = function () {};
@@ -24,7 +25,6 @@ var ROOT_DIR            = process.cwd(),
 		'application/javascript' : true ,
 		'text/javascript'        : true ,
 		'text/css'               : true ,
-		'text/less'              : true ,
 		'text/html'              : true ,
 		'text/plain'             : true ,
 		'text/cache-manifest'    : true
@@ -39,12 +39,10 @@ var ROOT_DIR            = process.cwd(),
 	DEBUG_LINES         = /\s*\;\;\;.*/g,
 	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
 	MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g,
-	MANIFEST_FILE       = /\s*([^\s\#]+).*/g,
 	MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g,
 	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
 	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g,
 	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g,
-	IS_LESS             = /^.*\.less$/,
 	REQUEST_TIMEOUT     = 25 * 1000,
 	CONCAT_FILES        = false,
 	GZIP_ENABLED        = false,
@@ -53,7 +51,6 @@ var ROOT_DIR            = process.cwd(),
 	CACHE_ENABLED       = false,
 	HAS_MANIFEST        = false,
 	PRODUCTION          = false,
-	LESS_ENABLED        = false,
 	SHOW_HEADERS        = false,
 	STATS               = false,
 	JSON_LOGGING        = false,
@@ -73,13 +70,13 @@ var memoryCache = {},
 	fileCache   = {},
 	concatCache = {},
 	cacheQueue  = {},
-	app, apis, lastModTimestamp;
+	staticCache, apis, lastModTimestamp;
 
 
 
 /* Run server */
 
-exports.middleware = function (apiDir, apiURL) {
+exports.middleware = function (apiDir, apiURL, callback) {
 	configureZerver({
 		port       : 5000   ,
 		apiDir     : apiDir ,
@@ -89,76 +86,68 @@ exports.middleware = function (apiDir, apiURL) {
 		verbose    : false  ,
 		manifests  : ''     ,
 		production : true
+	}, function () {
+		callback(handleMiddlewareRequest);
 	});
-	return handleMiddlewareRequest;
 };
 
 exports.run = function (options) {
-	configureZerver(options);
+	configureZerver(options, function () {
+		var app = http.createServer(function (request, response) {
+			handleRequest(request, response);
+		});
 
-	app = http.createServer(function (request, response) {
-		handleRequest(request, response);
-	});
+		app.on('error', function (err) {
+			console.error('zerver: server error');
+			console.error(err);
+			console.error(err.stack);
+		});
 
-	app.on('error', function (err) {
-		console.error('zerver: server error');
-		console.error(err);
-		console.error(err.stack);
-	});
+		if ( !options.production ) {
+			debug.setup(API_URL, REFRESH);
 
-	if ( !PRODUCTION ) {
-		debug.setup(API_URL, REFRESH);
-
-		try {
-			new WebSocketServer({ httpServer : app })
-				.on('request', function (request) {
-					var conn = request.accept('zerver-debug', request.origin);
-					if (handleRequest(request.httpRequest, conn, true) === false) {
-						conn.close();
-					}
-				});
+			try {
+				new WebSocketServer({ httpServer : app })
+					.on('request', function (request) {
+						var conn = request.accept('zerver-debug', request.origin);
+						if (handleRequest(request.httpRequest, conn, true) === false) {
+							conn.close();
+						}
+					});
+			} catch (err) {
+				console.error('failed to init debug channel');
+			}
 		}
-		catch (err) {
-			console.error('failed to init debug channel');
+
+		app.listen(PORT);
+
+		console.log('zerver running:');
+		console.log('- port: ' + PORT);
+		var apiNames = apis.getNames();
+		if ( apiNames.length ) {
+			console.log('- apis: ' + apiNames.join(', '));
 		}
-	}
-
-	app.listen(PORT);
-
-	console.log('zerver running:');
-
-	console.log('- port: ' + PORT);
-
-	var apiNames = apis.getNames();
-	if ( apiNames.length ) {
-		console.log('- apis: ' + apiNames.join(', '));
-	}
-
-	var manifestList = Object.keys(MANIFESTS);
-	if (manifestList.length) {
-		console.log('- manifests: ' + manifestList.join(', '));
-	}
-
-	if (LESS_ENABLED) {
-		console.log('- less: true');
-	}
-	if (PRODUCTION) {
-		console.log('- production: true');
-	}
-	if (REFRESH) {
-		console.log('- refresh: true');
-	}
-	if (CLI) {
-		console.log('- cli: true');
-	}
-	if (STATS) {
-		console.log('- stats: true');
-	}
-
-	console.log('');
+		var manifestList = Object.keys(MANIFESTS);
+		if (manifestList.length) {
+			console.log('- manifests: ' + manifestList.join(', '));
+		}
+		if (PRODUCTION) {
+			console.log('- production: true');
+		}
+		if (REFRESH) {
+			console.log('- refresh: true');
+		}
+		if (CLI) {
+			console.log('- cli: true');
+		}
+		if (STATS) {
+			console.log('- stats: true');
+		}
+		console.log('');
+	});
 };
 
-function configureZerver (options) {
+function configureZerver (options, callback) {
 	PORT             = options.port;
 	API_DIR          = options.apiDir;
 	API_URL          = options.apiURL;
@@ -169,7 +158,6 @@ function configureZerver (options) {
 	VERBOSE          = options.verbose;
 	SHOW_HEADERS     = options.headers;
 	JSON_LOGGING     = options.json;
-	LESS_ENABLED     = options.less;
 	API_SCRIPT_MATCH = new RegExp('\\/'+API_URL+'\\/([^\\/]+)\\.js');
 	MANIFESTS        = {};
 	MANUAL_CACHE     = {};
@@ -189,27 +177,7 @@ function configureZerver (options) {
 		CONCAT_FILES        = true;
 	}
 
-	if (LESS_ENABLED) {
-		try {
-			less = require('less');
-		} catch (err) {
-			console.error('--less flag depends on less module, run command:');
-			console.error('npm install less');
-			if ( !PRODUCTION ) {
-				console.error('');
-				LESS_ENABLED = false;
-			} else {
-				process.exit(1);
-			}
-		}
-	}
-
 	updateLastModifiedTime();
-
-	if (options.manifest) {
-		console.error('WARNING: --manifest option is deprecated and does nothing!');
-		console.error('(manifests are detected automatically)');
-	}
 
 	if ( !options.disableManifest ) {
 		MANIFESTS = detectManifests(ROOT_DIR);
@@ -245,44 +213,6 @@ function configureZerver (options) {
 		CACHE_CONTROL = 'public, max-age=14400';
 	}
 
-	if (options.cache && PRODUCTION) {
-		options.cache.split(',').forEach(function (segment) {
-			var parts = segment.split(':'),
-				path, life;
-
-			switch (parts.length) {
-				case 1:
-					life = parseInt(parts[0]);
-					break;
-				case 2:
-					path = parts[0];
-					life = parseInt(parts[1]);
-					break;
-				default:
-					break;
-			}
-
-			if (!life && (life !== 0)) {
-				console.error('invalid cache directive: ' + segment);
-				return;
-			}
-			if (life < 0) {
-				console.error('invalid cache directive: ' + segment);
-				return;
-			}
-			if ( !path ) {
-				console.error('invalid cache directive: ' + segment);
-				return;
-			}
-
-			if ( !path ) {
-				CACHE_CONTROL = 'public, max-age='+life;
-			} else {
-				MANUAL_CACHE[path] = 'public, max-age='+life;
-			}
-		});
-	}
-
 	if (options.missing) {
 		MISSING_FILE = path.join(ROOT_DIR, options.missing);
 		try {
@@ -296,9 +226,24 @@ function configureZerver (options) {
 		}
 	}
 
-	fetchAPIs();
+
 
 	http.globalAgent.maxSockets = 50;
+
+	staticCache = new StaticFiles(ROOT_DIR, {
+		ignores         : '/'+API_URL+'/',
+		memoryCache     : options.production,
+		cache           : options.cache,
+		disableManifest : options.disableManifest,
+		ignoreManifest  : options.ignoreManifest,
+		gzip            : options.production,
+		compile         : options.production,
+		inline          : options.production,
+		concat          : options.production,
+	}, function () {
+		fetchAPIs();
+		callback();
+	});
 }
 
 function getCacheLife (path) {
@@ -851,7 +796,7 @@ function inlineScriptsAndStyles (type, data, pathname, callback) {
 }
 
 function inlineImages (type, data, pathname) {
-	if (!INLINING_ENABLED || !PRODUCTION || ((type !== 'text/css') && (type !== 'text/less')) || (typeof data !== 'string')) {
+	if (!INLINING_ENABLED || !PRODUCTION || (type !== 'text/css') || (typeof data !== 'string')) {
 		return data;
 	}
 
@@ -861,7 +806,7 @@ function inlineImages (type, data, pathname) {
 			return original;
 		}
 
-		var mimeType = lookupMime(relativeURL.split('?')[0]),
+		var mimeType = mime.lookup(relativeURL.split('?')[0]),
 			dataURL  = 'data:'+mimeType+';base64,'+fileData.toString('base64');
 		return 'url(' + dataURL + ')';
 	});
@@ -942,22 +887,6 @@ function compileOutput (type, data) {
 		default:
 			return data;
 	}
-}
-
-function compileLess (type, data, callback) {
-	if ((type !== 'text/less') || !less) {
-		callback(type, data);
-		return;
-	}
-
-	less.render(data, function(err, css) {
-		if (err) {
-			callback(type, data);
-		}
-		else {
-			callback('text/css', css);
-		}
-	});
 }
 
 function setupGZipOutput (handler, status, type, data, headers, callback) {
@@ -1072,12 +1001,10 @@ function respondBinary (handler, status, type, data, headers, is404) {
 	prepareConcatFiles(type, data, handler.pathname, function (data) {
 		inlineScriptsAndStyles(type, data, handler.pathname, function (data) {
 			data = inlineImages(type, data, handler.pathname);
-			compileLess(type, data, function (type, data) {
-				data = compileOutput(type, data);
-				setupGZipOutput(handler, status, type, data, headers, function (data, headers) {
-					headers['Content-Type'] = type;
-					finishResponse(handler, status, headers, data, true, is404);
-				});
+			data = compileOutput(type, data);
+			setupGZipOutput(handler, status, type, data, headers, function (data, headers) {
+				headers['Content-Type'] = type;
+				finishResponse(handler, status, headers, data, true, is404);
 			});
 		});
 	});
@@ -1144,7 +1071,7 @@ function fileRequest (handler, fileName, is404) {
 				return;
 			}
 
-			respondBinary(handler, (is404 ? 404 : 200), lookupMime(fileName), file, {
+			respondBinary(handler, (is404 ? 404 : 200), mime.lookup(fileName), file, {
 				'Cache-Control' : (is404 ? 'no-cache' : getCacheLife(handler.pathname))
 			}, is404);
 		});
@@ -1214,7 +1141,7 @@ function concatRequest (handler, pathname) {
 		}
 	}
 	else {
-		respondBinary(handler, 200, lookupMime(pathname), file, {
+		respondBinary(handler, 200, mime.lookup(pathname), file, {
 			'Cache-Control' : getCacheLife(handler.pathname)
 		});
 	}
@@ -1526,6 +1453,10 @@ function generateZerverScript (apiRoot, query) {
 }
 
 function logRequest (handler, status) {
+	if (handle.request.isFake) {
+		return;
+	}
+
 	var timeParts = process.hrtime(handler.time),
 		timeMs    = (timeParts[0] * 1000 + timeParts[1] / 1000000);
 
@@ -1686,15 +1617,6 @@ function addCORSHeaders (headers, methods, host) {
 	return headers;
 }
 
-function lookupMime (fileName) {
-	if ( IS_LESS.test(fileName) ) {
-		return 'text/less';
-	}
-	else {
-		return mime.lookup(fileName);
-	}
-}
-
 
 
 function setupStats () {
@@ -1733,6 +1655,10 @@ function setupStats () {
 }
 
 function statsWatchRequest (handler, request, response) {
+	if (request.isFake) {
+		return;
+	}
+
 	if (STATS) {
 		STATS.openRequests += 1;
 	}

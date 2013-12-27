@@ -1,4 +1,3 @@
-
 {
   "author" : "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name" : "zerver",
@@ -20,5 +19,8 @@
   "main" : "node-client/index.js",
   "bin" : {
     "zerver": "server/index.js"
+  },
+  "scripts" : {
+  	"test" : "node test"
   }
 }

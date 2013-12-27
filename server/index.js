@@ -52,7 +52,6 @@ function processFlags () {
 		.option('-P, --port <n>'            , 'set server port to listen on', parseInt, process.env.PORT||5000)
 		.option('-V, --verbose'             , 'verbose request logging')
 		.option('-H, --headers'             , 'show headers in logs')
-		.option('-l, --less'                , 'automatically compile less into css')
 		.option('-s, --stats'               , 'periodically print memory usage and other stats')
 		.option('-j, --json'                , 'requests get logged as json')
 		.option('--cache <paths>'           , 'set specific cache life for resources')
@@ -156,7 +155,6 @@ function startServer () {
 			disableManifest : !!commands.disableManifest,
 			ignoreManifest  : (commands.ignoreManifest || ''),
 			production      : !!commands.production ,
-			less            : !!commands.less ,
 			cache           : (commands.cache || '') ,
 			missing         : (commands.missing || '') ,
 			stats           : !!commands.stats ,
