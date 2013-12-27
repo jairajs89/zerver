@@ -1,6 +1,6 @@
 /* Imports and static vars */
 
-var StaticFiles = require(__dirname + '/static/'  ),
+var StaticFiles = require(__dirname + '/static'   ),
 	clean       = require(__dirname + '/clean-css'),
 	debug       = require(__dirname + '/debug'    ),
 	cookies     = require(__dirname + '/cookies'  ),
