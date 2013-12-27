@@ -8,22 +8,21 @@ var extend = require('util')._extend,
 	urllib = require('url'),
 	clean  = require(__dirname+'/clean-css');
 
-var GZIPPABLE = {
+var DEBUG_LINES         = /\s*\;\;\;.*/g,
+	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
+	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g,
+	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g,
+	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
+	MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g,
+	MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g,
+	GZIPPABLE           = {
 		'application/json'       : true ,
 		'application/javascript' : true ,
-		'text/javascript'        : true ,
 		'text/css'               : true ,
 		'text/html'              : true ,
 		'text/plain'             : true ,
 		'text/cache-manifest'    : true ,
-	},
-	DEBUG_LINES  = /\s*\;\;\;.*/g,
-	CSS_IMAGE    = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
-	SCRIPT_MATCH = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g,
-	STYLES_MATCH = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g,
-	CONCAT_MATCH = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
-	MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g,
-	MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
+	};
 
 module.exports = StaticFiles;
 
