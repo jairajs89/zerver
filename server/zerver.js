@@ -340,7 +340,7 @@ function getMaxLastModifiedTime (file) {
 		return;
 	}
 
-	var maxModTime = 0;
+	var maxModTime = new Date(0);
 	dirListing.forEach(function (child) {
 		var modTime = getMaxLastModifiedTime( path.join(file, child) );
 		if (modTime > maxModTime) {
