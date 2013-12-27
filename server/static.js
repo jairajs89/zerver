@@ -30,7 +30,7 @@ module.exports = StaticFiles;
 
 function StaticFiles(rootDir, options, callback) {
 	var self     = this;
-	self.root    = rootDir;
+	self._root   = rootDir;
 	self.options = extend({
 		ignores         : null  ,
 		memoryCache     : false ,
@@ -48,11 +48,11 @@ function StaticFiles(rootDir, options, callback) {
 	}
 
 	if (options.memoryCache) {
-		self.cache = {};
+		self._cache = {};
 	}
-	self.defaultCache = (options.memoryCache ? 300 : 0),
-	self.customCache  = {};
-	if (options.cache && self.cache) {
+	self._defaultCache = (options.memoryCache ? 300 : 0),
+	self._customCache = {};
+	if (options.cache && self._cache) {
 		options.cache.split(',').forEach(function (segment) {
 			var parts = segment.split(':'),
 				path, life;
@@ -70,28 +70,28 @@ function StaticFiles(rootDir, options, callback) {
 			if (isNaN(life) || (life < 0)) {
 				throw TypeError('invalid cache directive: ' + segment);
 			} else if ( !path ) {
-				self.defaultCache = life;
+				self._defaultCache = life;
 			} else {
-				self.customCache[relativePath('/',path)] = life;
+				self._customCache[relativePath('/',path)] = life;
 			}
 		});
 	}
 
 	if (options.ignores) {
-		self.ignores = options.ignores.split(',');
+		self._ignores = options.ignores.split(',');
 	} else {
-		self.ignores = [];
+		self._ignores = [];
 	}
 
 	if (options.disableManifest) {
-		self.manifests = {};
+		self._manifests = {};
 	} else {
-		self.manifests = detectManifests(self.root, self.ignores);
+		self._manifests = detectManifests(self._root, self._ignores);
 		if (options.ignoreManifest) {
 			options.ignoreManifest.split(',').forEach(function (pathname) {
 				pathname = relativePath('/', pathname);
-				if ( self.manifests[pathname] ) {
-					delete self.manifests[pathname];
+				if ( self._manifests[pathname] ) {
+					delete self._manifests[pathname];
 				} else {
 					throw Error(pathname+' is not a manifest file, cannot ignore');
 				}
@@ -99,8 +99,8 @@ function StaticFiles(rootDir, options, callback) {
 		}
 	}
 
-	if (self.cache) {
-		self.loadCache(callback);
+	if (self._cache) {
+		self._loadCache(callback);
 	} else {
 		callback();
 	}
@@ -110,13 +110,13 @@ function StaticFiles(rootDir, options, callback) {
 
 /* Construct cache */
 
-StaticFiles.prototype.loadCache = function (callback) {
-	if ( !this.cache ) {
+StaticFiles.prototype._loadCache = function (callback) {
+	if ( !this._cache ) {
 		throw Error('loadCache requires cache mode to be enabled');
 	}
 	var self = this;
-	walkDirectory(self.root, self.ignores, function (pathname, next) {
-		self.cacheFile(pathname, next);
+	walkDirectory(self._root, self._ignores, function (pathname, next) {
+		self._cacheFile(pathname, next);
 	}, function () {
 		if ( !self.concats ) {
 			callback();
@@ -125,7 +125,7 @@ StaticFiles.prototype.loadCache = function (callback) {
 		asyncJoin(
 			Object.keys(self.concats).map(function (pathname) {
 				return function (respond) {
-					self.cacheConcatFile(pathname, respond);
+					self._cacheConcatFile(pathname, respond);
 				};
 			}),
 			function () {
@@ -135,17 +135,17 @@ StaticFiles.prototype.loadCache = function (callback) {
 	});
 };
 
-StaticFiles.prototype.cacheFile = function (pathname, callback) {
+StaticFiles.prototype._cacheFile = function (pathname, callback) {
 	var self = this;
 
-	if ( !self.cache ) {
+	if ( !self._cache ) {
 		throw Error('cacheFile requires cache mode to be enabled');
 	}
-	if (self.cache[pathname] === false) {
+	if (self._cache[pathname] === false) {
 		throw Error('circular dependency detected for '+pathname);
 	}
-	if ( self.cache[pathname] ) {
-		callback(self.cache[pathname].headers, self.cache[pathname].body);
+	if ( self._cache[pathname] ) {
+		callback(self._cache[pathname].headers, self._cache[pathname].body);
 		return;
 	}
 
@@ -154,16 +154,16 @@ StaticFiles.prototype.cacheFile = function (pathname, callback) {
 		altPath = pathname.split('/').slice(0,-1).join('/')+'/';
 	}
 
-	self.cache[pathname] = false;
+	self._cache[pathname] = false;
 	if (altPath) {
-		self.cache[altPath] = false;
+		self._cache[altPath] = false;
 	}
 
-	var filePath = path.join(self.root, pathname),
+	var filePath = path.join(self._root, pathname),
 		body     = fs.readFileSync(filePath, 'binary'),
 		headers  = {
 			'Content-Type'  : (mime.lookup(filePath) || 'application/octet-stream'),
-			'Cache-Control' : self.getCacheControl(pathname),
+			'Cache-Control' : self._getCacheControl(pathname),
 		};
 
 	asyncForEach([
@@ -177,7 +177,7 @@ StaticFiles.prototype.cacheFile = function (pathname, callback) {
 		'compileOutput',
 		'gzipOutput',
 	], function (transform, next) {
-		self[transform](pathname, headers, body, function (newHeaders, newBody) {
+		self['_'+transform](pathname, headers, body, function (newHeaders, newBody) {
 			headers = newHeaders;
 			body    = newBody;
 			next();
@@ -188,28 +188,28 @@ StaticFiles.prototype.cacheFile = function (pathname, callback) {
 		headers['ETag'] = '"'+hash.digest('hex')+'"';
 		headers['Vary'] = 'Accept-Encoding';
 
-		self.cache[pathname] = {
+		self._cache[pathname] = {
 			headers : headers ,
 			body    : body    ,
 		};
 		if (altPath) {
-			self.cache[altPath] = self.cache[pathname];
+			self._cache[altPath] = self._cache[pathname];
 		}
 		callback(headers, body);
 	})
 };
 
-StaticFiles.prototype.cacheConcatFile = function (pathname, callback) {
+StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 	var self = this;
 
-	if ( !self.cache ) {
+	if ( !self._cache ) {
 		throw Error('cacheConcatFile requires cache mode to be enabled');
 	}
-	if (self.cache[pathname] === false) {
+	if (self._cache[pathname] === false) {
 		throw Error('circular dependency detected for '+pathname);
 	}
-	if ( self.cache[pathname] ) {
-		callback(self.cache[pathname].headers, self.cache[pathname].body);
+	if ( self._cache[pathname] ) {
+		callback(self._cache[pathname].headers, self._cache[pathname].body);
 		return;
 	}
 	if ( !(pathname in self.concats) ) {
@@ -221,21 +221,21 @@ StaticFiles.prototype.cacheConcatFile = function (pathname, callback) {
 		altPath = pathname.split('/').slice(0,-1).join('/')+'/';
 	}
 
-	self.cache[pathname] = false;
+	self._cache[pathname] = false;
 	if (altPath) {
-		self.cache[altPath] = false;
+		self._cache[altPath] = false;
 	}
 
-	var filePath = path.join(self.root, pathname),
+	var filePath = path.join(self._root, pathname),
 		headers  = {
 			'Content-Type'  : (mime.lookup(filePath) || 'application/octet-stream'),
-			'Cache-Control' : self.getCacheControl(pathname),
+			'Cache-Control' : self._getCacheControl(pathname),
 		};
 
 	asyncJoin(
 		self.concats[pathname].map(function (partPath) {
 			return function (respond) {
-				var cached = self.cache[partPath];
+				var cached = self._cache[partPath];
 				if ( !cached ) {
 					throw Error('file not found for concat, '+partPath);
 				}
@@ -260,23 +260,23 @@ StaticFiles.prototype.cacheConcatFile = function (pathname, callback) {
 			headers['ETag'] = '"'+hash.digest('hex')+'"';
 			headers['Vary'] = 'Accept-Encoding';
 
-			self.cache[pathname] = {
+			self._cache[pathname] = {
 				headers : headers ,
 				body    : body    ,
 			};
 			if (altPath) {
-				self.cache[altPath] = self.cache[pathname];
+				self._cache[altPath] = self._cache[pathname];
 			}
 			callback(headers, body);
 		}
 	);
 };
 
-StaticFiles.prototype.getCacheControl = function (pathname) {
-	var seconds = this.defaultCache;
-	for (var prefix in this.customCache) {
+StaticFiles.prototype._getCacheControl = function (pathname) {
+	var seconds = this._defaultCache;
+	for (var prefix in this._customCache) {
 		if (pathname.substr(0, prefix.length) === prefix) {
-			seconds = this.customCache[prefix];
+			seconds = this._customCache[prefix];
 			break;
 		}
 	}
@@ -287,18 +287,18 @@ StaticFiles.prototype.getCacheControl = function (pathname) {
 	}
 };
 
-StaticFiles.prototype.prepareManifest = function (pathname, headers, body, callback) {
-	if ( !this.manifests[pathname] ) {
+StaticFiles.prototype._prepareManifest = function (pathname, headers, body, callback) {
+	if ( !this._manifests[pathname] ) {
 		callback(headers, body);
 		return;
 	}
 
-	body += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this.root, this.ignores);
+	body += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
 	callback(headers, body);
 };
 
-StaticFiles.prototype.inlineManifestFiles = function (pathname, headers, body, callback) {
-	if (!this.options.inline || !this.manifests[pathname]) {
+StaticFiles.prototype._inlineManifestFiles = function (pathname, headers, body, callback) {
+	if (!this.options.inline || !this._manifests[pathname]) {
 		callback(headers, body);
 		return;
 	}
@@ -321,8 +321,8 @@ StaticFiles.prototype.inlineManifestFiles = function (pathname, headers, body, c
 	callback(headers, body);
 };
 
-StaticFiles.prototype.prepareManifestConcatFiles = function (pathname, headers, body, callback) {
-	if (!this.concats || !this.manifests[pathname]) {
+StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers, body, callback) {
+	if (!this.concats || !this._manifests[pathname]) {
 		callback(headers, body);
 		return;
 	}
@@ -374,7 +374,7 @@ StaticFiles.prototype.prepareManifestConcatFiles = function (pathname, headers, 
 	callback(headers, body);
 };
 
-StaticFiles.prototype.prepareConcatFiles = function (pathname, headers, body, callback) {
+StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, callback) {
 	if (!this.concats || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
@@ -429,7 +429,7 @@ StaticFiles.prototype.prepareConcatFiles = function (pathname, headers, body, ca
 	callback(headers, body);
 };
 
-StaticFiles.prototype.inlineScripts = function (pathname, headers, body, callback) {
+StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callback) {
 	if (!this.options.inline || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
@@ -442,7 +442,7 @@ StaticFiles.prototype.inlineScripts = function (pathname, headers, body, callbac
 			return;
 		}
 		var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
-		self.cacheFile(fullPath, function (headers, body) {
+		self._cacheFile(fullPath, function (headers, body) {
 			if (headers['Content-Encoding'] === 'gzip') {
 				zlib.gunzip(body, function (err, newBody) {
 					if (err) {
@@ -464,7 +464,7 @@ StaticFiles.prototype.inlineScripts = function (pathname, headers, body, callbac
 	});
 };
 
-StaticFiles.prototype.inlineStyles = function (pathname, headers, body, callback) {
+StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callback) {
 	if (!this.options.inline || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
@@ -477,7 +477,7 @@ StaticFiles.prototype.inlineStyles = function (pathname, headers, body, callback
 			return;
 		}
 		var fullPath = relativePath(pathname, stylePath.split('?')[0]);
-		self.cacheFile(fullPath, function (headers, body) {
+		self._cacheFile(fullPath, function (headers, body) {
 			if (headers['Content-Encoding'] === 'gzip') {
 				zlib.gunzip(body, function (err, newBody) {
 					if (err) {
@@ -499,7 +499,7 @@ StaticFiles.prototype.inlineStyles = function (pathname, headers, body, callback
 	});
 };
 
-StaticFiles.prototype.inlineImages = function (pathname, headers, body, callback) {
+StaticFiles.prototype._inlineImages = function (pathname, headers, body, callback) {
 	if (!this.options.inline || (headers['Content-Type'] !== 'text/css')) {
 		callback(headers, body);
 		return;
@@ -516,7 +516,7 @@ StaticFiles.prototype.inlineImages = function (pathname, headers, body, callback
 			return;
 		}
 		var fullPath = relativePath(pathname, imgPath.split('?')[0]);
-		self.cacheFile(fullPath, function (headers, body) {
+		self._cacheFile(fullPath, function (headers, body) {
 			respond('url(data:'+headers['Content-Type']+';base64,'+body.toString('base64')+')');
 		});
 	}, function (body) {
@@ -524,7 +524,7 @@ StaticFiles.prototype.inlineImages = function (pathname, headers, body, callback
 	});
 };
 
-StaticFiles.prototype.compileOutput = function (pathname, headers, body, callback) {
+StaticFiles.prototype._compileOutput = function (pathname, headers, body, callback) {
 	if ( !this.options.compile ) {
 		callback(headers, body);
 		return;
@@ -555,7 +555,7 @@ StaticFiles.prototype.compileOutput = function (pathname, headers, body, callbac
 	callback(headers, body);
 };
 
-StaticFiles.prototype.gzipOutput = function (pathname, headers, body, callback) {
+StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback) {
 	if (!this.options.gzip || !GZIPPABLE[headers['Content-Type']]) {
 		callback(headers, body);
 		return;
@@ -576,10 +576,10 @@ StaticFiles.prototype.gzipOutput = function (pathname, headers, body, callback) 
 
 StaticFiles.prototype.get = function (pathname) {
 	var response;
-	if (this.cache) {
-		response = this.cache[pathname];
+	if (this._cache) {
+		response = this._cache[pathname];
 	} else {
-		response = this.rawGet(pathname);
+		response = this._rawGet(pathname);
 	}
 
 	if (response) {
@@ -590,16 +590,16 @@ StaticFiles.prototype.get = function (pathname) {
 	}
 };
 
-StaticFiles.prototype.rawGet = function (pathname) {
-	var filePath = path.join(this.root, pathname),
+StaticFiles.prototype._rawGet = function (pathname) {
+	var filePath = path.join(this._root, pathname),
 		file;
 
 	if (pathname.split('/').pop()[0] === '.') {
 		return;
 	}
 
-	for (var i=0, l=this.ignores.length; i<l; i++) {
-		if (pathname.substr(0, this.ignores[i].length) === this.ignores[i]) {
+	for (var i=0, l=this._ignores.length; i<l; i++) {
+		if (pathname.substr(0, this._ignores[i].length) === this._ignores[i]) {
 			return;
 		}
 	}
@@ -610,25 +610,25 @@ StaticFiles.prototype.rawGet = function (pathname) {
 		return;
 	}
 
-	if (pathname in this.manifests) {
-		file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this.root, this.ignores);
+	if (pathname in this._manifests) {
+		file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
 	}
 
 	return {
 		body    : file,
 		headers : {
 			'Content-Type'  : (mime.lookup(filePath) || 'application/octet-stream'),
-			'Cache-Control' : this.getCacheControl(pathname),
+			'Cache-Control' : this._getCacheControl(pathname),
 		}
 	};
 };
 
 StaticFiles.prototype.has = function (pathname) {
-	return (pathname in this.cache);
+	return (pathname in this._cache);
 };
 
 StaticFiles.prototype.dump = function (pathname) {
-	if ( !this.cache ) {
+	if ( !this._cache ) {
 		throw Error('static builds must be run with cache enabled');
 	}
 	//TODO: dump built files to directory
