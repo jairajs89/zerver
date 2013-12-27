@@ -591,10 +591,36 @@ StaticFiles.prototype.get = function (pathname) {
 };
 
 StaticFiles.prototype.rawGet = function (pathname) {
-	//TODO
-	//TODO: ignore .DS_Store
-	//TODO: self.ignores
-	//TODO: manifest tag
+	var filePath = path.join(this.root, pathname),
+		file;
+
+	if (pathname.split('/').pop()[0] === '.') {
+		return;
+	}
+
+	for (var i=0, l=this.ignores.length; i<l; i++) {
+		if (pathname.substr(0, this.ignores[i].length) === this.ignores[i]) {
+			return;
+		}
+	}
+
+	try {
+		file = fs.readFileSync(filePath);
+	} catch (err) {
+		return;
+	}
+
+	if (pathname in this.manifests) {
+		file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this.root, this.ignores);
+	}
+
+	return {
+		body    : file,
+		headers : {
+			'Content-Type'  : (mime.lookup(filePath) || 'application/octet-stream'),
+			'Cache-Control' : this.getCacheControl(pathname),
+		}
+	};
 };
 
 StaticFiles.prototype.has = function (pathname) {
