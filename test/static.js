@@ -4,7 +4,7 @@ var assert      = require('assert'),
 	test        = require(__dirname+'/index'),
 	StaticFiles = require(__dirname+'/../server/static');
 
-var postfix = '\n# Zerver timestamp: '+new Date();
+var postfix = '\n# Zerver timestamp: '+test.time;
 
 function testObj(options) {
 	return function (root, callback) {

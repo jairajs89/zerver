@@ -9,6 +9,7 @@ var projectRoot = path.resolve(__dirname+'/../'),
 	fs_stat     = fs.statSync,
 	fs_lstat    = fs.lstatSync;
 
+exports.time    = time;
 exports.runTest = runTest;
 
 require(__dirname+'/static');
