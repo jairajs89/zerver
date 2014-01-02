@@ -24,7 +24,7 @@ function APICalls(rootDir, pathname, options) {
 	this._options    = extend({
 		refresh: false,
 		logging: false,
-	}, options);
+	}, options || {});
 
 	var self         = this,
 		templateData = {},
@@ -42,9 +42,9 @@ function APICalls(rootDir, pathname, options) {
 		}
 
 		var apiName  = fileName.substr(0, len-3),
-			fileName = path.join(rootDir+pathname, apiName);
+			fullName = path.join(rootDir+pathname, apiName);
 
-		var api = require(fileName);
+		var api = require(fullName);
 		self._apis[apiName] = api;
 
 		var apiObj       = {},
@@ -59,13 +59,13 @@ function APICalls(rootDir, pathname, options) {
 		setupAPIObj(api, apiObj, apiFunctions);
 		templateData[apiName] = [apiObj, apiFunctions];
 
-		file = file.replace(INSERT_DIR      , JSON.stringify(this._rootPath));
+		file = file.replace(INSERT_DIR      , JSON.stringify(self._rootPath));
 		file = file.replace(INSERT_NAME     , JSON.stringify(apiName)      );
 		file = file.replace(INSERT_API      , JSON.stringify(apiObj)       );
 		file = file.replace(INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
 		file = file.replace(INSERT_APIS     , JSON.stringify(null)         );
-		file = file.replace(INSERT_REFRESH  , JSON.stringify(!!this._options.refresh));
-		file = file.replace(INSERT_LOGGING  , JSON.stringify(!!this._options.logging));
+		file = file.replace(INSERT_REFRESH  , JSON.stringify(!!self._options.refresh));
+		file = file.replace(INSERT_LOGGING  , JSON.stringify(!!self._options.logging));
 
 		self._apiScripts[apiName] = file;
 	});
@@ -88,7 +88,7 @@ APICalls.prototype.get = function (pathname, req, callback) {
 		return;
 	}
 
-	var apiParts = pathname.substr(this._rootPath.length+2).split('/'),
+	var apiParts = pathname.substr(this._rootPath.length+1).split('/'),
 		apiName;
 
 	if (apiParts.length === 1) {
@@ -104,7 +104,7 @@ APICalls.prototype.get = function (pathname, req, callback) {
 	var func = this._apis[ apiParts[0] ];
 	try {
 		for (var i=1, l=apiParts.length; i<l; i++) {
-			func   = func[ apiParts[i] ];
+			func = func[ apiParts[i] ];
 		}
 	} catch (err) {
 		func = null;

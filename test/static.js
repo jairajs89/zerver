@@ -13,7 +13,7 @@ function testObj(options) {
 			extend({
 				memoryCache : true,
 				ignores     : '/zerver/',
-			}, options),
+			}, options || {}),
 			function () {
 				process.nextTick(function () {
 					callback(cache);
