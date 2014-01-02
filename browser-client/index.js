@@ -1,33 +1,32 @@
 (function (window) {
-	var XHR_TIMEOUT        = 22000,
+	var XHR_TIMEOUT        = 30000,
 		ZERVER_INIT        = 'ZERVER_INIT',
 		ZERVER_KILL_STREAM = 'ZERVER_KILL_STREAM',
-		IS_ANDROID         = /\bAndroid\b/gi.test(navigator.userAgent);
+		IS_ANDROID         = /\bAndroid\b/gi.test(window.navigator.userAgent);
 
-	var apiRefresh    = {{__API_REFRESH__}},
-		apiLogging    = {{__API_LOGGING__}},
-		apiDir        = {{__API_DIR__}},
-		apiName       = {{__API_NAME__}},
-		apiRoot       = {{__API_ROOT__}},
-		apiObj        = {{__API_OBJ__}},
-		apiFunctions  = {{__API_FUNCTIONS__}},
-		apiData       = {{__API_APIS__}},
-		apis          = {},
-		apiSocketPath = '/'+apiDir+'/_push/',
+	var apiRefresh      = {{__API_REFRESH__}},
+		apiLogging      = {{__API_LOGGING__}},
+		apiDir          = {{__API_DIR__}},
+		apiName         = {{__API_NAME__}},
+		apiObj          = {{__API_OBJ__}},
+		apiFunctions    = {{__API_FUNCTIONS__}},
+		apiData         = {{__API_APIS__}},
+		apis            = {},
+		apiSocketPath   = apiDir+'/_push/',
 		apiSocket,
-		apiSocketID   = generateStreamID(),
+		apiSocketID     = generateStreamID(),
 		hadFirstConnect = false,
-		notReady      = [],
+		notReady        = [],
 		isConnected;
 
-	startReadyCheck();
 	main();
 
-	function main () {
+	function main() {
+		startReadyCheck();
+
 		if (apiData) {
 			setupRequire();
-		}
-		else if (apiObj) {
+		} else if (apiObj) {
 			setupSingleAPI();
 		}
 
@@ -44,148 +43,139 @@
 		}
 	}
 
-	function setupRequire () {
-		for (var apiRoot in apiData) {
-			apis[apiRoot] = setupFunctions(apiData[apiRoot][0], apiData[apiRoot][1], [ apiRoot ]);
-		}
 
-		window[apiName] = function (apiRoot) {
-			if (apiRoot in apis) {
-				return apis[apiRoot];
-			}
-			else {
-				throw TypeError(apiRoot + ' is not a known Zerver API');
+
+	/* API calls */
+
+	function setupRequire() {
+		for (var apiName in apiData) {
+			apis[apiName] = setupFunctions(apiData[apiName][0], apiData[apiName][1], [ apiName ]);
+		}
+		window.require = function (apiName) {
+			if (apiName in apis) {
+				return apis[apiName];
+			} else {
+				throw TypeError(apiName + ' is not a known Zerver API');
 			}
 		};
 	}
 
-	function setupSingleAPI () {
-		window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiRoot ]);
+	function setupSingleAPI() {
+		window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiName ]);
 	}
 
-	function setupFunctions (obj, functions, tree) {
+	function setupFunctions(obj, functions, tree) {
 		var value;
-
 		for (var key in functions) {
 			value = functions[key];
-
 			if (value === true) {
 				obj[key] = setupFunction(obj, key, tree);
-			}
-			else if ((typeof value === 'object') && (typeof obj[key] === 'object')) {
+			} else if ((typeof value === 'object') && (typeof obj[key] === 'object')) {
 				obj[key] = setupFunctions(obj[key], value, tree.concat([ key ]));
 			}
 		}
-
 		return obj;
 	}
 
-	function setupFunction (obj, key, tree) {
+	function setupFunction(obj, key, tree) {
 		return function () {
-			var errorHandlers = [],
-				defered       = {
-					error : handleError
-				};
-
-			function handleError (handler) {
-				if (typeof handler !== 'function') {
-					throw TypeError('error handler must be a function, got ' + handler);
-				}
-
-				errorHandlers.push(handler);
-
-				return defered;
-			}
-
-			var data     = {},
+			var deferred = createDeferred(),
+				data     = {},
 				args     = Array.prototype.slice.call(arguments),
 				numArgs  = args.length,
-				callback = args[numArgs - 1];
+				callback = args[numArgs-1];
 
 			if (typeof callback === 'function') {
 				args.pop();
-			}
-			else {
+			} else {
 				data.noResponse = true;
 				callback = function () {};
 			}
-
 			data.args = args;
 
 			apiCall(tree.concat(key), data, function (error, response) {
 				if (error) {
+					var errorHandlers = deferred.getErrors();
 					if (errorHandlers.length) {
 						errorHandlers.forEach(function (handler) {
 							try {
 								handler.call(obj, error);
-							}
-							catch (err) {
+							} catch (err) {
 								if (window.console && window.console.error) {
 									window.console.error(err);
 								}
 							}
 						});
-					}
-					else if (window.console && window.console.error) {
+					} else if (window.console && window.console.error) {
 						window.console.error(error);
 					}
-					return;
+				} else {
+					callback.apply(obj, response);
 				}
-
-				callback.apply(obj, response);
 			});
 
-			return {
-				error : handleError
-			};
+			return deferred;
 		};
 	}
 
-	function apiCall (tree, args, callback) {
-		var url  = '/' + apiDir,
-			data = JSON.stringify(args);
+	function createDeferred() {
+		var errorHandlers = [],
+			deferred      = {
+				error     : handleError,
+				getErrors : getErrors
+			};
 
-		for (var i=0, len=tree.length; i<len; i++) {
-			url += '/' + encodeURIComponent( tree[i] );
+		function handleError(handler) {
+			if (typeof handler !== 'function') {
+				throw TypeError('error handler must be a function, got ' + handler);
+			}
+			errorHandlers.push(handler);
+			return deferred;
+		}
+
+		function getErrors() {
+			return errorHandlers.slice();
+		}
+
+		return deferred;
+	}
+
+	function apiCall(tree, args, callback) {
+		var url  = apiDir,
+			data = JSON.stringify(args);
+		for (var i=0, l=tree.length; i<l; i++) {
+			url += '/'+encodeURIComponent(tree[i]);
 		}
 
 		ajaxPost(url, data, function (status, responseText) {
-			var responseData, responseError;
-
+			var response, responseData, responseError;
 			if (status === 200) {
 				try {
-					var response = JSON.parse(responseText);
-
-					if (response.data) {
+					response = JSON.parse(responseText);
+					if (response.error) {
+						responseError = response.error;
+					} else {
 						responseData = response.data;
 					}
-					else {
-						responseError = response.error;
-					}
-				}
-				catch (err) {
+				} catch (err) {
 					responseError = 'zerver failed to parse response';
 				}
-			}
-			else {
+			} else {
 				responseError = 'zerver http error, ' + status;
 			}
-
 			callback(responseError, responseData);
 		});
 	}
 
-	function ajaxPost (url, data, callback) {
+	function ajaxPost(url, data, callback) {
 		var done = false,
 			xhr;
 
 		if (typeof XMLHttpRequest !== 'undefined') {
 			xhr = new XMLHttpRequest();
-		}
-		else if (typeof ActiveXObject !== 'undefined') {
+		} else if (typeof ActiveXObject !== 'undefined') {
 			xhr = new ActiveXObject('Microsoft.XMLHTTP');
-		}
-		else {
+		} else {
 			throw Error('browser does not support ajax');
 		}
 
@@ -195,8 +185,7 @@
 			}
 		};
 
-		var timeout = window['ZERVER_TIMEOUT'] || XHR_TIMEOUT;
-
+		var timeout = parseInt(window['ZERVER_TIMEOUT']) || XHR_TIMEOUT;
 		xhr.timeout = timeout;
 		xhr.ontimeout = function () {
 			xhrComplete(0);
@@ -218,16 +207,21 @@
 			}
 			done = true;
 
-			callback && callback(status, xhr.responseText);
+			if (callback) {
+				callback(status, xhr.responseText);
+			}
 		}
 	}
 
-	function setupSocket (handler) {
-		if (Object.prototype.toString.call(apiSocket) == '[object Array]') {
+
+
+	/* Sockets */
+
+	function setupSocket(handler) {
+		if (Object.prototype.toString.call(apiSocket) === '[object Array]') {
 			apiSocket.push(handler);
 			return;
-		}
-		else if (apiSocket) {
+		} else if (apiSocket) {
 			handler();
 			return;
 		}
@@ -244,31 +238,28 @@
 		});
 	}
 
-	function createAPISocket (callback) {
+	function createAPISocket(callback) {
 		var listeners = [],
 			socket    = {
 				send : sendMessage ,
 				on   : bindToMessage
 			};
+		startIncomingStream(onMessage);
+		callback(socket);
 
-		startIncomingStream(function (payload) {
+		function onMessage(payload) {
 			var data;
 			try {
 				data = JSON.parse(payload);
+			} catch (err) {}
+			if ( isObject(data) ) {
+				for (var i=0, l=listeners.length; i<l; i++) {
+					listeners[i](data);
+				}
 			}
-			catch (err) {}
-			if ((typeof data !== 'object') || (data === null)) {
-				return;
-			}
+		}
 
-			for (var i=0, l=listeners.length; i<l; i++) {
-				listeners[i](data);
-			}
-		});
-
-		callback(socket);
-
-		function sendMessage (data) {
+		function sendMessage(data) {
 			if (hadFirstConnect && !isConnected) {
 				return;
 			}
@@ -278,24 +269,22 @@
 
 			if (isConnected && (isConnected !== true)) {
 				isConnected.send(payload);
-			}
-			else {
+			} else {
 				ajaxPost(url, payload);
 			}
 		}
 
-		function bindToMessage (messageType, func) {
+		function bindToMessage(messageType, func) {
 			listeners.push(func);
 		}
 	}
 
-	function startIncomingStream (handler, fails) {
+	function startIncomingStream(handler, fails) {
 		var timeout;
 		if ( !fails ) {
 			fails   = 0;
 			timeout = 0;
-		}
-		else {
+		} else {
 			timeout = Math.pow(2, Math.min(fails, 5)) * 1000;
 		}
 
@@ -303,20 +292,20 @@
 			afterReady(performStreamOpen);
 		}, timeout);
 
-		function performStreamOpen () {
+		function performStreamOpen() {
 			openStream(handler, function (status) {
-				if (status) {
-					fails = 0;
-				}
-				else {
-					fails += 1;
-				}
+				fails = status ? 0 : fails+1;
 				startIncomingStream(handler, fails);
 			});
 		}
 	}
 
-	function openWSStream (onMessage, onClose) {
+	function openStream(onMessage, onClose) {
+		if ((!window['MozWebSocket'] && !window.WebSocket) || IS_ANDROID) {
+			openXHRStream(onMessage, onClose);
+			return;
+		}
+
 		var done       = false,
 			hasConnect = false,
 			text       = '',
@@ -326,8 +315,7 @@
 		try {
 			var wsCtor = window['MozWebSocket'] || window.WebSocket;
 			conn = new wsCtor('ws://'+window.location.host+apiSocketPath+'stream?id='+apiSocketID+'&_='+(+new Date()), 'zerver-debug');
-		}
-		catch (err) {
+		} catch (err) {
 			setTimeout(function () {
 				finish(false);
 			}, 0);
@@ -380,17 +368,11 @@
 
 			try {
 				conn.close();
-			}
-			catch (err) {}
+			} catch (err) {}
 		}
 	}
 
-	function openStream (onMessage, onClose) {
-		if ((window['MozWebSocket'] || window.WebSocket) && !IS_ANDROID) {
-			openWSStream(onMessage, onClose);
-			return;
-		}
-
+	function openXHRStream(onMessage, onClose) {
 		var dying      = false,
 			done       = false,
 			hasConnect = false,
@@ -409,7 +391,6 @@
 		};
 
 		var timeout = 45 * 1000;
-
 		xhr.timeout = timeout;
 		xhr.ontimeout = function () {
 			xhrComplete(0);
@@ -428,20 +409,18 @@
 		xhr.open('GET', url, true);
 		xhr.send('');
 
-		function checkForUpdates () {
+		function checkForUpdates() {
 			if (dying) {
 				return;
 			}
 
 			var currIndex = xhr.responseText.length;
-
 			if (currIndex === lastIndex) {
 				return;
 			}
 
 			var raw       = xhr.responseText.substring(lastIndex, currIndex),
 				lastBreak = raw.lastIndexOf('\n');
-
 			if (lastBreak === -1) {
 				return;
 			}
@@ -456,7 +435,7 @@
 			});
 		}
 
-		function xhrComplete (status) {
+		function xhrComplete(status) {
 			if (done || dying) {
 				return;
 			}
@@ -466,7 +445,9 @@
 
 			clearInterval(messageInterval);
 			checkForUpdates();
-			onClose && onClose(hasConnect);
+			if (onClose) {
+				onClose(hasConnect);
+			}
 		}
 
 		window[ZERVER_KILL_STREAM] = function () {
@@ -477,18 +458,20 @@
 
 			try {
 				xhr.abort();
-			}
-			catch (err) {}
+			} catch (err) {}
 		};
 	}
 
-	function generateStreamID () {
+	function generateStreamID() {
 		return ('x'+Math.random()).replace(/\.|\-/g, '');
 	}
 
-	function setupAutoRefresh () {
-		var REFRESH_FUNC = 'ZERVER_REFRESH';
 
+
+	/* Auto refresh */
+
+	function setupAutoRefresh() {
+		var REFRESH_FUNC = 'ZERVER_REFRESH';
 		if (typeof window[REFRESH_FUNC] !== 'function') {
 			window[REFRESH_FUNC] = function () {
 				window.location.reload();
@@ -502,7 +485,6 @@
 				}
 
 				var refresher = window[REFRESH_FUNC];
-
 				if (typeof refresher === 'function') {
 					refresher();
 				}
@@ -510,7 +492,11 @@
 		});
 	}
 
-	function setupLogging () {
+
+
+	/* Piped logging */
+
+	function setupLogging() {
 		var logLock    = false,
 			queuedLogs = [];
 
@@ -520,7 +506,7 @@
 		});
 		setupLoggers();
 
-		function setupCLI () {
+		function setupCLI() {
 			apiSocket.on('message', function (data) {
 				if (data.type !== 'eval') {
 					return;
@@ -531,8 +517,7 @@
 					val     = new Function('return ' + data.line)();
 					success = true;
 					error   = undefined;
-				}
-				catch (err) {
+				} catch (err) {
 					val     = undefined;
 					success = false;
 					error   = err + '';
@@ -540,14 +525,13 @@
 
 				var type, jsonVal;
 				if (success) {
-					if ((val !== null) && (typeof val === 'object')) {
+					if ( isObject(val) ) {
 						try {
 							jsonVal = JSON.stringify(val);
 							if (typeof jsonVal === 'string') {
 								type = 'json';
 							}
-						}
-						catch (err) {}
+						} catch (err) {}
 					}
 					if ( !type ) {
 						jsonVal = val + '';
@@ -565,11 +549,11 @@
 			});
 		}
 
-		function onLog (level, message) {
+		function onLog(level, message) {
 			queuedLogs.push([level, message]);
 		}
 
-		function pipeLogs () {
+		function pipeLogs() {
 			var logs   = queuedLogs.slice();
 			queuedLogs = null;
 			onLog      = pipeLog;
@@ -579,7 +563,7 @@
 			});
 		}
 
-		function pipeLog (level, message) {
+		function pipeLog(level, message) {
 			apiSocket.send({
 				type    : 'log'   ,
 				level   : level   ,
@@ -587,7 +571,7 @@
 			});
 		}
 
-		function logMessage (level, message) {
+		function logMessage(level, message) {
 			if (logLock) {
 				return;
 			}
@@ -600,9 +584,8 @@
 			logLock = false;
 		}
 
-		function setupLoggers () {
+		function setupLoggers() {
 			var console = window.console;
-
 			if (typeof console !== 'object') {
 				console = {};
 			}
@@ -615,13 +598,12 @@
 			window.console = console;
 		}
 
-		function interceptLogs (logger, level) {
+		function interceptLogs(logger, level) {
 			switch (typeof logger) {
 				case 'undefined':
 					logger = function () {};
 				case 'function':
 					break;
-
 				default:
 					return logger;
 			}
@@ -635,12 +617,11 @@
 				).join(' ');
 
 				logMessage(level, message);
-
 				logger.apply(this, arguments);
 			};
 		}
 
-		function interceptExceptions () {
+		function interceptExceptions() {
 			if ( !window.addEventListener ) {
 				return;
 			}
@@ -662,30 +643,33 @@
 					}
 					err += ')';
 				}
+
 				logMessage('exception', err);
 			}, false);
 		}
 	}
 
-	function afterReady (func) {
+
+
+	/* Utils */
+
+	function afterReady(func) {
 		if (notReady) {
 			notReady.push(func);
-		}
-		else {
+		} else {
 			func();
 		}
 	}
 
-	function startReadyCheck () {
-		if (!window.addEventListener || (document.readyState === 'complete')) {
+	function startReadyCheck() {
+		if (!window.addEventListener || (window.document.readyState === 'complete')) {
 			flushReadyQueue();
-		}
-		else {
+		} else {
 			window.addEventListener('load', flushReadyQueue, false);
 		}
 	}
 
-	function flushReadyQueue () {
+	function flushReadyQueue() {
 		window.removeEventListener('load', flushReadyQueue);
 
 		if ( !notReady ) {
@@ -695,10 +679,13 @@
 		setTimeout(function () {
 			var funcs = notReady.slice();
 			notReady = false;
-
 			funcs.forEach(function (func) {
 				func();
 			});
 		}, 500);
+	}
+
+	function isObject(obj) {
+		return ((typeof obj === 'object') && (obj !== null));
 	}
 })(window);

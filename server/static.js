@@ -623,10 +623,6 @@ StaticFiles.prototype._rawGet = function (pathname) {
 	};
 };
 
-StaticFiles.prototype.has = function (pathname) {
-	return (pathname in this._cache);
-};
-
 StaticFiles.prototype.dump = function (pathname) {
 	if ( !this._cache ) {
 		throw Error('static builds must be run with cache enabled');
