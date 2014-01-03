@@ -1,6 +1,8 @@
 var extend = require('util')._extend,
-	fs     = require('fs'  ),
-	path   = require('path');
+	fs     = require('fs'),
+	path   = require('path'),
+	qs     = require('querystring'),
+	urllib = require('url');
 
 var SCRIPT_TEMPLATE = fs.readFileSync(__dirname+path.sep+'..'+path.sep+'browser-client'+path.sep+'index.js').toString(),
 	INSERT_REFRESH   = '{{__API_REFRESH__}}',
@@ -135,15 +137,14 @@ APICalls.prototype._apiScript = function (apiName, callback) {
 };
 
 APICalls.prototype._apiCall = function (apiName, req, func, callback) {
-	var self      = this,
-		customAPI = !!func.type,
+	var customAPI = !!func.type,
 		method    = (func.type || 'POST').toUpperCase(),
 		cors;
-	if (apiName in self._cors) {
-		if (typeof self._cors[apiName] === 'string') {
-			cors = self._cors[apiName];
+	if (apiName in this._cors) {
+		if (typeof this._cors[apiName] === 'string') {
+			cors = this._cors[apiName];
 		} else {
-			cors = self._cors[apiName].join(', ');
+			cors = this._cors[apiName].join(', ');
 		}
 	}
 
@@ -162,17 +163,11 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
 		return;
 	}
 
-	var body = '';
-	req.on('data', function (chunk) {
-		body += chunk;
-	});
-	req.on('end', function () {
-		if (customAPI) {
-			self._customApiCall(req, func, body, finish);
-		} else {
-			self._zerverApiCall(req, func, body, finish);
-		}
-	});
+	if (customAPI) {
+		this._customApiCall(req, func, finish);
+	} else {
+		this._zerverApiCall(req, func, finish);
+	}
 
 	function finish(status, headers, body) {
 		if (cors) {
@@ -183,36 +178,39 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
 	}
 };
 
-APICalls.prototype._zerverApiCall = function (parent, func, body, finish) {
-	var called = false,
-		data, args;
-	try {
-		data = JSON.parse(body);
-		args = data.args;
-	} catch (err) {}
-	if ( !Array.isArray(args) ) {
-		finish(400, { 'Cache-Control': 'text/plain' }, '400');
-		return;
-	}
+APICalls.prototype._zerverApiCall = function (req, func, finish) {
+	var called = false;
 
-	if ( !data.noResponse ) {
-		args.push(successCallback);
-	}
+	getRequestBody(req, function (body) {
+		var data, args;
+		try {
+			data = JSON.parse(body);
+			args = data.args;
+		} catch (err) {}
+		if ( !Array.isArray(args) ) {
+			finish(400, { 'Cache-Control': 'text/plain' }, '400');
+			return;
+		}
 
-	var val;
-	try {
-		val = func.apply(parent, args);
-	} catch (err) {
-		console.error(err && (err.stack || err.message));
-		errorCallback(err);
-		return;
-	}
+		if ( !data.noResponse ) {
+			args.push(successCallback);
+		}
 
-	if (data.noResponse) {
-		successCallback();
-	} else if (typeof val !== 'undefined') {
-		successCallback(val);
-	}
+		var val;
+		try {
+			val = func.apply(req, args);
+		} catch (err) {
+			console.error(err && (err.stack || err.message));
+			errorCallback(err);
+			return;
+		}
+
+		if (data.noResponse) {
+			successCallback();
+		} else if (typeof val !== 'undefined') {
+			successCallback(val);
+		}
+	});
 
 	function successCallback() {
 		respond({ data: Array.prototype.slice.call(arguments) });
@@ -244,12 +242,108 @@ APICalls.prototype._zerverApiCall = function (parent, func, body, finish) {
 	}
 };
 
-APICalls.prototype._customApiCall = function (parent, func, body, finish) {
-	//TODO
-	finish(503, {
-		'Content-Type' : 'text/plain',
-		'Cache-Control': 'no-cache',
-	}, 'not implemented');
+APICalls.prototype._customApiCall = function (req, func, finish) {
+	var called = false;
+
+	if (['POST', 'PUT'].indexOf(req.method) !== -1) {
+		getRequestBody(req, callAPI);
+	} else {
+		callAPI('');
+	}
+
+	function callAPI(body) {
+		req.query  = urllib.parse(req.url, true).query;
+		req.params = extend({}, req.query);
+		req.body = body;
+		try {
+			req.jsonBody = JSON.parse(body);
+		} catch (err) {}
+		if ((typeof req.jsonBody !== 'object') || (req.jsonBody === null)) {
+			req.jsonBody = {};
+		}
+		if (req.headers['content-type'] === 'application/x-www-form-urlencoded') {
+			req.formBody = qs.parse(req.body);
+			extend(req.params, req.formBody);
+		}
+
+		var val;
+		try {
+			val = func.call(req, req.params, respond);
+		} catch (err) {
+			console.error(err && (err.stack || err.message));
+			respondError();
+			return;
+		}
+
+		if (typeof val !== 'undefined') {
+			respond(val);
+		}
+	}
+
+	function respond(status, headers, body) {
+		if (called) {
+			return;
+		}
+		called = true;
+
+		switch (arguments.length) {
+			case 0:
+				body    = '';
+				headers = {};
+				status  = 200;
+				break;
+			case 1:
+				body    = arguments[0];
+				headers = {};
+				status  = 200;
+				break;
+		}
+
+		if (typeof status !== 'number') {
+			console.error('response status must be a number, got ' + status);
+			respondError();
+			return;
+		}
+		if ((typeof headers !== 'object') || (headers === null)) {
+			console.error('response headers must be an object, got ' + headers);
+			respondError();
+			return;
+		}
+		if ( !body ) {
+			body = '';
+		}
+		switch (typeof body) {
+			case 'object':
+				try {
+					body = JSON.stringify(body);
+				} catch (err) {
+					console.error('response body was not valid JSON');
+					console.error(err && (err.stack || err.message));
+					respondError();
+					return;
+				}
+				var index = Object.keys(headers).map(function (key) {
+					return key.toLowerCase();
+				}).indexOf('content-type');
+				if (index === -1) {
+					headers['Content-Type'] = 'application/json';
+				}
+				break;
+			case 'string':
+				break;
+			default:
+				console.error('response body must be a string or JSON object, got ' + body);
+				respondError();
+				return;
+		}
+
+		finish(status, headers, body);
+	}
+
+	function respondError() {
+		called = true;
+		finish(500, { 'Content-Type': 'text/plain' }, '500');
+	}
 };
 
 
@@ -280,4 +374,14 @@ function setupAPIObj(api, obj, functions) {
 				break;
 		}
 	}
+}
+
+function getRequestBody(req, callback) {
+	var body = '';
+	req.on('data', function (chunk) {
+		body += chunk;
+	});
+	req.on('end', function () {
+		callback(body);
+	});
 }

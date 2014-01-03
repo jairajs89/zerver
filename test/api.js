@@ -18,34 +18,16 @@ function testObj() {
 }
 
 function testRequest(func, args, callback) {
-	this.get('/zerver/'+func, {
+	var body = '{"args":'+JSON.stringify(args)+'}';
+	this.get('/zerver/'+func.split('?')[0], {
+		url: '/zerver/'+func,
 		method: 'POST',
-		on: function (type, handler) {
-			var data;
-			switch (type) {
-				case 'data':
-					data = '{"args":'+JSON.stringify(args)+'}';
-					break;
-				case 'end':
-					break;
-				default:
-					return;
-			}
-			process.nextTick(function () {
-				handler(data);
-			});
-		}
-	}, function (status, headers, body) {
-		assert.equal(status, 200);
-		assert.equal(headers['Content-Type' ], 'application/json');
-		assert.equal(headers['Cache-Control'], 'no-cache'        );
-		callback(JSON.parse(body).data);
-	});
-}
-
-function customRequest(method, func, body, callback) {
-	this.get('/zerver/'+func, {
-		method: method.toUpperCase(),
+		headers: {
+			'content-length': body.length,
+			'content-type': 'application/json',
+			'connection': 'keep-alive',
+			'accept': '*/*',
+		},
 		on: function (type, handler) {
 			var data;
 			switch (type) {
@@ -61,7 +43,46 @@ function customRequest(method, func, body, callback) {
 				handler(data);
 			});
 		}
-	}, callback);
+	}, function (status, headers, body) {
+		process.nextTick(function () {
+			assert.equal(status, 200);
+			assert.equal(headers['Content-Type' ], 'application/json');
+			assert.equal(headers['Cache-Control'], 'no-cache'        );
+			callback(JSON.parse(body).data);
+		});
+	});
+}
+
+function customRequest(method, func, body, callback, isForm) {
+	this.get('/zerver/'+func.split('?')[0], {
+		url: '/zerver/'+func,
+		method: method.toUpperCase(),
+		headers: {
+			'content-length': body.length,
+			'content-type': (isForm ? 'application/x-www-form-urlencoded' : 'application/json'),
+			'connection': 'keep-alive',
+			'accept': '*/*',
+		},
+		on: function (type, handler) {
+			var data;
+			switch (type) {
+				case 'data':
+					data = body;
+					break;
+				case 'end':
+					break;
+				default:
+					return;
+			}
+			process.nextTick(function () {
+				handler(data);
+			});
+		}
+	}, function (status, headers, body) {
+		process.nextTick(function () {
+			callback(status, headers, body);
+		});
+	});
 }
 
 
@@ -79,13 +100,25 @@ test.runTest(testObj(), {
 
 test.runTest(testObj(), {
 	'zerver': {
-		'test.js': 'exports.foo=function(x,c){console.log("w");c("x")};exports.foo.type="GET"'
+		'test.js': 'exports.foo=function(x,c){c("x")};exports.foo.type="GET"'
 	}
 }, function (apis, files, callback) {
-	apis.customTest('GET', 'test/foo', '', function (status, headers, body) {
-		//TODO
-		assert.equal(status, 503);
-		assert.equal(body, 'not implemented');
+	apis.customTest('GET', 'test/foo?foo=bar', '', function (status, headers, body) {
+		assert.equal(status, 200);
+		assert.equal(body, 'x');
+		callback();
+	});
+});
+
+test.runTest(testObj(), {
+	'zerver': {
+		'test.js': 'exports.foo=function(p,c){c(p)};exports.foo.type="GET"'
+	}
+}, function (apis, files, callback) {
+	apis.customTest('GET', 'test/foo?foo=bar', '', function (status, headers, body) {
+		assert.equal(status, 200);
+		assert.equal(headers['Content-Type'], 'application/json');
+		assert.equal(body, '{"foo":"bar"}');
 		callback();
 	});
 });

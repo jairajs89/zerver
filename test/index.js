@@ -103,6 +103,7 @@ function runTest(testObj, files, callback) {
 		function statFile(filename) {
 			var file = findFile(filename);
 			return {
+				//TODO
 				// dev: 16777218,
 				// mode: 16877,
 				// nlink: 12,
