@@ -1,262 +1,116 @@
 #!/usr/bin/env node
 
-var extend      = require('util')._extend,
-	cluster     = require('cluster'),
-	http        = require('http'),
-	path        = require('path'),
-	commander   = require(__dirname+'/lib/commander'),
-	StaticFiles = require(__dirname+'/static'),
-	APICalls    = require(__dirname+'/api'),
-	Logger      = require(__dirname+'/log');
+var cluster   = require('cluster'),
+	path      = require('path'),
+	commander = require(__dirname+'/lib/commander'),
+	zerver    = require(__dirname+'/zerver');
 
-var PACKAGE         = __dirname+path.sep+'..'+path.sep+'package.json',
-	API_PATH        = '/zerver',
-	REQUEST_TIMEOUT = 25 * 1000,
-	MAX_AGE        = 2000,
-	MAX_TRIES      = 3;
+var PACKAGE   = __dirname+path.sep+'..'+path.sep+'package.json',
+	MAX_AGE   = 2000,
+	MAX_TRIES = 3;
 
 
 
-exports.middleware = function (rootDir) {
-	var apis = new APICalls({
-		dir        : path.resolve(process.cwd(), rootDir),
-		production : true,
-		apis       : API_PATH,
-	});
-
-	return function (req, res, next) {
-		self._apis.get(req.url.split('?')[0], req, function (status, headers, body) {
-			if (typeof status === 'undefined') {
-				next();
-			} else {
-				res.writeHeader(status, headers);
-				res.write(body, 'binary');
-				res.end();
-			}
+process.nextTick(function () {
+	if (require.main !== module) {
+		throw Error('server/index.js must be run as main module');
+	} else if (cluster.isMaster) {
+		new Master();
+	} else {
+		zerver.start(processFlags()._json, function () {
+			process.send({ started: true });
 		});
-	};
-};
-
-exports.start = function (options, callback) {
-	var zerver = new Zerver(options, function () {
-		callback && callback(zerver);
-	});
-	return zerver;
-};
+	}
+});
 
 
 
-function Zerver(options, callback) {
+/* Slave driver */
+
+function Master() {
 	var self = this;
-	self._options = extend({
-		ignores : API_PATH+'/',
-		apis    : API_PATH
-	}, options || {});
+	self.sigint  = false;
+	self.retries = [];
+	self.child   = null;
 
-	global.ZERVER_DEBUG = !self._options.production;
+	setInterval(function () {
+		self.pruneRetries();
+	}, MAX_AGE/2);
 
-	self._logger = new Logger(self._options);
-	self._apis   = new APICalls(self._options);
-	self._static = new StaticFiles(self._options, function () {
-		if (self._options.missing) {
-			if (self._options.missing[0] !== '/') {
-				self._options.missing = '/'+self._options.missing;
-			}
-			if ( self._static.get(self._options.missing) ) {
-				self._missing = self._options.missing;
-			}
-		}
+	self.createChild();
 
-		http.globalAgent.maxSockets = 50;
-
-		var app = http.createServer(function (req, res) {
-			self._handleRequest(req, res);
-		});
-
-		app.on('error', function (err) {
-			console.error('zerver: server error');
-			console.error(err);
-			console.error(err.stack);
-		});
-
-		app.listen(self._options.port, function () {
-			console.log('zerver running:');
-			console.log('- port: ' + self._options.port);
-			var apiNames = self._apis.getNames();
-			if (apiNames.length) {
-				console.log('- apis: ' + apiNames.join(', '));
-			}
-			var manifestList = self._static.getManifestNames();
-			if (manifestList.length) {
-				console.log('- manifests: ' + manifestList.join(', '));
-			}
-			if (self._options.production) {
-				console.log('- production: true');
-			}
-			if (self._options.refresh) {
-				console.log('- refresh: true');
-			}
-			if (self._options.cli) {
-				console.log('- cli: true');
-			}
-			if (self._options.stats) {
-				console.log('- stats: true');
-			}
-			console.log('');
-
-			callback();
-		});
+	process.on('SIGUSR2', function () {
+		self.killChild();
+	});
+	process.on('SIGINT', function () {
+		self.sigint = true;
+		self.killChild();
+		process.exit();
 	});
 }
 
-Zerver.prototype._handleRequest = function (req, res) {
-	var self     = this,
-		pathname = req.url.split('?')[0];
+Master.prototype.createChild = function () {
+	var self    = this,
+		started = false;
 
-	self._prepareRequest(req, res);
+	self.child = cluster.fork(process.env);
 
-	self._apis.get(pathname, req, function (status, headers, body) {
-		if (typeof status !== 'undefined') {
-			finish(status, headers, body);
+	self.child.on('message', function (data) {
+		try {
+			if (data.started) {
+				started = Date.now();
+			}
+		} catch (err) {}
+	});
+
+	self.child.on('exit', function () {
+		if ( !started ) {
+			process.exit();
 			return;
 		}
 
-		var data = self._static.get(pathname);
-		if (!data && self._missing) {
-			data = self._static.get(self._missing);
-		}
-		if ( !data ) {
-			data = {
-				status  : 404,
-				headers : { 'Content-Type' : 'text/plain' },
-				body    : '404',
-			};
+		self.retries.push(Date.now()-started);
+
+		if (self.sigint) {
+			return;
 		}
 
-		finish(data.status, data.headers, data.body);
+		self.killChild();
+
+		if ( self.shouldRetry() ) {
+			self.createChild();
+		} else {
+			console.error('zerver: max retries due to exceptions exceeded');
+			process.exit();
+		}
 	});
-
-	function finish(status, headers, body) {
-		res.writeHeader(status, headers);
-		res.write(body, 'binary');
-		res.end();
-	}
 };
 
-Zerver.prototype._prepareRequest = function (req, res) {
-	var self = this;
+Master.prototype.killChild = function () {
+	try {
+		this.child.kill();
+	} catch (err) {}
+	this.child = null;
+};
 
-	self._logger.startRequest(req, res);
+Master.prototype.shouldRetry = function () {
+	this.pruneRetries();
+	return (this.retries.length < MAX_TRIES);
+};
 
-	req.on('error', function (err) {
-		console.error('zerver: request error');
-		console.error(err);
-		console.error(err.stack);
-	});
-
-	res.on('error', function (err) {
-		console.error('zerver: response error');
-		console.error(err);
-		console.error(err.stack);
-	});
-
-	var timeout = setTimeout(function () {
-		console.error('zerver: request timeout');
-		res.statusCode = 500;
-		res.end('');
-	}, REQUEST_TIMEOUT);
-
-	var resEnd = res.end;
-	res.end = function () {
-		clearTimeout(timeout);
-		res.end = resEnd;
-		res.end.apply(this, arguments);
-		self._logger.endRequest(req, res);
-	};
+Master.prototype.pruneRetries = function () {
+	for (var t=0, i=this.retries.length; i--;) {
+		t += this.retries[i];
+		if (t >= MAX_AGE) {
+			this.retries.splice(0,i);
+			return;
+		}
+	}
 };
 
 
 
-function main() {
-	if (cluster.isMaster) {
-		masterMain();
-	} else {
-		slaveMain();
-	}
-}
-
-function masterMain() {
-	var sigint      = false,
-		prodRetries = [],
-		child;
-
-	setInterval(pruneRetries, MAX_AGE/2);
-	newChild();
-
-	process.on('SIGUSR2', killChild);
-	process.on('SIGINT', function () {
-		sigint = true;
-		killChild();
-		process.exit();
-	});
-
-	function newChild() {
-		var started = false;
-		child = cluster.fork(process.env);
-		child.on('message', function (data) {
-			try {
-				if (data.started) {
-					started = Date.now();
-				}
-			} catch (err) {}
-		});
-		child.on('exit', function () {
-			if ( !started ) {
-				process.exit();
-				return;
-			}
-			prodRetries.push(Date.now()-started);
-			if (sigint) {
-				return;
-			}
-			killChild();
-			if ( shouldRetry() ) {
-				newChild();
-			} else {
-				console.error('zerver: max retries due to exceptions exceeded');
-				process.exit();
-			}
-		});
-	}
-
-	function shouldRetry() {
-		pruneRetries();
-		return (prodRetries.length < MAX_TRIES);
-	}
-
-	function pruneRetries() {
-		for (var t=0, i=prodRetries.length; i--;) {
-			t += prodRetries[i];
-			if (t >= MAX_AGE) {
-				prodRetries.splice(0,i);
-				return;
-			}
-		}
-	}
-
-	function killChild() {
-		try {
-			child.kill();
-		} catch (err) {}
-		child = null;
-	}
-}
-
-function slaveMain() {
-	new Zerver(processFlags()._json, function () {
-		process.send({ started: true });
-	});
-}
+/* CLI arguments */
 
 function processFlags() {
 	var defaultArgs = [];
@@ -291,11 +145,13 @@ function processFlags() {
 		.option('-H, --headers'             , 'show headers in logs')
 		.option('-j, --json'                , 'requests get logged as json')
 		.option('-s, --stats'               , 'periodically print memory usage and other stats')
-		.option('-m, --manifest <paths>'    , 'deprecated. does nothing and prints a warning.')
 		.parse(args);
 	if (commands.production) {
 		commands.refresh = false;
 		commands.cli     = false;
+	}
+	if (commands.cli) {
+		commands.logging = true;
 	}
 	commands.dir = path.resolve(process.cwd(), commands.args[0] || '.');
 
@@ -334,8 +190,4 @@ function parseShell(s) {
 			else return s.replace(/\\([ "'\\$`(){}!#&*|])/g, '$1');
 		})
 	;
-}
-
-if (require.main === module) {
-	main();
 }

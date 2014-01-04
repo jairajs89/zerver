@@ -30,11 +30,11 @@ module.exports = StaticFiles;
 
 
 function StaticFiles(options, callback) {
-	var self      = this;
+	var self = this;
 	self._options = extend({
 		ignores: null,
 	}, options);
-	self._root    = self._options.dir;
+	self._root = self._options.dir;
 
 	if (self._options.production) {
 		self._concats = {};

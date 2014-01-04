@@ -65,7 +65,7 @@ function APICalls(options) {
 		file = file.replace(INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
 		file = file.replace(INSERT_APIS     , JSON.stringify(null)         );
 		file = file.replace(INSERT_REFRESH  , JSON.stringify(self._options.refresh));
-		file = file.replace(INSERT_LOGGING  , JSON.stringify(!self._options.production));
+		file = file.replace(INSERT_LOGGING  , JSON.stringify(!self._options.logging));
 
 		self._apiScripts[apiName] = file;
 	});
@@ -77,7 +77,7 @@ function APICalls(options) {
 	this._requireScript = this._requireScript.replace(INSERT_FUNCTIONS, JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(INSERT_APIS     , JSON.stringify(templateData)  );
 	this._requireScript = this._requireScript.replace(INSERT_REFRESH  , JSON.stringify(this._options.refresh));
-	this._requireScript = this._requireScript.replace(INSERT_LOGGING  , JSON.stringify(!this._options.production));
+	this._requireScript = this._requireScript.replace(INSERT_LOGGING  , JSON.stringify(!this._options.logging));
 }
 
 
