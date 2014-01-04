@@ -6,8 +6,8 @@ var extend = require('util')._extend,
 	zlib   = require('zlib'),
 	mime   = require('mime'),
 	urllib = require('url'),
-	async  = require(__dirname+'/lib/async'),
-	clean  = require(__dirname+'/lib/clean-css');
+	async  = require(__dirname+path.sep+'lib'+path.sep+'async'),
+	clean  = require(__dirname+path.sep+'lib'+path.sep+'clean-css');
 
 var DEBUG_LINES         = /\s*\;\;\;.*/g,
 	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,

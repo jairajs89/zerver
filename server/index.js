@@ -3,8 +3,8 @@
 var cluster   = require('cluster'),
 	path      = require('path'),
 	fs        = require('fs'),
-	commander = require(__dirname+'/lib/commander'),
-	zerver    = require(__dirname+'/zerver');
+	commander = require(__dirname+path.sep+'lib'+path.sep+'commander'),
+	zerver    = require(__dirname+path.sep+'zerver');
 
 var PACKAGE   = __dirname+path.sep+'..'+path.sep+'package.json',
 	MAX_AGE   = 2000,
@@ -18,9 +18,7 @@ process.nextTick(function () {
 	} else if (cluster.isMaster) {
 		new Master();
 	} else {
-		zerver.start(processFlags()._json, function () {
-			process.send({ started: true });
-		});
+		new Slave();
 	}
 });
 
@@ -111,28 +109,22 @@ Master.prototype.pruneRetries = function () {
 
 
 
+/* Slave */
+
+function Slave() {
+	zerver.start(processFlags()._json, function () {
+		process.send({ started: true });
+	});
+}
+
+
+
 /* CLI arguments */
 
 function processFlags() {
-	var defaultArgs = [];
-	if (process.env.ZERVER_FLAGS) {
-		console.log('[env="'+process.env.ZERVER_FLAGS+'"]');
-		defaultArgs = parseShell(process.env.ZERVER_FLAGS);
-	}
-	var args = process.argv.slice(0,2).concat(defaultArgs).concat(process.argv.slice(2));
-
-	var zerverVersion;
-	try {
-		var packageFile = fs.readFileSync(PACKAGE),
-			packageData = JSON.parse(packageFile);
-		zerverVersion = packageData.version;
-	} catch (err) {
-		zerverVersion = '0.0.0';
-	}
-
 	var commands = new commander.Command('zerver');
 	commands
-		.version(zerverVersion, '-v, --version')
+		.version(getZerverVersion(), '-v, --version')
 		.usage('[options] [dir]')
 		.option('-P, --port <n>'            , 'set server port to listen on', parseInt, process.env.PORT||5000)
 		.option('-p, --production'          , 'enable production mode (caching, concat, minfiy, gzip, etc)')
@@ -146,7 +138,7 @@ function processFlags() {
 		.option('-H, --headers'             , 'show headers in logs')
 		.option('-j, --json'                , 'requests get logged as json')
 		.option('-s, --stats'               , 'periodically print memory usage and other stats')
-		.parse(args);
+		.parse(getCLIArgs());
 	if (commands.production) {
 		commands.refresh = false;
 		commands.cli     = false;
@@ -173,6 +165,27 @@ function processFlags() {
 	return commands;
 }
 
+function getCLIArgs() {
+	var defaultArgs;
+	if (process.env.ZERVER_FLAGS) {
+		console.log('[env="'+process.env.ZERVER_FLAGS+'"]');
+		defaultArgs = parseShell(process.env.ZERVER_FLAGS);
+	} else {
+		defaultArgs = [];
+	}
+	return process.argv.slice(0,2).concat(defaultArgs).concat(process.argv.slice(2));
+}
+
+function getZerverVersion() {
+	try {
+		var packageFile = fs.readFileSync(PACKAGE),
+			packageData = JSON.parse(packageFile);
+		return packageData.version;
+	} catch (err) {
+		return '0.0.0';
+	}
+}
+
 function parseShell(s) {
 	return s.match(/(['"])((\\\1|[^\1])*?)\1|(\\ |\S)+/g)
 		.map(function (s) {
@@ -180,15 +193,10 @@ function parseShell(s) {
 				return s
 					.replace(/^'|'$/g, '')
 					.replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
-				;
-			}
-			else if (/^"/.test(s)) {
+			} else if (/^"/.test(s)) {
 				return s
 					.replace(/^"|"$/g, '')
 					.replace(/\\(["'\\$`(){}!#&*|])/g, '$1');
-				;
-			}
-			else return s.replace(/\\([ "'\\$`(){}!#&*|])/g, '$1');
-		})
-	;
+			} else return s.replace(/\\([ "'\\$`(){}!#&*|])/g, '$1');
+		});
 }

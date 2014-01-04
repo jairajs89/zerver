@@ -3,7 +3,7 @@ var extend  = require('util')._extend,
 	path    = require('path'),
 	qs      = require('querystring'),
 	urllib  = require('url'),
-	Cookies = require(__dirname+'/lib/cookies');
+	Cookies = require(__dirname+path.sep+'lib'+path.sep+'cookies');
 
 var SCRIPT_TEMPLATE = fs.readFileSync(__dirname+path.sep+'..'+path.sep+'client'+path.sep+'index.js').toString(),
 	INSERT_REFRESH   = '{{__API_REFRESH__}}',

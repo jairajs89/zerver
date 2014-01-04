@@ -1,9 +1,9 @@
 var extend      = require('util')._extend,
 	http        = require('http'),
 	path        = require('path'),
-	StaticFiles = require(__dirname+'/static'),
-	APICalls    = require(__dirname+'/api'),
-	Logger      = require(__dirname+'/log');
+	StaticFiles = require(__dirname+path.sep+'static'),
+	APICalls    = require(__dirname+path.sep+'api'),
+	Logger      = require(__dirname+path.sep+'log');
 
 var API_PATH        = '/zerver',
 	REQUEST_TIMEOUT = 25 * 1000;
