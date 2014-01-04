@@ -10,7 +10,10 @@ function testObj() {
 				delete require.cache[key];
 			}
 		}
-		var apis = new APICalls(root, '/zerver', {});
+		var apis = new APICalls({
+			dir  : root,
+			apis : '/zerver',
+		});
 		apis.test = testRequest;
 		apis.customTest = customRequest;
 		callback(apis);
@@ -27,6 +30,9 @@ function testRequest(func, args, callback) {
 			'content-type': 'application/json',
 			'connection': 'keep-alive',
 			'accept': '*/*',
+		},
+		connection: {
+			remoteAddress: '127.0.0.1'
 		},
 		on: function (type, handler) {
 			var data;
@@ -62,6 +68,9 @@ function customRequest(method, func, body, callback, isForm) {
 			'content-type': (isForm ? 'application/x-www-form-urlencoded' : 'application/json'),
 			'connection': 'keep-alive',
 			'accept': '*/*',
+		},
+		connection: {
+			remoteAddress: '127.0.0.1'
 		},
 		on: function (type, handler) {
 			var data;

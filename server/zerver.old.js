@@ -1,9 +1,9 @@
 /* Imports and static vars */
 
 var StaticFiles = require(__dirname + '/static'   ),
-	clean       = require(__dirname + '/clean-css'),
+	APICalls    = require(__dirname + '/api'      ),
+	clean       = require(__dirname + '/lib/clean-css'),
 	debug       = require(__dirname + '/debug'    ),
-	cookies     = require(__dirname + '/cookies'  ),
 	crypto      = require('crypto'   ),
 	fs          = require('fs'       ),
 	http        = require('http'     ),
@@ -229,18 +229,8 @@ function configureZerver (options, callback) {
 
 
 	http.globalAgent.maxSockets = 50;
-
-	staticCache = new StaticFiles(ROOT_DIR, {
-		ignores         : '/'+API_URL+'/',
-		memoryCache     : options.production,
-		cache           : options.cache,
-		disableManifest : options.disableManifest,
-		ignoreManifest  : options.ignoreManifest,
-		gzip            : options.production,
-		compile         : options.production,
-		inline          : options.production,
-		concat          : options.production,
-	}, function () {
+	options.ignores = '/'+API_URL+'/';
+	staticCache = new StaticFiles(ROOT_DIR, options, function () {
 		fetchAPIs();
 		callback();
 	});
@@ -396,7 +386,6 @@ function handleRequest (request, response, isWS) {
 		};
 
 	statsWatchRequest(handler, request, response);
-	setupCookieHandler(handler);
 
 	if (!PRODUCTION && isApiCall && debug.handle(handler)) {
 		return;
@@ -408,37 +397,6 @@ function handleRequest (request, response, isWS) {
 	handleRequestErrors(handler);
 
 	tryResponseFromCache(handler, pathname, isApiCall, dynamicResponse);
-}
-
-function setupCookieHandler (handler) {
-	var oldCookies = cookies.parse(handler.request.headers.cookie),
-		newCookies = {};
-
-	handler.cookies = {
-		get    : getCookie ,
-		set    : setCookie ,
-		output : getOutput
-	};
-
-	function getCookie (name) {
-		if (typeof name !== 'string') {
-			throw TypeError('cookie name must be a string, got '+name);
-		}
-		return oldCookies[name];
-	}
-
-	function setCookie (name, value, options) {
-		var headerValue = cookies.serialise(name, value, options);
-		newCookies[name] = headerValue;
-	}
-
-	function getOutput () {
-		var headers = [];
-		for (var name in newCookies) {
-			headers.push( newCookies[name] );
-		}
-		return headers;
-	}
 }
 
 function handleRequestErrors (handler) {
@@ -924,13 +882,6 @@ function finishResponse (handler, status, headers, data, isBinary, is404) {
 		etag = '"' + hash.digest('hex') + '"';
 		headers['ETag'] = etag;
 		headers['Vary'] = 'Accept-Encoding';
-	}
-
-	if (handler.cookies) {
-		var newCookies = handler.cookies.output();
-		if (newCookies && newCookies.length) {
-			headers['Set-Cookie'] = newCookies;
-		}
 	}
 
 	var response = handler.response;
@@ -1453,7 +1404,7 @@ function generateZerverScript (apiRoot, query) {
 }
 
 function logRequest (handler, status) {
-	if (handle.request.isFake) {
+	if (handler.request.isFake) {
 		return;
 	}
 

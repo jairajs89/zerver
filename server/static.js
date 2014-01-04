@@ -6,7 +6,8 @@ var extend = require('util')._extend,
 	zlib   = require('zlib'),
 	mime   = require('mime'),
 	urllib = require('url'),
-	clean  = require(__dirname+'/clean-css');
+	async  = require(__dirname+'/lib/async'),
+	clean  = require(__dirname+'/lib/clean-css');
 
 var DEBUG_LINES         = /\s*\;\;\;.*/g,
 	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
@@ -28,32 +29,21 @@ module.exports = StaticFiles;
 
 
 
-function StaticFiles(rootDir, options, callback) {
-	var self     = this;
-	self._root   = rootDir;
-	self.options = extend({
-		ignores         : null  ,
-		memoryCache     : false ,
-		cache           : null  ,
-		disableManifest : false ,
-		ignoreManifest  : null  ,
-		gzip            : false ,
-		compile         : false ,
-		inline          : false ,
-		concat          : false ,
+function StaticFiles(options, callback) {
+	var self      = this;
+	self._options = extend({
+		ignores: null,
 	}, options);
+	self._root    = self._options.dir;
 
-	if (options.concat) {
-		self.concats = {};
+	if (self._options.production) {
+		self._concats = {};
+		self._cache   = {};
 	}
-
-	if (options.memoryCache) {
-		self._cache = {};
-	}
-	self._defaultCache = (options.memoryCache ? 300 : 0),
+	self._defaultCache = (self._options.production ? 300 : 0),
 	self._customCache = {};
-	if (options.cache && self._cache) {
-		options.cache.split(',').forEach(function (segment) {
+	if (self._options.cache && self._cache) {
+		self._options.cache.split(',').forEach(function (segment) {
 			var parts = segment.split(':'),
 				path, life;
 			switch (parts.length) {
@@ -77,18 +67,18 @@ function StaticFiles(rootDir, options, callback) {
 		});
 	}
 
-	if (options.ignores) {
-		self._ignores = options.ignores.split(',');
+	if (self._options.ignores) {
+		self._ignores = self._options.ignores.split(',');
 	} else {
 		self._ignores = [];
 	}
 
-	if (options.disableManifest) {
+	if (self._options.disableManifest) {
 		self._manifests = {};
 	} else {
 		self._manifests = detectManifests(self._root, self._ignores);
-		if (options.ignoreManifest) {
-			options.ignoreManifest.split(',').forEach(function (pathname) {
+		if (self._options.ignoreManifest) {
+			self._options.ignoreManifest.split(',').forEach(function (pathname) {
 				pathname = relativePath('/', pathname);
 				if ( self._manifests[pathname] ) {
 					delete self._manifests[pathname];
@@ -118,12 +108,12 @@ StaticFiles.prototype._loadCache = function (callback) {
 	walkDirectory(self._root, self._ignores, function (pathname, next) {
 		self._cacheFile(pathname, next);
 	}, function () {
-		if ( !self.concats ) {
+		if ( !self._concats ) {
 			callback();
 			return;
 		}
-		asyncJoin(
-			Object.keys(self.concats).map(function (pathname) {
+		async.join(
+			Object.keys(self._concats).map(function (pathname) {
 				return function (respond) {
 					self._cacheConcatFile(pathname, respond);
 				};
@@ -152,6 +142,9 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 	var altPath;
 	if (pathname.split('/').pop() === 'index.html') {
 		altPath = pathname.split('/').slice(0,-1).join('/')+'/';
+		if (altPath.length > 1) {
+			self._cacheDirectory(altPath.substr(0,altPath.length-1));
+		}
 	}
 
 	self._cache[pathname] = false;
@@ -166,7 +159,7 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 			'Cache-Control' : self._getCacheControl(pathname),
 		};
 
-	asyncForEach([
+	async.forEach([
 		'prepareManifest',
 		'inlineManifestFiles',
 		'prepareManifestConcatFiles',
@@ -199,6 +192,16 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 	})
 };
 
+StaticFiles.prototype._cacheDirectory = function (pathname) {
+	this._cache[pathname] = {
+		status  : 301,
+		headers : {
+			'Location' : pathname+'/'
+		},
+		body    : '',
+	};
+};
+
 StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 	var self = this;
 
@@ -212,7 +215,7 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 		callback(self._cache[pathname].headers, self._cache[pathname].body);
 		return;
 	}
-	if ( !(pathname in self.concats) ) {
+	if ( !(pathname in self._concats) ) {
 		throw Error('path is not a concat file, ' + pathname);
 	}
 
@@ -232,8 +235,8 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 			'Cache-Control' : self._getCacheControl(pathname),
 		};
 
-	asyncJoin(
-		self.concats[pathname].map(function (partPath) {
+	async.join(
+		self._concats[pathname].map(function (partPath) {
 			return function (respond) {
 				var cached = self._cache[partPath];
 				if ( !cached ) {
@@ -298,7 +301,7 @@ StaticFiles.prototype._prepareManifest = function (pathname, headers, body, call
 };
 
 StaticFiles.prototype._inlineManifestFiles = function (pathname, headers, body, callback) {
-	if (!this.options.inline || !this._manifests[pathname]) {
+	if (!this._options.production || !this._manifests[pathname]) {
 		callback(headers, body);
 		return;
 	}
@@ -322,7 +325,7 @@ StaticFiles.prototype._inlineManifestFiles = function (pathname, headers, body, 
 };
 
 StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers, body, callback) {
-	if (!this.concats || !this._manifests[pathname]) {
+	if (!this._concats || !this._manifests[pathname]) {
 		callback(headers, body);
 		return;
 	}
@@ -355,13 +358,13 @@ StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers,
 			lines.splice(i+1, 0, concatFile);
 			l++;
 
-			if (absPath in this.concats) {
-				if (this.concats[absPath].join('\n') !== concatList.join('\n')) {
+			if (absPath in this._concats) {
+				if (this._concats[absPath].join('\n') !== concatList.join('\n')) {
 					throw Error('Concat files did not match: '+absPath+'\nEnsure that the order and names of the files are the same in both HTML and manifest files');
 				}
 			}
 
-			this.concats[absPath] = concatList;
+			this._concats[absPath] = concatList;
 			concatFile = null;
 		} else if ( !lines[i] ) {
 			lines.splice(i, 1);
@@ -375,7 +378,7 @@ StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers,
 };
 
 StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, callback) {
-	if (!this.concats || (headers['Content-Type'] !== 'text/html')) {
+	if (!this._concats || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
 	}
@@ -405,13 +408,13 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 			return original;
 		}
 
-		if (absPath in self.concats) {
-			if (self.concats[absPath].join('\n') !== files.join('\n')) {
+		if (absPath in self._concats) {
+			if (self._concats[absPath].join('\n') !== files.join('\n')) {
 				throw Error('Concat files did not match: '+absPath+'\nEnsure that the order and names of the files are the same in both HTML and manifest files');
 			}
 		}
 
-		self.concats[absPath] = files;
+		self._concats[absPath] = files;
 
 		switch (fileType) {
 			case 'js':
@@ -421,7 +424,7 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 				return '<link rel="stylesheet" href="'+concatPath+'">';
 
 			default:
-				delete self.concats[absPath];
+				delete self._concats[absPath];
 				return original;
 		}
 	});
@@ -430,13 +433,13 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 };
 
 StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callback) {
-	if (!this.options.inline || (headers['Content-Type'] !== 'text/html')) {
+	if (!this._options.production || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
 	}
 
 	var self = this;
-	asyncReplace(body, SCRIPT_MATCH, function (scriptPath, next) {
+	async.replace(body, SCRIPT_MATCH, function (scriptPath, next) {
 		if ( !urllib.parse(scriptPath,true).query.inline ) {
 			next();
 			return;
@@ -465,13 +468,13 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 };
 
 StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callback) {
-	if (!this.options.inline || (headers['Content-Type'] !== 'text/html')) {
+	if (!this._options.production || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
 	}
 
 	var self = this;
-	asyncReplace(body, STYLES_MATCH, function (stylePath, next) {
+	async.replace(body, STYLES_MATCH, function (stylePath, next) {
 		if ( !urllib.parse(stylePath,true).query.inline ) {
 			next();
 			return;
@@ -500,13 +503,13 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._inlineImages = function (pathname, headers, body, callback) {
-	if (!this.options.inline || (headers['Content-Type'] !== 'text/css')) {
+	if (!this._options.production || (headers['Content-Type'] !== 'text/css')) {
 		callback(headers, body);
 		return;
 	}
 
 	var self = this;
-	asyncReplace(body, CSS_IMAGE, function (imgPath, respond) {
+	async.replace(body, CSS_IMAGE, function (imgPath, respond) {
 		if (imgPath.substr(0,5) === 'data:') {
 			respond();
 			return;
@@ -517,7 +520,7 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 		}
 		var fullPath = relativePath(pathname, imgPath.split('?')[0]);
 		self._cacheFile(fullPath, function (headers, body) {
-			respond('url(data:'+headers['Content-Type']+';base64,'+body.toString('base64')+')');
+			respond('url(data:'+headers['Content-Type']+';base64,'+new Buffer(body, 'binary').toString('base64')+')');
 		});
 	}, function (body) {
 		callback(headers, body);
@@ -525,7 +528,7 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._compileOutput = function (pathname, headers, body, callback) {
-	if ( !this.options.compile ) {
+	if ( !this._options.production ) {
 		callback(headers, body);
 		return;
 	}
@@ -556,7 +559,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 };
 
 StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback) {
-	if (!this.options.gzip || !GZIPPABLE[headers['Content-Type']]) {
+	if (!this._options.production || !GZIPPABLE[headers['Content-Type']]) {
 		callback(headers, body);
 		return;
 	}
@@ -584,6 +587,7 @@ StaticFiles.prototype.get = function (pathname) {
 
 	if (response) {
 		return {
+			status  : (response.status || 200),
 			headers : extend({}, response.headers),
 			body    : response.body,
 		};
@@ -592,10 +596,12 @@ StaticFiles.prototype.get = function (pathname) {
 
 StaticFiles.prototype._rawGet = function (pathname) {
 	var filePath = path.join(this._root, pathname),
-		file;
+		parts    = pathname.split('/');
 
-	if (pathname.split('/').pop()[0] === '.') {
-		return;
+	for (var i=0, l=parts.length; i<l; i++) {
+		if (parts[i][0] === '.') {
+			return;
+		}
 	}
 
 	for (var i=0, l=this._ignores.length; i<l; i++) {
@@ -604,6 +610,28 @@ StaticFiles.prototype._rawGet = function (pathname) {
 		}
 	}
 
+	var isDirRoot = pathname[pathname.length-1] === '/';
+	if (isDirRoot) {
+		filePath += '/index.html';
+	}
+
+	var stat;
+	try {
+		stat = fs.statSync(filePath);
+	} catch (err) {
+		return;
+	}
+	if (stat.isDirectory() && !isDirRoot) {
+		return {
+			status  : 301,
+			headers : {
+				'Location' : ''
+			},
+			body    : '',
+		};
+	}
+
+	var file;
 	try {
 		file = fs.readFileSync(filePath);
 	} catch (err) {
@@ -621,6 +649,10 @@ StaticFiles.prototype._rawGet = function (pathname) {
 			'Cache-Control' : this._getCacheControl(pathname),
 		}
 	};
+};
+
+StaticFiles.prototype.getManifestNames = function () {
+	return Object.keys(this._manifests);
 };
 
 StaticFiles.prototype.dump = function (pathname) {
@@ -713,97 +745,4 @@ function getLastModifiedTimestamp(root, ignores) {
 	}, function(){});
 
 	return latest;
-}
-
-
-
-/* Async helpers */
-
-function asyncJoin(funcs, callback, self) {
-	if ( !self ) {
-		self = this;
-	}
-
-	var num = funcs.length;
-	if ( !num ) {
-		callback();
-		return;
-	}
-
-	var responses = new Array(num);
-	funcs.forEach(function (func, index) {
-		var lock = false;
-
-		func.call(self, function (data) {
-			if (lock) {
-				return;
-			}
-			lock = true;
-
-			responses[index] = data;
-			if ( !--num ) {
-				callback.call(this, responses);
-			}
-		});
-	});
-}
-
-function asyncSequence() {
-	var funcs = Array.prototype.slice.call(arguments);
-	next();
-	function next() {
-		var func = funcs.shift();
-		if (func) {
-			func(next);
-		}
-	}
-}
-
-function asyncForEach(arr, handler, callback) {
-	arr = arr.slice();
-	next();
-	function next() {
-		var elem = arr.shift();
-		if (elem) {
-			handler(elem, next);
-		} else {
-			callback();
-		}
-	}
-}
-
-function asyncReplace(str, matcher, handler, callback) {
-	var self    = this,
-		matches = {};
-	str = str.replace(matcher, function (original, data) {
-		var matchID = '__ZERVER_INLINE__'+Math.random();
-		matches[matchID] = [original, data];
-		return matchID;
-	});
-
-	var matchIDs = Object.keys(matches);
-	if ( !matchIDs.length ) {
-		callback(str);
-		return;
-	}
-
-	asyncForEach(
-		matchIDs,
-		function (matchID, respond) {
-			handler(matches[matchID][1], function (newData) {
-				if (newData) {
-					matches[matchID] = newData;
-				} else {
-					matches[matchID] = matches[matchID][0];
-				}
-				respond();
-			});
-		},
-		function () {
-			for (var matchID in matches) {
-				str = str.replace(matchID, matches[matchID]);
-			}
-			callback(str);
-		}
-	);
 }

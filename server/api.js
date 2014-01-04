@@ -1,10 +1,11 @@
-var extend = require('util')._extend,
-	fs     = require('fs'),
-	path   = require('path'),
-	qs     = require('querystring'),
-	urllib = require('url');
+var extend  = require('util')._extend,
+	fs      = require('fs'),
+	path    = require('path'),
+	qs      = require('querystring'),
+	urllib  = require('url'),
+	Cookies = require(__dirname+'/lib/cookies');
 
-var SCRIPT_TEMPLATE = fs.readFileSync(__dirname+path.sep+'..'+path.sep+'browser-client'+path.sep+'index.js').toString(),
+var SCRIPT_TEMPLATE = fs.readFileSync(__dirname+path.sep+'..'+path.sep+'client'+path.sep+'index.js').toString(),
 	INSERT_REFRESH   = '{{__API_REFRESH__}}',
 	INSERT_LOGGING   = '{{__API_LOGGING__}}',
 	INSERT_DIR       = '{{__API_DIR__}}',
@@ -17,23 +18,20 @@ module.exports = APICalls;
 
 
 
-function APICalls(rootDir, pathname, options) {
-	this._root       = rootDir;
-	this._rootPath   = pathname;
+function APICalls(options) {
+	this._options    = extend({}, options || {});
+	this._root       = this._options.dir;
+	this._rootPath   = this._options.apis;
 	this._apis       = {};
 	this._apiScripts = {};
 	this._cors       = {};
-	this._options    = extend({
-		refresh: false,
-		logging: false,
-	}, options || {});
 
 	var self         = this,
 		templateData = {},
 		apiNames;
 
 	try {
-		apiNames = fs.readdirSync(rootDir+pathname);
+		apiNames = fs.readdirSync(self._root+self._rootPath);
 	} catch (err) {
 		apiNames = [];
 	}
@@ -44,7 +42,7 @@ function APICalls(rootDir, pathname, options) {
 		}
 
 		var apiName  = fileName.substr(0, len-3),
-			fullName = path.join(rootDir+pathname, apiName);
+			fullName = path.join(self._root+self._rootPath, apiName);
 
 		var api = require(fullName);
 		self._apis[apiName] = api;
@@ -66,8 +64,8 @@ function APICalls(rootDir, pathname, options) {
 		file = file.replace(INSERT_API      , JSON.stringify(apiObj)       );
 		file = file.replace(INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
 		file = file.replace(INSERT_APIS     , JSON.stringify(null)         );
-		file = file.replace(INSERT_REFRESH  , JSON.stringify(!!self._options.refresh));
-		file = file.replace(INSERT_LOGGING  , JSON.stringify(!!self._options.logging));
+		file = file.replace(INSERT_REFRESH  , JSON.stringify(self._options.refresh));
+		file = file.replace(INSERT_LOGGING  , JSON.stringify(!self._options.production));
 
 		self._apiScripts[apiName] = file;
 	});
@@ -78,15 +76,15 @@ function APICalls(rootDir, pathname, options) {
 	this._requireScript = this._requireScript.replace(INSERT_API      , JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(INSERT_FUNCTIONS, JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(INSERT_APIS     , JSON.stringify(templateData)  );
-	this._requireScript = this._requireScript.replace(INSERT_REFRESH  , JSON.stringify(!!this._options.refresh));
-	this._requireScript = this._requireScript.replace(INSERT_LOGGING  , JSON.stringify(!!this._options.logging));
+	this._requireScript = this._requireScript.replace(INSERT_REFRESH  , JSON.stringify(this._options.refresh));
+	this._requireScript = this._requireScript.replace(INSERT_LOGGING  , JSON.stringify(!this._options.production));
 }
 
 
 
 APICalls.prototype.get = function (pathname, req, callback) {
 	if (pathname.substr(0, this._rootPath.length+1) !== this._rootPath+'/') {
-		callback(404, { 'Cache-Control': 'text/plain' }, '404');
+		callback();
 		return;
 	}
 
@@ -119,6 +117,10 @@ APICalls.prototype.get = function (pathname, req, callback) {
 	this._apiCall(apiParts[0], req, func, callback);
 };
 
+APICalls.prototype.getNames = function () {
+	return Object.keys(this._apis);
+};
+
 APICalls.prototype._apiScript = function (apiName, callback) {
 	var script;
 	if (script === 'require') {
@@ -137,9 +139,22 @@ APICalls.prototype._apiScript = function (apiName, callback) {
 };
 
 APICalls.prototype._apiCall = function (apiName, req, func, callback) {
-	var customAPI = !!func.type,
-		method    = (func.type || 'POST').toUpperCase(),
+	var customAPI = false,
 		cors;
+
+	if (typeof func.type === 'string') {
+		customAPI = [func.type];
+	} else if ( Array.isArray(func.type) ) {
+		customAPI = func.type.slice();
+	}
+	if (customAPI) {
+		customAPI = customAPI.filter(function (type) {
+			return (typeof type === 'string');
+		}).map(function (type) {
+			return type.toUpperCase();
+		});
+	}
+
 	if (apiName in this._cors) {
 		if (typeof this._cors[apiName] === 'string') {
 			cors = this._cors[apiName];
@@ -147,21 +162,32 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
 			cors = this._cors[apiName].join(', ');
 		}
 	}
-
 	if ((req.method === 'OPTIONS') && cors) {
+		var maxAge = 60*60*6;
 		callback(200, {
 			'Access-Control-Allow-Headers' : 'Content-Type',
 			'Access-Control-Allow-Origin'  : cors,
-			'Access-Control-Allow-Methods' : method,
-			'Cache-Control'                : 'public, max-age='+(60*60*6),
+			'Access-Control-Allow-Methods' : customAPI ? customAPI.join(', ') : 'POST',
+			'Access-Control-Max-Age'       : maxAge,
+			'Cache-Control'                : 'public, max-age='+maxAge,
 		}, '');
 		return;
 	}
 
-	if (method !== req.method) {
+	if ((customAPI || ['POST']).indexOf(req.method) === -1) {
 		callback(415, { 'Cache-Control': 'text/plain' }, '415');
 		return;
 	}
+
+	req.ip        = getClientHost(req);
+	req.protocol  = getClientProtocol(req);
+	req.host      = req.headers['host']
+	req.pathname  = req.url.split('?')[0];
+	req.query     = urllib.parse(req.url, true).query;
+	req.params    = extend({}, req.query);
+	req.referrer  = (req.headers['referrer'] || req.headers['referer']);
+	req.userAgent = req.headers['user-agent'];
+	req.cookies   = new Cookies(req);
 
 	if (customAPI) {
 		this._customApiCall(req, func, finish);
@@ -170,6 +196,7 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
 	}
 
 	function finish(status, headers, body) {
+		req.cookies.setHeaders(headers);
 		if (cors) {
 			headers['Access-Control-Allow-Headers'] = 'Content-Type';
 			headers['Access-Control-Allow-Origin' ] = cors;
@@ -252,8 +279,6 @@ APICalls.prototype._customApiCall = function (req, func, finish) {
 	}
 
 	function callAPI(body) {
-		req.query  = urllib.parse(req.url, true).query;
-		req.params = extend({}, req.query);
 		req.body = body;
 		try {
 			req.jsonBody = JSON.parse(body);
@@ -296,6 +321,16 @@ APICalls.prototype._customApiCall = function (req, func, finish) {
 				body    = arguments[0];
 				headers = {};
 				status  = 200;
+				break;
+			case 2:
+				body = arguments[1];
+				if (typeof arguments[0] === 'number') {
+					status  = arguments[0];
+					headers = {};
+				} else {
+					headers = arguments[0];
+					status  = 200;
+				}
 				break;
 		}
 
@@ -384,4 +419,22 @@ function getRequestBody(req, callback) {
 	req.on('end', function () {
 		callback(body);
 	});
+}
+
+function getClientHost(req) {
+	var host = req.headers['x-forwarded-for'];
+	if (host) {
+		return host.split(',')[0];
+	} else {
+		return req.connection.remoteAddress;
+	}
+}
+
+function getClientProtocol(req) {
+	var proto = req.headers['x-forwarded-proto'];
+	if (proto) {
+		return proto.split(',')[0];
+	} else {
+		return 'http';
+	}
 }

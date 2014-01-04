@@ -1,5 +1,39 @@
-exports.serialise = serialiseCookie;
-exports.parse     = parseCookies;
+module.exports = CookieJar;
+
+
+
+function CookieJar(req) {
+	this._oldCookies = parseCookies(req.headers.cookie);
+	this._newCookies = {};
+}
+
+CookieJar.prototype.get = function (name) {
+	return this._oldCookies[name];
+};
+
+CookieJar.prototype.set = function (name, value, options) {
+	this._newCookies[name] = serialiseCookie(name, value, options);
+};
+
+CookieJar.prototype.setHeaders = function (headers) {
+	var setCookies = [];
+	if (typeof headers['Set-Cookie'] === 'string') {
+		setCookies.push( headers['Set-Cookie'] );
+	} else if ( Array.isArray(headers['Set-Cookie']) ) {
+		setCookies = headers['Set-Cookie'].slice();
+	}
+
+	for (var name in this._newCookies) {
+		setCookies.push( this._newCookies[name] );
+	}
+
+	if (setCookies.length) {
+		headers['Set-Cookie'] = setCookies;
+	} else {
+		delete headers['Set-Cookie'];
+	}
+};
+
 
 
 function serialiseCookie (name, value, options) {
