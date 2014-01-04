@@ -1,12 +1,12 @@
 var extend = require('util')._extend;
 
-var HIDDEN_HEADERS = [
+module.exports = Logger;
+
+Logger.HIDDEN_HEADERS = [
 	'host'   , 'connection', 'user-agent'     , 'if-none-match'  ,
 	'referer', 'accept'    , 'accept-encoding', 'accept-language',
 	'content-length'
 ];
-
-module.exports = Logger;
 
 
 
@@ -103,7 +103,7 @@ Logger.prototype._print = function (req, res) {
 	if (this._options.headers) {
 		logs.headers = {};
 		for (var key in req.headers) {
-			if (HIDDEN_HEADERS.indexOf(key) === -1) {
+			if (Logger.HIDDEN_HEADERS.indexOf(key) === -1) {
 				logs.headers[key] = req.headers[key];
 			}
 		}

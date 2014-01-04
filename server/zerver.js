@@ -1,53 +1,22 @@
-var extend      = require('util')._extend,
-	http        = require('http'),
+var http        = require('http'),
 	path        = require('path'),
-	StaticFiles = require(__dirname+path.sep+'static'),
+	extend      = require('util')._extend,
 	APICalls    = require(__dirname+path.sep+'api'),
-	Logger      = require(__dirname+path.sep+'log');
+	Logger      = require(__dirname+path.sep+'log'),
+	StaticFiles = require(__dirname+path.sep+'static');
 
-var API_PATH        = '/zerver',
-	REQUEST_TIMEOUT = 25 * 1000;
+module.exports = Zerver;
 
-
-
-exports.middleware = function (rootDir) {
-	var apis = new APICalls({
-		dir        : path.resolve(process.cwd(), rootDir),
-		production : true,
-		apis       : API_PATH,
-	});
-
-	return function (req, res, next) {
-		self._apis.get(req.url.split('?')[0], req, function (status, headers, body) {
-			if (typeof status === 'undefined') {
-				next();
-			} else {
-				res.writeHeader(status, headers);
-				res.write(body, 'binary');
-				res.end();
-			}
-		});
-	};
-};
-
-exports.start = function (options, callback) {
-	var zerver = new Zerver(options, function () {
-		process.nextTick(function () {
-			if (callback) {
-				callback(zerver);
-			}
-		});
-	});
-	return zerver;
-};
+Zerver.API_PATH = '/zerver';
+Zerver.REQUEST_TIMEOUT = 25 * 1000;
 
 
 
 function Zerver(options, callback) {
 	var self = this;
 	self._options = extend({
-		ignores : API_PATH+'/',
-		apis    : API_PATH
+		ignores : Zerver.API_PATH+'/',
+		apis    : Zerver.API_PATH
 	}, options || {});
 
 	global.ZERVER_DEBUG = !self._options.production;
@@ -163,7 +132,7 @@ Zerver.prototype._prepareRequest = function (req, res) {
 		console.error('zerver: request timeout');
 		res.statusCode = 500;
 		res.end('');
-	}, REQUEST_TIMEOUT);
+	}, Zerver.REQUEST_TIMEOUT);
 
 	var resEnd = res.end;
 	res.end = function () {
@@ -171,5 +140,25 @@ Zerver.prototype._prepareRequest = function (req, res) {
 		res.end = resEnd;
 		res.end.apply(this, arguments);
 		self._logger.endRequest(req, res);
+	};
+};
+
+Zerver.middleware = function (rootDir) {
+	var apis = new APICalls({
+		dir        : path.resolve(process.cwd(), rootDir),
+		production : true,
+		apis       : Zerver.API_PATH,
+	});
+
+	return function (req, res, next) {
+		apis.get(req.url.split('?')[0], req, function (status, headers, body) {
+			if (typeof status === 'undefined') {
+				next();
+			} else {
+				res.writeHeader(status, headers);
+				res.write(body, 'binary');
+				res.end();
+			}
+		});
 	};
 };

@@ -1,31 +1,31 @@
-var extend = require('util')._extend,
-	crypto = require('crypto'),
-	path   = require('path'),
+var crypto = require('crypto'),
 	fs     = require('fs'),
-	uglify = require('uglify-js'),
+	path   = require('path'),
+	urllib = require('url'),
+	extend = require('util')._extend,
 	zlib   = require('zlib'),
 	mime   = require('mime'),
-	urllib = require('url'),
+	uglify = require('uglify-js'),
 	async  = require(__dirname+path.sep+'lib'+path.sep+'async'),
 	clean  = require(__dirname+path.sep+'lib'+path.sep+'clean-css');
 
-var DEBUG_LINES         = /\s*\;\;\;.*/g,
-	CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g,
-	SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g,
-	STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g,
-	CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g,
-	MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g,
-	MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g,
-	GZIPPABLE           = {
-		'application/json'       : true ,
-		'application/javascript' : true ,
-		'text/css'               : true ,
-		'text/html'              : true ,
-		'text/plain'             : true ,
-		'text/cache-manifest'    : true ,
-	};
-
 module.exports = StaticFiles;
+
+StaticFiles.CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
+StaticFiles.DEBUG_LINES         = /\s*\;\;\;.*/g;
+StaticFiles.MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g;
+StaticFiles.MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
+StaticFiles.SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g;
+StaticFiles.STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g;
+StaticFiles.CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g;
+StaticFiles.GZIPPABLE           = {
+	'application/json'       : true ,
+	'application/javascript' : true ,
+	'text/css'               : true ,
+	'text/html'              : true ,
+	'text/plain'             : true ,
+	'text/cache-manifest'    : true ,
+};
 
 
 
@@ -337,12 +337,12 @@ StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers,
 		lines[i] = lines[i].trim();
 
 		if ( !concatFile ) {
-			var match = MANIFEST_CONCAT.exec( lines[i] );
+			var match = StaticFiles.MANIFEST_CONCAT.exec( lines[i] );
 			if (match) {
 				concatFile  = match[1];
 				concatIndex = i;
 			}
-		} else if ( MANIFEST_CONCAT_END.test( lines[i] ) ) {
+		} else if ( StaticFiles.MANIFEST_CONCAT_END.test( lines[i] ) ) {
 			var sectionLength = i-concatIndex+1,
 				concatList    = lines.splice(concatIndex, sectionLength),
 				absPath       = relativePath(pathname, concatFile);
@@ -385,20 +385,20 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 
 	var self = this;
 
-	body = body.replace(CONCAT_MATCH, function (original, concatPath, concatables) {
+	body = body.replace(StaticFiles.CONCAT_MATCH, function (original, concatPath, concatables) {
 		var files   = [],
 			absPath = relativePath(pathname, concatPath),
 			fileType, match;
 
 		if ( !fileType ) {
-			while (match=SCRIPT_MATCH.exec(concatables)) {
+			while (match=StaticFiles.SCRIPT_MATCH.exec(concatables)) {
 				fileType = 'js';
 				files.push( relativePath(pathname, match[1]) );
 			}
 		}
 
 		if ( !fileType ) {
-			while (match=STYLES_MATCH.exec(concatables)) {
+			while (match=StaticFiles.STYLES_MATCH.exec(concatables)) {
 				fileType = 'css';
 				files.push( relativePath(pathname, match[1]) );
 			}
@@ -439,7 +439,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 	}
 
 	var self = this;
-	async.replace(body, SCRIPT_MATCH, function (scriptPath, next) {
+	async.replace(body, StaticFiles.SCRIPT_MATCH, function (scriptPath, next) {
 		if ( !urllib.parse(scriptPath,true).query.inline ) {
 			next();
 			return;
@@ -474,7 +474,7 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
 	}
 
 	var self = this;
-	async.replace(body, STYLES_MATCH, function (stylePath, next) {
+	async.replace(body, StaticFiles.STYLES_MATCH, function (stylePath, next) {
 		if ( !urllib.parse(stylePath,true).query.inline ) {
 			next();
 			return;
@@ -509,7 +509,7 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 	}
 
 	var self = this;
-	async.replace(body, CSS_IMAGE, function (imgPath, respond) {
+	async.replace(body, StaticFiles.CSS_IMAGE, function (imgPath, respond) {
 		if (imgPath.substr(0,5) === 'data:') {
 			respond();
 			return;
@@ -536,7 +536,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 	var code;
 	switch (headers['Content-Type']) {
 		case 'application/javascript':
-			body = body.replace(DEBUG_LINES, '');
+			body = body.replace(StaticFiles.DEBUG_LINES, '');
 			try {
 				var ast = uglify.parser.parse(body);
 				ast     = uglify.uglify.ast_mangle(ast);
@@ -559,7 +559,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 };
 
 StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback) {
-	if (!this._options.production || !GZIPPABLE[headers['Content-Type']]) {
+	if (!this._options.production || !StaticFiles.GZIPPABLE[headers['Content-Type']]) {
 		callback(headers, body);
 		return;
 	}

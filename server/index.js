@@ -4,124 +4,29 @@ var cluster   = require('cluster'),
 	path      = require('path'),
 	fs        = require('fs'),
 	commander = require(__dirname+path.sep+'lib'+path.sep+'commander'),
-	zerver    = require(__dirname+path.sep+'zerver');
+	Master    = require(__dirname+path.sep+'master'),
+	Slave     = require(__dirname+path.sep+'slave');
 
-var PACKAGE   = __dirname+path.sep+'..'+path.sep+'package.json',
-	MAX_AGE   = 2000,
-	MAX_TRIES = 3;
+var PACKAGE = __dirname+path.sep+'..'+path.sep+'package.json';
 
 
 
 process.nextTick(function () {
 	if (require.main !== module) {
 		throw Error('server/index.js must be run as main module');
-	} else if (cluster.isMaster) {
-		new Master();
+	}
+
+	var options = processOptions();
+	if (cluster.isMaster) {
+		new Master(options);
 	} else {
-		new Slave();
+		new Slave(options);
 	}
 });
 
 
 
-/* Slave driver */
-
-function Master() {
-	var self = this;
-	self.sigint  = false;
-	self.retries = [];
-	self.child   = null;
-
-	setInterval(function () {
-		self.pruneRetries();
-	}, MAX_AGE/2);
-
-	self.createChild();
-
-	process.on('SIGUSR2', function () {
-		self.killChild();
-	});
-	process.on('SIGINT', function () {
-		self.sigint = true;
-		self.killChild();
-		process.exit();
-	});
-}
-
-Master.prototype.createChild = function () {
-	var self    = this,
-		started = false;
-
-	self.child = cluster.fork(process.env);
-
-	self.child.on('message', function (data) {
-		try {
-			if (data.started) {
-				started = Date.now();
-			}
-		} catch (err) {}
-	});
-
-	self.child.on('exit', function () {
-		if ( !started ) {
-			process.exit();
-			return;
-		}
-
-		self.retries.push(Date.now()-started);
-
-		if (self.sigint) {
-			return;
-		}
-
-		self.killChild();
-
-		if ( self.shouldRetry() ) {
-			self.createChild();
-		} else {
-			console.error('zerver: max retries due to exceptions exceeded');
-			process.exit();
-		}
-	});
-};
-
-Master.prototype.killChild = function () {
-	try {
-		this.child.kill();
-	} catch (err) {}
-	this.child = null;
-};
-
-Master.prototype.shouldRetry = function () {
-	this.pruneRetries();
-	return (this.retries.length < MAX_TRIES);
-};
-
-Master.prototype.pruneRetries = function () {
-	for (var t=0, i=this.retries.length; i--;) {
-		t += this.retries[i];
-		if (t >= MAX_AGE) {
-			this.retries.splice(0,i);
-			return;
-		}
-	}
-};
-
-
-
-/* Slave */
-
-function Slave() {
-	zerver.start(processFlags()._json, function () {
-		process.send({ started: true });
-	});
-}
-
-
-
-/* CLI arguments */
-
-function processFlags() {
+function processOptions() {
 	var commands = new commander.Command('zerver');
 	commands
 		.version(getZerverVersion(), '-v, --version')
@@ -160,9 +65,8 @@ function processFlags() {
 	}).forEach(function (name) {
 		jsonCommands[name] = commands[name];
 	});
-	commands._json = jsonCommands;
 
-	return commands;
+	return jsonCommands;
 }
 
 function getCLIArgs() {

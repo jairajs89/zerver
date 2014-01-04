@@ -113,6 +113,5 @@ function watchTree (root, options, callback) {
 		for (var i in files) {
 			fileWatcher(i);
 		}
-		callback(files, null, null);
 	});
 }

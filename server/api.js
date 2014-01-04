@@ -5,16 +5,16 @@ var extend  = require('util')._extend,
 	urllib  = require('url'),
 	Cookies = require(__dirname+path.sep+'lib'+path.sep+'cookies');
 
-var SCRIPT_TEMPLATE = fs.readFileSync(__dirname+path.sep+'..'+path.sep+'client'+path.sep+'index.js').toString(),
-	INSERT_REFRESH   = '{{__API_REFRESH__}}',
-	INSERT_LOGGING   = '{{__API_LOGGING__}}',
-	INSERT_DIR       = '{{__API_DIR__}}',
-	INSERT_NAME      = '{{__API_NAME__}}',
-	INSERT_APIS      = '{{__API_APIS__}}',
-	INSERT_API       = '{{__API_OBJ__}}',
-	INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
-
 module.exports = APICalls;
+
+APICalls.TEMPLATE_PATH    = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'index.js';
+APICalls.INSERT_REFRESH   = '{{__API_REFRESH__}}';
+APICalls.INSERT_LOGGING   = '{{__API_LOGGING__}}';
+APICalls.INSERT_DIR       = '{{__API_DIR__}}';
+APICalls.INSERT_NAME      = '{{__API_NAME__}}';
+APICalls.INSERT_APIS      = '{{__API_APIS__}}';
+APICalls.INSERT_API       = '{{__API_OBJ__}}';
+APICalls.INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
 
 
 
@@ -26,8 +26,9 @@ function APICalls(options) {
 	this._apiScripts = {};
 	this._cors       = {};
 
-	var self         = this,
-		templateData = {},
+	var self           = this,
+		templateData   = {},
+		scriptTemplate = fs.readFileSync(APICalls.TEMPLATE_PATH).toString(),
 		apiNames;
 
 	try {
@@ -49,7 +50,7 @@ function APICalls(options) {
 
 		var apiObj       = {},
 			apiFunctions = {},
-			file         = SCRIPT_TEMPLATE;
+			file         = scriptTemplate;
 
 		if (typeof api._crossOrigin === 'string') {
 			self._cors[apiName] = api._crossOrigin;
@@ -59,25 +60,25 @@ function APICalls(options) {
 		setupAPIObj(api, apiObj, apiFunctions);
 		templateData[apiName] = [apiObj, apiFunctions];
 
-		file = file.replace(INSERT_DIR      , JSON.stringify(self._rootPath));
-		file = file.replace(INSERT_NAME     , JSON.stringify(apiName)      );
-		file = file.replace(INSERT_API      , JSON.stringify(apiObj)       );
-		file = file.replace(INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
-		file = file.replace(INSERT_APIS     , JSON.stringify(null)         );
-		file = file.replace(INSERT_REFRESH  , JSON.stringify(self._options.refresh));
-		file = file.replace(INSERT_LOGGING  , JSON.stringify(!self._options.logging));
+		file = file.replace(APICalls.INSERT_DIR      , JSON.stringify(self._rootPath));
+		file = file.replace(APICalls.INSERT_NAME     , JSON.stringify(apiName)      );
+		file = file.replace(APICalls.INSERT_API      , JSON.stringify(apiObj)       );
+		file = file.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
+		file = file.replace(APICalls.INSERT_APIS     , JSON.stringify(null)         );
+		file = file.replace(APICalls.INSERT_REFRESH  , JSON.stringify(self._options.refresh));
+		file = file.replace(APICalls.INSERT_LOGGING  , JSON.stringify(!self._options.logging));
 
 		self._apiScripts[apiName] = file;
 	});
 
-	this._requireScript = SCRIPT_TEMPLATE;
-	this._requireScript = this._requireScript.replace(INSERT_DIR      , JSON.stringify(this._rootPath));
-	this._requireScript = this._requireScript.replace(INSERT_NAME     , JSON.stringify('require')     );
-	this._requireScript = this._requireScript.replace(INSERT_API      , JSON.stringify(null)          );
-	this._requireScript = this._requireScript.replace(INSERT_FUNCTIONS, JSON.stringify(null)          );
-	this._requireScript = this._requireScript.replace(INSERT_APIS     , JSON.stringify(templateData)  );
-	this._requireScript = this._requireScript.replace(INSERT_REFRESH  , JSON.stringify(this._options.refresh));
-	this._requireScript = this._requireScript.replace(INSERT_LOGGING  , JSON.stringify(!this._options.logging));
+	this._requireScript = scriptTemplate;
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_DIR      , JSON.stringify(this._rootPath));
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_NAME     , JSON.stringify('require')     );
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_API      , JSON.stringify(null)          );
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(null)          );
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_APIS     , JSON.stringify(templateData)  );
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_REFRESH  , JSON.stringify(this._options.refresh));
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_LOGGING  , JSON.stringify(!this._options.logging));
 }
 
 
