@@ -11,7 +11,9 @@ var extend      = require('util')._extend,
 
 var PACKAGE         = __dirname+path.sep+'..'+path.sep+'package.json',
 	API_PATH        = '/zerver',
-	REQUEST_TIMEOUT = 25 * 1000;
+	REQUEST_TIMEOUT = 25 * 1000,
+	MAX_AGE        = 2000,
+	MAX_TRIES      = 3;
 
 
 
@@ -184,9 +186,11 @@ function main() {
 }
 
 function masterMain() {
-	var sigint = false,
+	var sigint      = false,
+		prodRetries = [],
 		child;
 
+	setInterval(pruneRetries, MAX_AGE/2);
 	newChild();
 
 	process.on('SIGUSR2', killChild);
@@ -196,16 +200,48 @@ function masterMain() {
 		process.exit();
 	});
 
-
 	function newChild() {
+		var started = false;
 		child = cluster.fork(process.env);
+		child.on('message', function (data) {
+			try {
+				if (data.started) {
+					started = Date.now();
+				}
+			} catch (err) {}
+		});
 		child.on('exit', function () {
+			if ( !started ) {
+				process.exit();
+				return;
+			}
+			prodRetries.push(Date.now()-started);
 			if (sigint) {
 				return;
 			}
 			killChild();
-			newChild();
+			if ( shouldRetry() ) {
+				newChild();
+			} else {
+				console.error('zerver: max retries due to exceptions exceeded');
+				process.exit();
+			}
 		});
+	}
+
+	function shouldRetry() {
+		pruneRetries();
+		return (prodRetries.length < MAX_TRIES);
+	}
+
+	function pruneRetries() {
+		for (var t=0, i=prodRetries.length; i--;) {
+			t += prodRetries[i];
+			if (t >= MAX_AGE) {
+				prodRetries.splice(0,i);
+				return;
+			}
+		}
 	}
 
 	function killChild() {
@@ -217,8 +253,9 @@ function masterMain() {
 }
 
 function slaveMain() {
-	var flags = processFlags();
-	exports.start(flags._json);
+	new Zerver(processFlags()._json, function () {
+		process.send({ started: true });
+	});
 }
 
 function processFlags() {
