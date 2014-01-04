@@ -2,6 +2,7 @@
 
 var cluster   = require('cluster'),
 	path      = require('path'),
+	fs        = require('fs'),
 	commander = require(__dirname+'/lib/commander'),
 	zerver    = require(__dirname+'/zerver');
 
@@ -122,7 +123,7 @@ function processFlags() {
 
 	var zerverVersion;
 	try {
-		var packageFile = require('fs').readFileSync(PACKAGE),
+		var packageFile = fs.readFileSync(PACKAGE),
 			packageData = JSON.parse(packageFile);
 		zerverVersion = packageData.version;
 	} catch (err) {

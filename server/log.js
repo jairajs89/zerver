@@ -17,38 +17,10 @@ function Logger(options) {
 
 	if (this._options.stats) {
 		this._stats = { openRequests: 0 };
-		reset();
-		setInterval(printStats, 1000);
-	}
-
-	function reset () {
-		self._stats.requests     = 0;
-		self._stats.missing      = 0;
-		self._stats.error        = 0;
-		self._stats.responseTime = 0;
-	}
-
-	function printStats() {
-		try {
-			var usage = {
-				type            : 'stats',
-				time            : Date.now(),
-				pid             : process.pid,
-				memory          : process.memoryUsage().heapUsed,
-				uptime          : parseInt(process.uptime()),
-				requests        : self._stats.requests,
-				missing         : self._stats.missing,
-				error           : self._stats.error,
-				openConnections : self._stats.openRequests,
-			};
-			if (self._stats.requests) {
-				usage.avgResponse = Math.round(100*self._stats.responseTime/self._stats.requests)/100;
-			} else {
-				usage.avgResponse = 0;
-			}
-			console.log( JSON.stringify(usage) );
-		} catch (err) {}
-		reset();
+		this._reset();
+		setInterval(function () {
+			self._printStats();
+		}, 1000);
 	}
 }
 
@@ -82,6 +54,36 @@ Logger.prototype.endRequest = function (req, res) {
 	this._print(req, res);
 
 	delete req._logger;
+};
+
+Logger.prototype._reset = function () {
+	self._stats.requests     = 0;
+	self._stats.missing      = 0;
+	self._stats.error        = 0;
+	self._stats.responseTime = 0;
+};
+
+Logger.prototype._printStats = function () {
+	try {
+		var usage = {
+			type            : 'stats',
+			time            : Date.now(),
+			pid             : process.pid,
+			memory          : process.memoryUsage().heapUsed,
+			uptime          : parseInt(process.uptime()),
+			requests        : self._stats.requests,
+			missing         : self._stats.missing,
+			error           : self._stats.error,
+			openConnections : self._stats.openRequests,
+		};
+		if (self._stats.requests) {
+			usage.avgResponse = Math.round(100*self._stats.responseTime/self._stats.requests)/100;
+		} else {
+			usage.avgResponse = 0;
+		}
+		console.log( JSON.stringify(usage) );
+	} catch (err) {}
+	self._reset();
 };
 
 Logger.prototype._print = function (req, res) {

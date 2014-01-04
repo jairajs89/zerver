@@ -66,11 +66,11 @@ function Zerver(options, callback) {
 
 		http.globalAgent.maxSockets = 50;
 
-		var app = http.createServer(function (req, res) {
+		self._app = http.createServer(function (req, res) {
 			self._handleRequest(req, res);
 		});
 
-		app.listen(self._options.port, function () {
+		self._app.listen(self._options.port, function () {
 			console.log('zerver running:');
 			console.log('- port: ' + self._options.port);
 			var apiNames = self._apis.getNames();
@@ -99,6 +99,14 @@ function Zerver(options, callback) {
 		});
 	});
 }
+
+Zerver.prototype.stop = function (callback) {
+	if (this._app) {
+		this._app.close(callback);
+	} else {
+		throw Error('zerver has not started yet, unable to stop');
+	}
+};
 
 Zerver.prototype._handleRequest = function (req, res) {
 	var self     = this,
