@@ -265,8 +265,54 @@ exports._cors = '*';
 
 Zerver's client-side code packs in a convenient interface for making custom API calls.
 
-//TODO: zerver.get|post|put|del
-//TODO: zerver.prefix
+```js
+/* in website-dir/zerver/custom.js */
+exports.updateData = updateData;
+
+updateData.type = 'POST';
+function updateData(params, callback) {
+    // params.data == { random: 'json' }
+    callback({ success: true });
+}
+```
+
+```html
+<!-- in website-dir/index.html -->
+<script src="zerver/require.js"></script>
+<script>
+    zerver.post('custom/updateData', {
+        data: { random: 'json' }
+    }, function (response, raw, status) {
+        // response.success === true
+        // raw === '{"success":true}'
+        // status === 200
+    });
+</script>
+```
+
+`zerver.get`, `zerver.post`, `zerver.put` and `zerver.del` are all defined corresponding to their HTTP methods.
+
+The second argument of API calls is the data to be passed to the server. This can be a raw string or a JSON object. For `POST` and `PUT` requests the data will be passed in the HTTP body, while all other requests will convert them into query string parameters.
+
+API calls can be made to any service (not necessary zerver):
+
+```js
+zerver.get('http://api.mysite.com/data.json', function (response) {
+    // do something with 'response'
+});
+```
+
+If you're making repeated API calls to another service it's often convenient to not have to include the host prefix:
+
+```js
+zerver.prefix = 'http://api.mysite.com/';
+zerver.get('data.json', function (response) {
+    // do something with 'response'
+});
+zerver.get('otherdata.json', function (response) {
+    // do something with 'response'
+});
+```
 
 
 
