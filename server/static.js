@@ -256,7 +256,12 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 			};
 		}),
 		function (parts) {
-			var body = parts.join('\n');
+			var body;
+			if (headers['Content-Type'] === 'application/javascript') {
+				body = parts.join(';\n');
+			} else {
+				body = parts.join('\n');
+			}
 
 			var hash = crypto.createHash('md5');
 			hash.update(body);
