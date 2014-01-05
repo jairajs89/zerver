@@ -209,10 +209,24 @@ NETWORK:
 ### Custom API calls
 
 //TODO: func.type = 'GET' | ['GET', 'POST', 'PUT', 'DELETE']
+//TODO: this.ip|protocol|host|pathname|query|params|referrer|userAgent|cookies
+//TODO: this.body|jsonBody|formBody
 
 ### Cross origin requests
 
-//TODO: exports._cors = '*';
+Enabling cross origin requests in zerver is a one-liner:
+
+```js
+exports._cors = 'mywebsite.com, myothersite.com';
+```
+
+For this zerver module all API requests will respond properly to OPTIONS calls as well as serve access control headers when the API calls are made.
+
+To allow all cross origin requests:
+
+```js
+exports._cors = '*';
+```
 
 
 
@@ -249,7 +263,10 @@ NETWORK:
 
 ### Custom API calls
 
+Zerver's client-side code packs in a convenient interface for making custom API calls.
+
 //TODO: zerver.get|post|put|del
+//TODO: zerver.prefix
 
 
 
