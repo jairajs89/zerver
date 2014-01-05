@@ -638,7 +638,7 @@ StaticFiles.prototype._rawGet = function (pathname) {
 		return;
 	}
 
-	if (pathname in this._manifests) {
+	if (isManifestFilename(pathname) && isManifestFile(file.toString())) {
 		file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
 	}
 
@@ -718,11 +718,10 @@ function detectManifests(root, ignores) {
 	var manifests = {};
 
 	walkDirectory(root, ignores, function (pathname, callback) {
-		var filePath = path.join(root, pathname),
-			ext      = path.extname(filePath).toLowerCase();
-		if (ext === '.appcache') {
-			var f = ('' + fs.readFileSync(filePath, 'utf8')).trim();
-			if (f.substr(0,14) === 'CACHE MANIFEST') {
+		if ( isManifestFilename(pathname) ) {
+			var filePath = path.join(root, pathname),
+				file     = fs.readFileSync(filePath, 'utf8').toString();
+			if ( isManifestFile(file) ) {
 				manifests[pathname] = true;
 			}
 		}
@@ -730,6 +729,15 @@ function detectManifests(root, ignores) {
 	}, function(){});
 
 	return manifests;
+}
+
+function isManifestFilename(pathname) {
+	var ext = path.extname(pathname).toLowerCase();
+	return (ext === '.appcache' || ext === '.manifest');
+}
+
+function isManifestFile(file) {
+	return (file.trim().substr(0,14) === 'CACHE MANIFEST');
 }
 
 function getLastModifiedTimestamp(root, ignores) {
