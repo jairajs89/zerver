@@ -154,8 +154,10 @@ Zerver can automatically inline files to reduce the number of requests your app 
 ```
 
 ```css
-background-image: url(/img/background.png?inline=1);
-/* will inline the image as a base64 data URI */
+#thing {
+    background-image: url(/img/background.png?inline=1);
+    /* will inline the image as a base64 data URI */
+}
 ```
 
 ### Concatenate scripts, styles
