@@ -32,13 +32,17 @@ function processOptions() {
 		.version(getZerverVersion(), '-v, --version')
 		.usage('[options] [dir]')
 		.option('-P, --port <n>'            , 'set server port to listen on', parseInt, process.env.PORT||5000)
-		.option('-p, --production'          , 'enable production mode (caching, concat, minfiy, gzip, etc)')
 		.option('-r, --refresh'             , 'auto-refresh browsers on file changes')
 		.option('-c, --cli'                 , 'js shell for connect remote clients')
+		.option('-p, --production'          , 'enable production mode (caching, concat, minfiy, gzip, etc)')
 		.option('--cache <paths>'           , 'set specific cache life for resources')
 		.option('-M, --missing <paths>'     , 'set a custom 404 page')
-		.option('--disable-manifest'        , 'disable processing for ALL HTML5 appCache manifest files')
 		.option('--ignore-manifest <paths>' , 'disable processing for a particular HTML5 appCache manifest file')
+		.option('--no-manifest'             , 'disable processing for ALL HTML5 appCache manifest files')
+		.option('--no-gzip'                 , 'disabled gzip compression in production mode')
+		.option('--no-concat'               , 'disabled file concatenation compression in production mode')
+		.option('--no-compile'              , 'disabled js, css minification in production mode')
+		.option('--no-inline'               , 'disabled file inlining in production mode')
 		.option('-V, --verbose'             , 'verbose request logging')
 		.option('-H, --headers'             , 'show headers in logs')
 		.option('-j, --json'                , 'requests get logged as json')
@@ -47,6 +51,11 @@ function processOptions() {
 	if (commands.production) {
 		commands.refresh = false;
 		commands.cli     = false;
+	} else {
+		commands.gzip    = false;
+		commands.concat  = false;
+		commands.compile = false;
+		commands.inline  = false;
 	}
 	commands.logging = commands.cli;
 	commands.dir = path.resolve(process.cwd(), commands.args[0] || '.');

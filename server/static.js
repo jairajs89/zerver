@@ -36,8 +36,10 @@ function StaticFiles(options, callback) {
 	}, options);
 	self._root = self._options.dir;
 
-	if (self._options.production) {
+	if (self._options.concat) {
 		self._concats = {};
+	}
+	if (self._options.production) {
 		self._cache   = {};
 	}
 	self._defaultCache = (self._options.production ? 300 : 0),
@@ -73,7 +75,7 @@ function StaticFiles(options, callback) {
 		self._ignores = [];
 	}
 
-	if (self._options.disableManifest) {
+	if ( !self._options.manifest ) {
 		self._manifests = {};
 	} else {
 		self._manifests = detectManifests(self._root, self._ignores);
@@ -306,7 +308,7 @@ StaticFiles.prototype._prepareManifest = function (pathname, headers, body, call
 };
 
 StaticFiles.prototype._inlineManifestFiles = function (pathname, headers, body, callback) {
-	if (!this._options.production || !this._manifests[pathname]) {
+	if (!this._options.inline || !this._manifests[pathname]) {
 		callback(headers, body);
 		return;
 	}
@@ -438,7 +440,7 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 };
 
 StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callback) {
-	if (!this._options.production || (headers['Content-Type'] !== 'text/html')) {
+	if (!this._options.inline || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
 	}
@@ -473,7 +475,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 };
 
 StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callback) {
-	if (!this._options.production || (headers['Content-Type'] !== 'text/html')) {
+	if (!this._options.inline || (headers['Content-Type'] !== 'text/html')) {
 		callback(headers, body);
 		return;
 	}
@@ -508,7 +510,7 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._inlineImages = function (pathname, headers, body, callback) {
-	if (!this._options.production || (headers['Content-Type'] !== 'text/css')) {
+	if (!this._options.inline || (headers['Content-Type'] !== 'text/css')) {
 		callback(headers, body);
 		return;
 	}
@@ -533,7 +535,7 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._compileOutput = function (pathname, headers, body, callback) {
-	if ( !this._options.production ) {
+	if ( !this._options.compile ) {
 		callback(headers, body);
 		return;
 	}
@@ -564,7 +566,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 };
 
 StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback) {
-	if (!this._options.production || !StaticFiles.GZIPPABLE[headers['Content-Type']]) {
+	if (!this._options.gzip || !StaticFiles.GZIPPABLE[headers['Content-Type']]) {
 		callback(headers, body);
 		return;
 	}
