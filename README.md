@@ -208,11 +208,11 @@ NETWORK:
 
 ### Custom API calls
 
-//TODO
+//TODO: func.type = 'GET' | ['GET', 'POST', 'PUT', 'DELETE']
 
 ### Cross origin requests
 
-//TODO
+//TODO: exports._cors = '*';
 
 
 
@@ -249,7 +249,7 @@ NETWORK:
 
 ### Custom API calls
 
-//TODO
+//TODO: zerver.get|post|put|del
 
 
 
