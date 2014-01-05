@@ -208,9 +208,95 @@ NETWORK:
 
 ### Custom API calls
 
-//TODO: func.type = 'GET' | ['GET', 'POST', 'PUT', 'DELETE']
-//TODO: this.ip|protocol|host|pathname|query|params|referrer|userAgent|cookies
-//TODO: this.body|jsonBody|formBody
+Zerver allows you server custom API in a more tradional manner:
+
+```js
+/* in zerver/custom.js */
+exports.doSomething = doSomething;
+
+doSomething.type = 'GET';
+function doSomething(params, callback) {
+    callback({ thing: params.stuff });
+}
+```
+
+```sh
+> curl -s "localhost:5000/zerver/custom/doSomething?stuff=wat"
+{ "thing" : "wat" }
+```
+
+In this case the HTTP status was automaticallys set to 200 and JSON was served.
+
+Response status code, headers and body can all be set manually as well:
+
+```js
+doSomething.type = 'GET';
+function doSomething(params, callback) {
+    var status = 301;
+    var headers = {
+        'Location': '/zerver/custom/somethingElse'
+    };
+    var body = 'Moved permanently';
+    callback(status, headers, body);
+}
+```
+
+Some API resources make available multiple HTTP methods:
+
+```js
+doSomething.type = ['GET', 'PUT', 'DELETE'];
+function doSomething(params, callback) {
+    if (this.method === 'GET') {
+        // get the resource
+    } else if (this.method === 'PUT') {
+        // update the resource
+    } else if (this.method === 'DELETE') {
+        // delete the resource
+    }
+}
+```
+
+The 'this' context for API calls is the raw request object. Several additonal properties are added onto the object for convenience:
+
+```js
+doSomething.type = 'POST';
+function doSomething(params, callback) {
+    this.ip        // client IP address
+    this.protocol  // request protocol (http, https)
+    this.host      // the hostname of the request (mysite.com)
+    this.pathname  // the exact resource (/zerver/custom/doSomething)
+    this.query     // a JSON object representation of URL query parameters
+    this.referrer  // the URL that referred the client to this resource
+    this.userAgent // the user agent string of the client
+
+    // for POST and PUT requests
+    this.body      // HTTP body as a string
+    this.jsonBody  // parsed body if HTTP body is JSON
+    this.formBody  // parsed body if HTTP body is form-encoded
+}
+```
+
+Since incoming parameters come in various forms the `params` object serves as a convenient place to access them. The `params` object is a combination of URL query parameters and JSON or form-encoded HTTP body parameters.
+
+Reading and setting cookies is simple as well:
+
+```js
+doSomething.type = 'POST';
+function doSomething(params, callback) {
+    var value = this.cookies.get('cookieName');
+    this.cookies.set('cookieName', 'otherValue');
+
+    // robust cookie set
+    this.cookies.set('cookieName', 'otherValue', {
+        maxAge   : 365*24*60*60,
+        expires  : new Date(2020, 8, 13),
+        domain   : 'mysite.com',
+        path     : '/zerver/custom',
+        httpOnly : true,
+        secure   : true,
+    });
+}
+```
 
 ### Cross origin requests
 
