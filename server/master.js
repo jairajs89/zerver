@@ -85,8 +85,9 @@ Master.prototype.createChild = function () {
 		}
 
 		self.killChild();
+		self.pruneRetries();
 
-		if ( self.shouldRetry() ) {
+		if (self.retries.length < Master.MAX_TRIES) {
 			self.createChild();
 		} else {
 			console.error('zerver: max retries due to exceptions exceeded');
@@ -100,11 +101,6 @@ Master.prototype.killChild = function () {
 		this.child.kill();
 	} catch (err) {}
 	this.child = null;
-};
-
-Master.prototype.shouldRetry = function () {
-	this.pruneRetries();
-	return (this.retries.length < Master.MAX_TRIES);
 };
 
 Master.prototype.pruneRetries = function () {

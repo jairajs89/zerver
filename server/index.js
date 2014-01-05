@@ -48,9 +48,7 @@ function processOptions() {
 		commands.refresh = false;
 		commands.cli     = false;
 	}
-	if (commands.cli) {
-		commands.logging = true;
-	}
+	commands.logging = commands.cli;
 	commands.dir = path.resolve(process.cwd(), commands.args[0] || '.');
 
 	var jsonCommands = {};

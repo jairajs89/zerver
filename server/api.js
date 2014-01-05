@@ -3,11 +3,13 @@ var extend  = require('util')._extend,
 	path    = require('path'),
 	qs      = require('querystring'),
 	urllib  = require('url'),
+	uglify  = require('uglify-js'),
 	Cookies = require(__dirname+path.sep+'lib'+path.sep+'cookies');
 
 module.exports = APICalls;
 
 APICalls.TEMPLATE_PATH    = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'index.js';
+APICalls.TEMPLATE_DEBUG   = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'debug.js';
 APICalls.INSERT_REFRESH   = '{{__API_REFRESH__}}';
 APICalls.INSERT_LOGGING   = '{{__API_LOGGING__}}';
 APICalls.INSERT_DIR       = '{{__API_DIR__}}';
@@ -29,6 +31,7 @@ function APICalls(options) {
 	var self           = this,
 		templateData   = {},
 		scriptTemplate = fs.readFileSync(APICalls.TEMPLATE_PATH).toString(),
+		scriptDebug    = fs.readFileSync(APICalls.TEMPLATE_DEBUG).toString(),
 		apiNames;
 
 	try {
@@ -66,7 +69,18 @@ function APICalls(options) {
 		file = file.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
 		file = file.replace(APICalls.INSERT_APIS     , JSON.stringify(null)         );
 		file = file.replace(APICalls.INSERT_REFRESH  , JSON.stringify(self._options.refresh));
-		file = file.replace(APICalls.INSERT_LOGGING  , JSON.stringify(!self._options.logging));
+		file = file.replace(APICalls.INSERT_LOGGING  , JSON.stringify(self._options.logging));
+
+		if (self._options.production) {
+			try {
+				var ast = uglify.parser.parse(file);
+				ast     = uglify.uglify.ast_mangle(ast);
+				ast     = uglify.uglify.ast_squeeze(ast);
+				file    = uglify.uglify.gen_code(ast);
+			} catch (err) {}
+		} else {
+			file += scriptDebug;
+		}
 
 		self._apiScripts[apiName] = file;
 	});
@@ -78,7 +92,17 @@ function APICalls(options) {
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_APIS     , JSON.stringify(templateData)  );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_REFRESH  , JSON.stringify(this._options.refresh));
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_LOGGING  , JSON.stringify(!this._options.logging));
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_LOGGING  , JSON.stringify(this._options.logging));
+	if (this._options.production) {
+		try {
+			var ast             = uglify.parser.parse(this._requireScript);
+			ast                 = uglify.uglify.ast_mangle(ast);
+			ast                 = uglify.uglify.ast_squeeze(ast);
+			this._requireScript = uglify.uglify.gen_code(ast);
+		} catch (err) {}
+	} else {
+		this._requireScript += scriptDebug;
+	}
 }
 
 
