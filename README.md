@@ -1,11 +1,13 @@
 Zerver is a lightweight Node.js-based webserver that lets you seamlessly make server API calls as if they were a library on the client. The goal is to provide a developer-focused toolset and remove all the boilerplate involved in serving a webapp.
 
-### Install
+## Install
 
 ```sh
 npm install -g zerver
 # or add zerver to your package.json dependencies and run npm install
 ```
+
+
 
 # Basic usage
 
@@ -52,20 +54,9 @@ Any amount of arguments can be used in the function calls as long as they are JS
 
 Note: any server code in a subdirectory of `website-dir/zerver` will not be available for import on the client allowing for libraries of private server functionality.
 
-### Require syntax
 
-```html
-<!-- in website-dir/index.html -->
-<script src="/zerver/require.js"></script>
-<script>
-    var MyAPI = require('MyAPI');
-    MyAPI.logStuff('hi from client', function (str) {
-        console.log(str); // "hi from server"
-    });
-</script>
-```
 
-## Zerver options
+# Zerver options
 
 ```sh
 # General usage
@@ -74,146 +65,171 @@ zerver [options] website-dir
 # run server on a different port
 zerver --port=8000 website-dir
 
--r, --refresh
-# Any webpage being viewed that has a Zerver script on it (`website-dir/index.html`)
-# will automatically refresh when any of its code is edited.
-# You can edit code and immediately see feedback on how it effects your running webapp.
-
--c, --cli
-# Creates a js shell to communicate with remote clients, press tab to enable.
-# Any code run in this shell will be run on the client.
-
 -V, --verbose
-# Enable verbose request logging
+# Verbose logging of requests, including host,
+# protocol, referrer, ip address and user agent
 
--p, --production
-# Enables production mode (caching, concat, minfiy, gzip, etc)
+-H, --headers
+# Include request headers in logging
+
+-j, --json
+# Print request logs as JSON (easy to consume by log parsers)
 ```
-
-### Command Line Interface
-
-The command line interface (the `cli` flag) allows you to communicate with the client during development
-
-For example:
-
-```sh
-zerver --cli website-dir
-
-# Press tab to enable the cli
->>>
-# The following line will cause all clients listening to the server to refresh
->>> window.location.reload();
-
-# You can also log things from the client
-# The following line logs all the functions
-# that are available in 'MyAPI'
->>> console.log(Object.keys(MyAPI));
-log: ["function1FromMyApi", "function2FromMyApi"]
-# Since anything that is logged on the client gets
-# sent to the server you can see the result right in the command line
-```
-
-## Production mode
-
-Passing the `--production` flag on startup enables zervers production features.
-
-### Inlining files
-
-Given the following link
-
-```html
-<link rel="stylesheet" href="/css/app.min.css?inline=1">
-```
-
-Zerver will create a `<style>` tag in place and place the css there instead, reducing the amount of requests to load files.
-
-The same can be done with images inside the css file
-
-```css
-background-image: url(/img/background.png?inline=1);
-```
-
-### Gzip and minifying
-
-Given the following files in your manifest.
-
-```sh
-# zerver:js/main.min.js
-js/cards.js
-js/app.js
-js/main.js
-# /zerver
-```
-
-And the following in your HTML file:
-
-```html
-<!-- zerver:js/main.min.js -->
-<script src="js/cards.js"></script>
-<script src="js/app.js"></script>
-<script src="js/main.js"></script>
-<!-- /zerver -->
-```
-
-When the server is run on production these files will be gzipped & minified into a file called `main.min.js`
-
-### Manifest file
-
-Zerver has automatic support for HTML5 appcache manifests. This means that Zerver will automatically detect their presence and make sure that clients always update when files referenced in the manifest have changed.
-The cache manifest file is a simple text file that lists the resources the browser should cache for offline access. It should be referenced at the top of your html file like this:
-
-```html
-<html manifest="cache.manifest">
-...
-</html>
-```
-The cache manifest allows you to specify which files the browser should cache and make available to offline users. Your app will load and work correctly, even if the user presses the refresh button while they're offline.
-
-The advantage that Zerver brings with the cache manifest is that it will refresh the cache whenever files are changed.
-This fixes the main drawback of developing with a manifest as now you will always be working with the most up to date versions of the edited files.
 
 ### Default options
 
-You can specify default options in an environment variable, to avoid having to type them every time or having different setups for different environments in which the code will run
+You can specify default options in an environment variable, to avoid having to type them every time or having different setups for different environments in which the code will run:
 ```sh
 export ZERVER_FLAGS='-rc'
 ```
 
-### Running as an npm script
+## Refresh mode (`-r, --refresh`)
 
-Another way to save time when running zerver is to add your default run configurations to an npm script in your `package.json`
-
-```json
-{
-  "name"    : "zerver-sample" ,
-  "version" : "0.0.1" ,
-  "engines" : {
-    "node" : "0.10.21" ,
-    "npm"  : "1.3.11"
-  },
-  "dependencies" : {
-    "zerver" : "0.15.0"
-  },
-  "scripts" : {
-    "start" : "zerver -rc web"
-  }
-}
-```
-Sample package.json file for a zerver application
-
-This setup allows you to simply enter `npm start` to run the command `zerver -rc web`.
-
-# ExpressJS integration
-
-Zerver integrates well with Express, providing the same functionality to any existing webapp.
-
-```js
-// "app" is an ExpressJS app instance
-var zerver = require('zerver');
-app.use( zerver.middleware('path/containing/zerver/folder') );
+```sh
+zerver -r website-dir
 ```
 
-Along with the rest of your Express app, Zerver scripts will be accessible for importing into your client-side code.
+When you are developing a webpage in the browser the `-r` flag causes the page to automatically refresh whenever you edit your code. This is a convenient utility that allows for frictionless rapid iteration.
+
+Note: this feature requires that you have included a zerver script somewhere on the webpage and that the browser supports websockets.
+
+## Command line interface (`-c, --cli`)
+
+```sh
+zerver -c website-dir
+```
+
+Enable command line JavaScript access to the browser that your webpage is currently running on. This is extremely usefull when running on a mobile device where it is difficult to debug and access logs. Right from your terminal you'll be able to run commands remotely and see their result as well as see a constant stream of logs from your client.
+
+For example:
+
+```sh
+>>> zerver --cli website-dir
+
+# Press <tab> to access remote command line
+>>>
+# The following line logs all the functions that are available in 'MyAPI'
+>>> Object.keys(MyAPI)
+["function1", "function2"]
+
+# Logs are automatically streamed here as well
+>>> console.log( Object.keys(MyAPI) )
+log: ["function1", "function2"]
+undefined
+# Notice that the log occurred, as well as
+# the 'undefined' return value from the command
+```
+
+Note: this feature requires that you have included a zerver script somewhere on the webpage and that the browser supports websockets.
+
+## Production mode (`-p, --production`)
+
+```sh
+zerver -p website-dir
+```
+
+While zerver tries to provide the best developer experience it is built with production environments in mind. Enabling production mode turns on a list of features including:
+
+* in-memory caching of static files
+* auto compiled/minified JavaScript & CSS
+* gzipped output
+* inlined scripts, styles, images
+* concatenated scripts, styles
+* HTML5 appcache manifest management
+
+
+
+### Inline scripts, styles, images
+
+Zerver can automatically inline files to reduce the number of requests your app makes and protentially speed things up for your users.
+
+```html
+<link rel="stylesheet" href="/css/styles.css?inline=1">
+<!-- will create a 'style' tag with the inlined css -->
+```
+
+```html
+<script src="/js/main.js?inline=1"></script>
+<!-- will create a 'script' tag with the inlined js -->
+```
+
+```css
+background-image: url(/img/background.png?inline=1);
+/* will inline the image as a base64 data URI */
+```
+
+### Concatenate scripts, styles
+
+The reduce the number of requests your app makes it often makes sense to combine stylesheets or scripts into single files.
+
+```html
+<!-- zerver:css/main.min.css -->
+<link rel="stylesheet" href="/css/jquery.ui.css">
+<link rel="stylesheet" href="/css/styles.css">
+<!-- /zerver -->
+<!-- will create a 'link' tag with href="css/main.min.css" -->
+```
+
+```html
+<!-- zerver:js/main.min.js -->
+<script src="js/jquery.js"></script>
+<script src="js/jquery.ui.js"></script>
+<script src="js/main.js"></script>
+<!-- /zerver -->
+<!-- will create a 'script' tag with src="js/main.min.js" -->
+```
+
+Zerver will automatically serve the combined files at the designated URL.
+
+### HTML5 appcache manifest
+
+HTML5 has support for offline apps using [appcache manifests](http://diveintohtml5.info/offline.html). Apps using appcache will update when the manifest itself changes in some way so it is convenient to have the file change whenever there is an update to your client-side code, allowing users to always get the up-to-date version.
+
+Zerver will automatically detect these manifest files and insure they update on file changes by appending a comment at the end with the timestamp that the client-side code last changed. This fixes one of the major drawbacks of having to manually manage an appcache manifest.
+
+If files that are inlined or concatenated are included in the manifest then they should be marked appropriately:
+
+```appcache
+CACHE MANIFEST
+/img/background.png?inline=1
+# zerver:js/main.min.js
+/js/jquery.js
+/js/jquery.ui.js
+/js/main.js
+# /zerver
+
+NETWORK:
+*
+```
+
+
+
+# Server side
+
+### Custom API calls
+
+//TODO
+
+### Cross origin requests
+
+//TODO
+
+
+
+# Client side
+
+### Require syntax
+
+```html
+<!-- in website-dir/index.html -->
+<script src="/zerver/require.js"></script>
+<script>
+    var MyAPI = zerver.require('MyAPI');
+    MyAPI.logStuff('hi from client', function (str) {
+        console.log(str); // "hi from server"
+    });
+</script>
+```
 
 ### Error handling
 
@@ -230,6 +246,40 @@ Along with the rest of your Express app, Zerver scripts will be accessible for i
     });
 </script>
 ```
+
+### Custom API calls
+
+//TODO
+
+
+
+# ExpressJS integration
+
+Zerver can be integrated with Express and other NodeJS servers to provide zerver APIs.
+
+Here is an example Express app:
+
+```
+website-dir/app.js
+website-dir/src/index.html
+website-dir/zerver/MyAPI.js
+```
+
+```js
+/* app.js */
+
+var express = require('express');
+var zerver  = require('zerver');
+
+var app = express();
+app.use( zerver.middleware(__dirname) );
+app.use( express.static(__dirname + '/src') );
+app.listen(3000);
+```
+
+Along with the rest of the Express app, zerver scripts will be accessible for importing into the client-side code.
+
+
 
 # Example apps
 

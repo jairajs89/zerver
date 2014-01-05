@@ -14,10 +14,11 @@ Master.MAX_TRIES      = 3;
 
 function Master(options) {
 	var self = this;
-	self.options = extend({}, options || {});
-	self.death   = false;
-	self.retries = [];
-	self.child   = null;
+	self.options  = extend({}, options || {});
+	self.death    = false;
+	self.retries  = [];
+	self.child    = null;
+	self.hadStart = false;
 
 	setInterval(function () {
 		self.pruneRetries();
@@ -56,6 +57,11 @@ Master.prototype.createChild = function () {
 		try {
 			if (data.started) {
 				started = Date.now();
+				if (!self.hadStart && self.cli) {
+					console.log('(press <tab> to access remote command line)');
+					console.log('');
+				}
+				self.hadStart = true;
 			} else if (data.prompt && self.cli) {
 				self.cli.prompt();
 			} else if (data.log) {

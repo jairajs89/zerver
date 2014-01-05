@@ -118,9 +118,11 @@ Logger.prototype._print = function (req, res) {
 		return;
 	}
 
-	var time    = logs.time + '',
-		timeStr = time.substr(0, time.indexOf('.')+3);
-	console.log(logs.status+' '+logs.method+' '+logs.url+' ['+timeStr+'ms]');
+	var time      = Math.round(logs.time*10)/10 + '',
+		numSpaces = Math.max(0, 4-logs.method.length),
+		spaces    = '';
+	for (var i=0; i<numSpaces; i++) spaces += ' ';
+	console.log(logs.status+' '+logs.method+spaces+' '+logs.url+' ['+time+'ms]');
 
 	if (this._options.verbose) {
 		if (logs.host) {

@@ -1,6 +1,4 @@
-(function (window) {
-	var XHR_TIMEOUT = 30*1000;
-
+(function (window, zerver) {
 	window.ZERVER_REFRESH_ENABLED = {{__API_REFRESH__}};
 	window.ZERVER_LOGGING_ENABLED = {{__API_LOGGING__}};
 
@@ -11,6 +9,7 @@
 		apiData      = {{__API_APIS__}},
 		apis         = {};
 
+	zerver.prefix = apiDir+'/';
 	if (apiData) {
 		setupRequire();
 	} else if (apiObj) {
@@ -23,7 +22,7 @@
 		for (var apiName in apiData) {
 			apis[apiName] = setupFunctions(apiData[apiName][0], apiData[apiName][1], [ apiName ]);
 		}
-		window.require = function (apiName) {
+		zerver.require = function (apiName) {
 			if (apiName in apis) {
 				return apis[apiName];
 			} else {
@@ -119,69 +118,20 @@
 			url += '/'+encodeURIComponent(tree[i]);
 		}
 
-		ajaxPost(url, data, function (status, responseText) {
-			var response, responseData, responseError;
+		zerver.post(url, data, function (json, raw, status) {
 			if (status === 200) {
-				try {
-					response = JSON.parse(responseText);
-					if (response.error) {
-						responseError = response.error;
+				if (json) {
+					if (json.error) {
+						callback(json.error);
 					} else {
-						responseData = response.data;
+						callback(null, json.data);
 					}
-				} catch (err) {
-					responseError = 'zerver failed to parse response';
+				} else {
+					callback('zerver failed to parse response');
 				}
 			} else {
-				responseError = 'zerver http error, ' + status;
+				callback('zerver http error, '+status);
 			}
-			callback(responseError, responseData);
 		});
 	}
-
-	function ajaxPost(url, data, callback) {
-		var done = false,
-			xhr;
-
-		if (typeof XMLHttpRequest !== 'undefined') {
-			xhr = new XMLHttpRequest();
-		} else if (typeof ActiveXObject !== 'undefined') {
-			xhr = new ActiveXObject('Microsoft.XMLHTTP');
-		} else {
-			throw Error('browser does not support ajax');
-		}
-
-		xhr.onreadystatechange = function () {
-			if (xhr.readyState === 4) {
-				xhrComplete(xhr.status);
-			}
-		};
-
-		var timeout = parseInt(window['ZERVER_TIMEOUT']) || XHR_TIMEOUT;
-		xhr.timeout = timeout;
-		xhr.ontimeout = function () {
-			xhrComplete(0);
-		};
-
-		setTimeout(function () {
-			if ( !done ) {
-				xhr.abort();
-				xhrComplete(0);
-			}
-		}, timeout);
-
-		xhr.open('POST', url, true);
-		xhr.send(data);
-
-		function xhrComplete (status) {
-			if (done) {
-				return;
-			}
-			done = true;
-
-			if (callback) {
-				callback(status, xhr.responseText);
-			}
-		}
-	}
-})(window);
+})(window, zerver);

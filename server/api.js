@@ -8,8 +8,9 @@ var extend  = require('util')._extend,
 
 module.exports = APICalls;
 
-APICalls.TEMPLATE_PATH    = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'index.js';
-APICalls.TEMPLATE_DEBUG   = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'debug.js';
+APICalls.CLIENT_API       = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'api.js';
+APICalls.CLIENT_REQUIRE   = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'require.js';
+APICalls.CLIENT_DEBUG     = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'debug.js';
 APICalls.INSERT_REFRESH   = '{{__API_REFRESH__}}';
 APICalls.INSERT_LOGGING   = '{{__API_LOGGING__}}';
 APICalls.INSERT_DIR       = '{{__API_DIR__}}';
@@ -30,8 +31,9 @@ function APICalls(options) {
 
 	var self           = this,
 		templateData   = {},
-		scriptTemplate = fs.readFileSync(APICalls.TEMPLATE_PATH).toString(),
-		scriptDebug    = fs.readFileSync(APICalls.TEMPLATE_DEBUG).toString(),
+		scriptAPI      = fs.readFileSync(APICalls.CLIENT_API).toString(),
+		scriptRequire  = scriptAPI+fs.readFileSync(APICalls.CLIENT_REQUIRE).toString(),
+		scriptDebug    = fs.readFileSync(APICalls.CLIENT_DEBUG).toString(),
 		apiNames;
 
 	try {
@@ -53,7 +55,7 @@ function APICalls(options) {
 
 		var apiObj       = {},
 			apiFunctions = {},
-			file         = scriptTemplate;
+			file         = scriptRequire;
 
 		if (typeof api._crossOrigin === 'string') {
 			self._cors[apiName] = api._crossOrigin;
@@ -85,7 +87,7 @@ function APICalls(options) {
 		self._apiScripts[apiName] = file;
 	});
 
-	this._requireScript = scriptTemplate;
+	this._requireScript = scriptRequire;
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_DIR      , JSON.stringify(this._rootPath));
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_NAME     , JSON.stringify('require')     );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_API      , JSON.stringify(null)          );
