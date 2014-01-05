@@ -86,10 +86,6 @@ zerver --port=8000 website-dir
 -V, --verbose
 # Enable verbose request logging
 
--l, --less
-# Automatically compile less into css
-# Requires the less node module to work run: npm install less
-
 -p, --production
 # Enables production mode (caching, concat, minfiy, gzip, etc)
 ```
@@ -101,7 +97,7 @@ The command line interface (the `cli` flag) allows you to communicate with the c
 For example:
 
 ```sh
-zerver -cli website-dir
+zerver --cli website-dir
 
 # Press tab to enable the cli
 >>>
@@ -180,7 +176,7 @@ This fixes the main drawback of developing with a manifest as now you will alway
 
 You can specify default options in an environment variable, to avoid having to type them every time or having different setups for different environments in which the code will run
 ```sh
-export ZERVER_FLAGS='-rlc'
+export ZERVER_FLAGS='-rc'
 ```
 
 ### Running as an npm script
@@ -196,16 +192,16 @@ Another way to save time when running zerver is to add your default run configur
     "npm"  : "1.3.11"
   },
   "dependencies" : {
-    "zerver" : "0.14.3"
+    "zerver" : "0.15.0"
   },
   "scripts" : {
-    "start" : "zerver -rlc web"
+    "start" : "zerver -rc web"
   }
 }
 ```
 Sample package.json file for a zerver application
 
-This setup allows you to simply enter `npm start` to run the command `zerver -rlc web`.
+This setup allows you to simply enter `npm start` to run the command `zerver -rc web`.
 
 # ExpressJS integration
 
@@ -214,38 +210,11 @@ Zerver integrates well with Express, providing the same functionality to any exi
 ```js
 // "app" is an ExpressJS app instance
 var zerver = require('zerver');
-app.use( zerver.middleware('path/to/zerver/scripts', 'url/to/zerve/at') );
+app.use( zerver.middleware('path/containing/zerver/folder') );
 ```
 
-Along with the rest of your Express app, Zerver scripts will be accessible the specified path (`url/to/zerve/at`) for importing into your client-side code.
+Along with the rest of your Express app, Zerver scripts will be accessible for importing into your client-side code.
 
-# Node module
-
-A convenient tool for testing and server-to-server integration is the NodeJS Zerver module.
-
-```js
-var zerver = require('zerver');
-
-zerver.get('http://localhost:5000/zerver/', function (myzerver) {
-    myzerver.MyAPI.logStuff('hi from another server', function (str, data) {
-        console.log(str); // "hi from server"
-    });
-});
-```
-
-### Script names
-
-Zerver scripts can be globalised on the client under whatever name you please. If you are afraid of object name collisions simply define the query argument `name` for the script and it will be globalised as such.
-
-```html
-<!-- in website-dir/index.html -->
-<script src="zerver/MyAPI.js?name=SomeOtherAPI"></script>
-<script>
-    SomeOtherAPI.logStuff('hi from client', function (str) {
-        console.log(str); // "hi from server"
-    });
-</script>
-```
 ### Error handling
 
 ```html
