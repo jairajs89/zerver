@@ -193,7 +193,9 @@ If files that are inlined or concatenated are included in the manifest then they
 
 ```appcache
 CACHE MANIFEST
+
 /img/background.png?inline=1
+
 # zerver:js/main.min.js
 /js/jquery.js
 /js/jquery.ui.js
