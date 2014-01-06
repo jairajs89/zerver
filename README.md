@@ -104,7 +104,7 @@ Enable command line JavaScript access to the browser that your webpage is curren
 For example:
 
 ```sh
->>> zerver --cli website-dir
+> zerver --cli website-dir
 
 # Press <tab> to access remote command line
 >>>
