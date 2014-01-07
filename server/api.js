@@ -89,7 +89,7 @@ function APICalls(options) {
 
 	this._requireScript = scriptRequire;
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_DIR      , JSON.stringify(this._rootPath));
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_NAME     , JSON.stringify('require')     );
+	this._requireScript = this._requireScript.replace(APICalls.INSERT_NAME     , JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_API      , JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_APIS     , JSON.stringify(templateData)  );
@@ -150,7 +150,7 @@ APICalls.prototype.getNames = function () {
 
 APICalls.prototype._apiScript = function (apiName, callback) {
 	var script;
-	if (script === 'require') {
+	if (apiName === 'require') {
 		script = this._requireScript;
 	} else {
 		script = this._apiScripts[apiName];

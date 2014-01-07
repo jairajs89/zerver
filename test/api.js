@@ -131,3 +131,23 @@ test.runTest(testObj(), {
 		callback();
 	});
 });
+
+test.runTest(testObj(), {
+	'zerver': {
+		'test.js': 'exports.foo=function(p,c){c(p)};exports.foo.type="GET"'
+	}
+}, function (apis, files, callback) {
+	apis.customTest('GET', 'test.js', '', function (status, headers, body) {
+		assert.equal(status, 200);
+		assert.equal(headers['Content-Type'], 'application/javascript');
+		callback();
+	});
+});
+
+test.runTest(testObj(), {}, function (apis, files, callback) {
+	apis.customTest('GET', 'require.js', '', function (status, headers, body) {
+		assert.equal(status, 200);
+		assert.equal(headers['Content-Type'], 'application/javascript');
+		callback();
+	});
+});
