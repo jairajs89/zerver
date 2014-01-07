@@ -2,7 +2,7 @@
   "author" : "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name" : "zerver",
   "description" : "a modern webapp server",
-  "version" : "0.15.3",
+  "version" : "0.15.4",
   "license" : "MIT" ,
   "repository" : {
     "type" : "git",

@@ -632,7 +632,7 @@ StaticFiles.prototype._rawGet = function (pathname) {
 		return {
 			status  : 301,
 			headers : {
-				'Location' : ''
+				'Location' : pathname+'/'
 			},
 			body    : '',
 		};
