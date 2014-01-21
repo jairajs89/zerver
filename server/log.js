@@ -41,7 +41,7 @@ Logger.prototype.endRequest = function (req, res) {
 	req._logger.timeMs = (timeParts[0]*1000 + timeParts[1]/1000000);
 
 	if (this._stats) {
-		self._stats.openRequests -= 1;
+		this._stats.openRequests -= 1;
 		this._stats.requests += 1
 		if (res.statusCode === 404) {
 			this._stats.missing += 1;
@@ -57,10 +57,10 @@ Logger.prototype.endRequest = function (req, res) {
 };
 
 Logger.prototype._reset = function () {
-	self._stats.requests     = 0;
-	self._stats.missing      = 0;
-	self._stats.error        = 0;
-	self._stats.responseTime = 0;
+	this._stats.requests     = 0;
+	this._stats.missing      = 0;
+	this._stats.error        = 0;
+	this._stats.responseTime = 0;
 };
 
 Logger.prototype._printStats = function () {
@@ -71,19 +71,19 @@ Logger.prototype._printStats = function () {
 			pid             : process.pid,
 			memory          : process.memoryUsage().heapUsed,
 			uptime          : parseInt(process.uptime()),
-			requests        : self._stats.requests,
-			missing         : self._stats.missing,
-			error           : self._stats.error,
-			openConnections : self._stats.openRequests,
+			requests        : this._stats.requests,
+			missing         : this._stats.missing,
+			error           : this._stats.error,
+			openConnections : this._stats.openRequests,
 		};
-		if (self._stats.requests) {
-			usage.avgResponse = Math.round(100*self._stats.responseTime/self._stats.requests)/100;
+		if (this._stats.requests) {
+			usage.avgResponse = Math.round(100*this._stats.responseTime/this._stats.requests)/100;
 		} else {
 			usage.avgResponse = 0;
 		}
 		console.log( JSON.stringify(usage) );
 	} catch (err) {}
-	self._reset();
+	this._reset();
 };
 
 Logger.prototype._print = function (req, res) {

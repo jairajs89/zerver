@@ -41,6 +41,7 @@ function Zerver(options, callback) {
 
 		self._app.listen(self._options.port, function () {
 			console.log('zerver running:');
+			console.log('- path: ' + self._options.dir);
 			console.log('- port: ' + self._options.port);
 			var apiNames = self._apis.getNames();
 			if (apiNames.length) {
