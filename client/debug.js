@@ -11,7 +11,9 @@
 	}
 
 	var stream = createStream();
-	setupRefresh();
+	if (refreshEnabled) {
+		setupRefresh();
+	}
 	setupCLI();
 	if (loggingEnabled) {
 		// dont want to hijack logs unless necessary

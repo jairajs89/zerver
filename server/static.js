@@ -190,8 +190,11 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 		if (altPath) {
 			self._cache[altPath] = self._cache[pathname];
 		}
-		callback(headers, body);
-	})
+
+		setImmediate(function () {
+			callback(headers, body);
+		});
+	});
 };
 
 StaticFiles.prototype._cacheDirectory = function (pathname) {
@@ -542,6 +545,12 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 
 	var code;
 	switch (headers['Content-Type']) {
+		case 'application/json':
+			try {
+				code = JSON.stringify(JSON.parse(body));
+			} catch (err) {}
+			break;
+
 		case 'application/javascript':
 			body = body.replace(StaticFiles.DEBUG_LINES, '');
 			try {
