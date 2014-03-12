@@ -92,9 +92,13 @@ function StaticFiles(options, callback) {
 	}
 
 	if (self._cache) {
-		self._loadCache(callback);
+		self._loadCache(finish);
 	} else {
-		callback();
+		finish();
+	}
+
+	function finish() {
+		callback.call(self);
 	}
 }
 

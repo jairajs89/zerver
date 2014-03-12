@@ -24,11 +24,13 @@ function Zerver(options, callback) {
 	self._logger = new Logger(self._options);
 	self._apis   = new APICalls(self._options);
 	self._static = new StaticFiles(self._options, function () {
+		var staticFiles = this;
+
 		if (self._options.missing) {
 			if (self._options.missing[0] !== '/') {
 				self._options.missing = '/'+self._options.missing;
 			}
-			if ( self._static.get(self._options.missing) ) {
+			if ( staticFiles.get(self._options.missing) ) {
 				self._missing = self._options.missing;
 			}
 		}
@@ -47,7 +49,7 @@ function Zerver(options, callback) {
 			if (apiNames.length) {
 				console.log('- apis: ' + apiNames.join(', '));
 			}
-			var manifestList = self._static.getManifestNames();
+			var manifestList = staticFiles.getManifestNames();
 			if (manifestList.length) {
 				console.log('- manifests: ' + manifestList.join(', '));
 			}
