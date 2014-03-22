@@ -44,6 +44,7 @@ function processOptions() {
 		.option('--no-compile'              , 'disable js, css minification in production mode')
 		.option('--no-inline'               , 'disable file inlining in production mode')
 		.option('--no-coffee'               , 'disable compilation of CoffeeScript to JavaScript')
+		.option('--no-less'                 , 'disable compilation of LESS to CSS')
 		.option('-V, --verbose'             , 'verbose request logging')
 		.option('-H, --headers'             , 'show headers in logs')
 		.option('-j, --json'                , 'requests get logged as json')

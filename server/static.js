@@ -1,14 +1,16 @@
-var crypto = require('crypto'),
-		fs     = require('fs'),
-		path   = require('path'),
-		urllib = require('url'),
-		extend = require('util')._extend,
-		zlib   = require('zlib'),
-		mime   = require('mime'),
-		uglify = require('uglify-js'),
-		coffee = require('coffee-script'),
-		async  = require(__dirname+path.sep+'lib'+path.sep+'async'),
-		clean  = require(__dirname+path.sep+'lib'+path.sep+'clean-css');
+var crypto     = require('crypto'),
+		fs         = require('fs'),
+		path       = require('path'),
+		urllib     = require('url'),
+		extend     = require('util')._extend,
+		zlib       = require('zlib'),
+		mime       = require('mime'),
+		uglify     = require('uglify-js'),
+		coffee     = require('coffee-script'),
+		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
+		clean      = require(__dirname+path.sep+'lib'+path.sep+'clean-css'),
+		lessParser = new(require('less').Parser)({ processImports: false });
+		//TODO: real parser
 
 mime.define({
 	'text/coffeescript' : ['coffee'],
@@ -548,6 +550,27 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._compileOutput = function (pathname, headers, body, callback) {
+	if (this._options.coffee && headers['Content-Type'] === 'text/coffeescript') {
+		try {
+			body = coffee.compile(body);
+			headers['Content-Type'] = 'application/javascript'
+		} catch (err) {
+			console.error('failed to compile CoffeeScript file, '+pathname);
+			process.exit(1);
+		}
+	}
+	if (this._options.less && headers['Content-Type'] === 'text/less') {
+		try {
+			lessParser.parse(body, function (e, r) {
+				body = r.toCSS();
+			});
+			headers['Content-Type'] = 'text/css'
+		} catch (err) {
+			console.error('failed to compile LESS file, '+pathname);
+			process.exit(1);
+		}
+	}
+
 	if ( !this._options.compile ) {
 		callback(headers, body);
 		return;
@@ -561,18 +584,6 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 			} catch (err) {}
 			break;
 
-		case 'text/coffeescript':
-			if ( !this._options.coffee ) {
-				break;
-			}
-			try {
-				body = coffee.compile(body);
-				headers['Content-Type'] = 'application/javascript'
-			} catch (err) {
-				console.error('failed to compile CoffeeScript file, '+pathname);
-				process.exit(1);
-			}
-			// pass through to javascript compile
 		case 'application/javascript':
 			body = body.replace(StaticFiles.DEBUG_LINES, '');
 			try {
@@ -686,6 +697,18 @@ StaticFiles.prototype._rawGet = function (pathname) {
 			console.error(err.toString());
 		}
 		contentType = 'application/javascript';
+	}
+	if (this._options.less && contentType === 'text/less') {
+		try {
+			lessParser.parse(file.toString(), function (e, r) {
+				file = r.toCSS();
+			});
+		} catch (err) {
+			file = '/* failed to compile LESS file */';
+			console.error('failed to compile LESS file, '+pathname);
+			console.error(err.toString());
+		}
+		contentType = 'text/css';
 	}
 	if (isManifestFilename(pathname) && isManifestFile(file.toString())) {
 		file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
