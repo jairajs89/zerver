@@ -1,13 +1,19 @@
 var crypto = require('crypto'),
-	fs     = require('fs'),
-	path   = require('path'),
-	urllib = require('url'),
-	extend = require('util')._extend,
-	zlib   = require('zlib'),
-	mime   = require('mime'),
-	uglify = require('uglify-js'),
-	async  = require(__dirname+path.sep+'lib'+path.sep+'async'),
-	clean  = require(__dirname+path.sep+'lib'+path.sep+'clean-css');
+		fs     = require('fs'),
+		path   = require('path'),
+		urllib = require('url'),
+		extend = require('util')._extend,
+		zlib   = require('zlib'),
+		mime   = require('mime'),
+		uglify = require('uglify-js'),
+		coffee = require('coffee-script'),
+		async  = require(__dirname+path.sep+'lib'+path.sep+'async'),
+		clean  = require(__dirname+path.sep+'lib'+path.sep+'clean-css');
+
+mime.define({
+	'text/coffeescript' : ['coffee'],
+	'text/less'         : ['less'  ],
+});
 
 module.exports = StaticFiles;
 
@@ -161,7 +167,7 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 	var filePath = path.join(self._root, pathname),
 		body     = fs.readFileSync(filePath, 'binary'),
 		headers  = {
-			'Content-Type'  : (mime.lookup(filePath) || 'application/octet-stream'),
+			'Content-Type'  : mime.lookup(filePath),
 			'Cache-Control' : self._getCacheControl(pathname),
 		};
 
@@ -240,7 +246,7 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 
 	var filePath = path.join(self._root, pathname),
 		headers  = {
-			'Content-Type'  : (mime.lookup(filePath) || 'application/octet-stream'),
+			'Content-Type'  : mime.lookup(filePath),
 			'Cache-Control' : self._getCacheControl(pathname),
 		};
 
@@ -555,6 +561,18 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 			} catch (err) {}
 			break;
 
+		case 'text/coffeescript':
+			if ( !this._options.coffee ) {
+				break;
+			}
+			try {
+				body = coffee.compile(body);
+				headers['Content-Type'] = 'application/javascript'
+			} catch (err) {
+				console.error('failed to compile CoffeeScript file, '+pathname);
+				process.exit(1);
+			}
+			// pass through to javascript compile
 		case 'application/javascript':
 			body = body.replace(StaticFiles.DEBUG_LINES, '');
 			try {
@@ -658,6 +676,17 @@ StaticFiles.prototype._rawGet = function (pathname) {
 		return;
 	}
 
+	var contentType = mime.lookup(filePath);
+	if (this._options.coffee && contentType === 'text/coffeescript') {
+		try {
+			file = coffee.compile(file.toString());
+		} catch (err) {
+			file = 'throw TypeError("failed to compile CoffeeScript file");';
+			console.error('failed to compile CoffeeScript file, '+pathname);
+			console.error(err.toString());
+		}
+		contentType = 'application/javascript';
+	}
 	if (isManifestFilename(pathname) && isManifestFile(file.toString())) {
 		file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
 	}
@@ -665,7 +694,7 @@ StaticFiles.prototype._rawGet = function (pathname) {
 	return {
 		body    : file,
 		headers : {
-			'Content-Type'  : (mime.lookup(filePath) || 'application/octet-stream'),
+			'Content-Type'  : contentType,
 			'Cache-Control' : this._getCacheControl(pathname),
 		}
 	};
