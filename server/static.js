@@ -7,14 +7,15 @@ var crypto     = require('crypto'),
 		mime       = require('mime'),
 		uglify     = require('uglify-js'),
 		coffee     = require('coffee-script'),
+		jade       = require('jade'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
 		clean      = require(__dirname+path.sep+'lib'+path.sep+'clean-css'),
 		lessParser = new(require('less').Parser)({ processImports: false });
-		//TODO: real parser
 
 mime.define({
 	'text/coffeescript' : ['coffee'],
 	'text/less'         : ['less'  ],
+	'text/jade'         : ['jade'  ],
 });
 
 module.exports = StaticFiles;
@@ -174,6 +175,7 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 		};
 
 	async.forEach([
+		'compileLanguages',
 		'prepareManifest',
 		'inlineManifestFiles',
 		'prepareManifestConcatFiles',
@@ -549,28 +551,52 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 	});
 };
 
-StaticFiles.prototype._compileOutput = function (pathname, headers, body, callback) {
+StaticFiles.prototype._compileLanguages = function (pathname, headers, body, callback) {
 	if (this._options.coffee && headers['Content-Type'] === 'text/coffeescript') {
 		try {
-			body = coffee.compile(body);
+			body = coffee.compile(body.toString());
 			headers['Content-Type'] = 'application/javascript'
 		} catch (err) {
 			console.error('failed to compile CoffeeScript file, '+pathname);
-			process.exit(1);
+			console.error(err.toString());
+			if (this._options.production) {
+				process.exit(1);
+			}
 		}
-	}
-	if (this._options.less && headers['Content-Type'] === 'text/less') {
+	} else if (this._options.less && headers['Content-Type'] === 'text/less') {
 		try {
-			lessParser.parse(body, function (e, r) {
+			lessParser.parse(body.toString(), function (e, r) {
 				body = r.toCSS();
 			});
 			headers['Content-Type'] = 'text/css'
 		} catch (err) {
 			console.error('failed to compile LESS file, '+pathname);
-			process.exit(1);
+			console.error(err.toString());
+			if (this._options.production) {
+				process.exit(1);
+			}
+		}
+	} else if (this._options.jade && headers['Content-Type'] === 'text/jade') {
+		try {
+			body = jade.render(body.toString(), {
+				fileName     : pathname,
+				pretty       : !this._options.production,
+				compileDebug : !this._options.production,
+			});
+			headers['Content-Type'] = 'text/html';
+		} catch (err) {
+			console.error('failed to compile Jade file, '+pathname);
+			console.error(err.toString());
+			if (this._options.production) {
+				process.exit(1);
+			}
 		}
 	}
 
+	callback(headers, body);
+};
+
+StaticFiles.prototype._compileOutput = function (pathname, headers, body, callback) {
 	if ( !this._options.compile ) {
 		callback(headers, body);
 		return;
@@ -687,39 +713,21 @@ StaticFiles.prototype._rawGet = function (pathname) {
 		return;
 	}
 
-	var contentType = mime.lookup(filePath);
-	if (this._options.coffee && contentType === 'text/coffeescript') {
-		try {
-			file = coffee.compile(file.toString());
-		} catch (err) {
-			file = 'throw TypeError("failed to compile CoffeeScript file");';
-			console.error('failed to compile CoffeeScript file, '+pathname);
-			console.error(err.toString());
-		}
-		contentType = 'application/javascript';
-	}
-	if (this._options.less && contentType === 'text/less') {
-		try {
-			lessParser.parse(file.toString(), function (e, r) {
-				file = r.toCSS();
-			});
-		} catch (err) {
-			file = '/* failed to compile LESS file */';
-			console.error('failed to compile LESS file, '+pathname);
-			console.error(err.toString());
-		}
-		contentType = 'text/css';
-	}
+	var headers = {
+		'Content-Type' : mime.lookup(filePath),
+		'Cache-Control' : this._getCacheControl(pathname),
+	};
+	// synchronous
+	this._compileLanguages(pathname, headers, file, function (_, f) {
+		file = f;
+	});
 	if (isManifestFilename(pathname) && isManifestFile(file.toString())) {
 		file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
 	}
 
 	return {
 		body    : file,
-		headers : {
-			'Content-Type'  : contentType,
-			'Cache-Control' : this._getCacheControl(pathname),
-		}
+		headers : headers,
 	};
 };
 
