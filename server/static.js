@@ -21,6 +21,7 @@ mime.define({
 
 module.exports = StaticFiles;
 
+StaticFiles.INDEX_FILES         = ['index.html', 'index.jade'];
 StaticFiles.CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
 StaticFiles.DEBUG_LINES         = /\s*\;\;\;.*/g;
 StaticFiles.MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g;
@@ -156,7 +157,7 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 	}
 
 	var altPath;
-	if (pathname.split('/').pop() === 'index.html') {
+	if ( isDirectoryRootFile(pathname) ) {
 		altPath = pathname.split('/').slice(0,-1).join('/')+'/';
 		if (altPath.length > 1) {
 			self._cacheDirectory(altPath.substr(0,altPath.length-1));
@@ -240,7 +241,7 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 	}
 
 	var altPath;
-	if (pathname.split('/').pop() === 'index.html') {
+	if ( isDirectoryRootFile(pathname) ) {
 		altPath = pathname.split('/').slice(0,-1).join('/')+'/';
 	}
 
@@ -686,9 +687,16 @@ StaticFiles.prototype._rawGet = function (pathname) {
 		}
 	}
 
-	var isDirRoot = pathname[pathname.length-1] === '/';
+	var isDirRoot = pathname[pathname.length-1] === '/',
+		response;
 	if (isDirRoot) {
-		filePath += '/index.html';
+		for (var i=0, l=StaticFiles.INDEX_FILES.length; i<l; i++) {
+			response = this._rawGet(filePath+'/'+StaticFiles.INDEX_FILES[i]);
+			if (typeof response !== 'undefined') {
+				return response;
+			}
+		}
+		return;
 	}
 
 	var stat;
@@ -834,4 +842,9 @@ function getLastModifiedTimestamp(root, ignores) {
 	}, function(){});
 
 	return latest;
+}
+
+function isDirectoryRootFile(pathname) {
+	var fileName = pathname.split('/').pop();
+	return StaticFiles.INDEX_FILES.indexOf(fileName) !== -1;
 }
