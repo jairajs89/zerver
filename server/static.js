@@ -9,7 +9,7 @@ var crypto     = require('crypto'),
 		coffee     = require('coffee-script'),
 		less       = require('less'),
 		jade       = require('jade'),
-		clean      = require('clean-css'),
+		CleanCSS   = require('clean-css'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
 		lessParser = new(less.Parser)({ processImports: false });
 
@@ -623,9 +623,9 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 			break;
 
 		case 'text/css':
-			try{
-				code = clean.process(body);
-			} catch(err){}
+			try {
+				code = new CleanCSS().minify(body);
+			} catch (err) {}
 			break;
 	}
 
