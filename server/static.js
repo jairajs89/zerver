@@ -691,7 +691,7 @@ StaticFiles.prototype._rawGet = function (pathname) {
 		response;
 	if (isDirRoot) {
 		for (var i=0, l=StaticFiles.INDEX_FILES.length; i<l; i++) {
-			response = this._rawGet(filePath+'/'+StaticFiles.INDEX_FILES[i]);
+			response = this._rawGet(pathname+'/'+StaticFiles.INDEX_FILES[i]);
 			if (typeof response !== 'undefined') {
 				return response;
 			}
