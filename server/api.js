@@ -6,6 +6,8 @@ var extend  = require('util')._extend,
 	uglify  = require('uglify-js'),
 	Cookies = require(__dirname+path.sep+'lib'+path.sep+'cookies');
 
+require('coffee-script/register');
+
 module.exports = APICalls;
 
 APICalls.CLIENT_API       = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'api.js';
@@ -42,13 +44,12 @@ function APICalls(options) {
 		apiNames = [];
 	}
 	apiNames.forEach(function (fileName) {
-		var len = fileName.length;
-		if (fileName.substr(len-3) !== '.js') {
+		var apiName = getApiName(fileName);
+		if ( !apiName ) {
 			return;
 		}
 
-		var apiName  = fileName.substr(0, len-3),
-			fullName = path.join(self._root+self._rootPath, apiName);
+		var fullName = path.join(self._root+self._rootPath, apiName);
 
 		var api = require(fullName);
 		self._apis[apiName] = api;
@@ -119,8 +120,8 @@ APICalls.prototype.get = function (pathname, req, callback) {
 		apiName;
 
 	if (apiParts.length === 1) {
-		apiName = apiParts[0].substr(0, apiParts[0].length-3);
-		if (apiParts[0].substr(-3) !== '.js') {
+		apiName = getApiName(apiParts[0]);
+		if ( !apiName ) {
 			callback(404, { 'Cache-Control': 'text/plain' }, '404');
 		} else {
 			this._apiScript(apiName, callback);
@@ -409,6 +410,16 @@ APICalls.prototype._customApiCall = function (req, func, finish) {
 };
 
 
+
+function getApiName(pathname) {
+	var parts = pathname.split('/').pop().split('.'),
+			ext   = parts.length > 1 ? parts.pop() : null;
+	if (['js', 'coffee'].indexOf(ext) !== -1)  {
+		return parts.join('.');
+	} else {
+		return null;
+	}
+}
 
 function setupAPIObj(api, obj, functions) {
 	var value;
