@@ -7,10 +7,10 @@ var crypto     = require('crypto'),
 		mime       = require('mime'),
 		uglify     = require('uglify-js'),
 		coffee     = require('coffee-script'),
-		jade       = require(__dirname+path.sep+'lib'+path.sep+'jade'),
+		less       = require('less'),
+		jade       = require('jade'),
+		clean      = require('clean-css'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
-		clean      = require(__dirname+path.sep+'lib'+path.sep+'clean-css'),
-		less       = require(__dirname+path.sep+'lib'+path.sep+'less'),
 		lessParser = new(less.Parser)({ processImports: false });
 
 mime.define({

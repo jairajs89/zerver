@@ -3,7 +3,7 @@
 var cluster   = require('cluster'),
 	path      = require('path'),
 	fs        = require('fs'),
-	commander = require(__dirname+path.sep+'lib'+path.sep+'commander'),
+	commander = require('commander'),
 	Master    = require(__dirname+path.sep+'master'),
 	Slave     = require(__dirname+path.sep+'slave');
 
