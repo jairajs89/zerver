@@ -2,7 +2,7 @@
   "author" : "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name" : "zerver",
   "description" : "a modern webapp server",
-  "version" : "0.15.13",
+  "version" : "0.15.14",
   "license" : "MIT" ,
   "repository" : {
     "type" : "git",
@@ -11,11 +11,21 @@
   "engines" : {
     "node" : ">=0.8"
   },
+  "dependencies" : {
+    "commander"     : "2.1.0" ,
+    "mime"          : "1.2.7" ,
+    "uglify-js"     : "1.3.4" ,
+    "websocket"     : "1.0.8" ,
+    "coffee-script" : "1.7.1" ,
+    "less"          : "1.7.0" ,
+    "clean-css"     : "2.1.6" ,
+    "jade"          : "1.3.0"
+  },
   "main" : "server/zerver.js",
   "bin" : {
     "zerver": "server/index.js"
   },
   "scripts" : {
-  	"test" : "node test"
+    "test" : "node test"
   }
 }
