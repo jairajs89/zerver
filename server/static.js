@@ -581,7 +581,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 	} else if (this._options.jade && headers['Content-Type'] === 'text/jade') {
 		try {
 			body = jade.render(body.toString(), {
-				fileName     : pathname,
+				filename     : path.join(this._root, pathname),
 				pretty       : !this._options.production,
 				compileDebug : !this._options.production,
 			});
