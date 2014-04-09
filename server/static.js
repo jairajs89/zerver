@@ -10,8 +10,27 @@ var crypto     = require('crypto'),
 		less       = require('less'),
 		jade       = require('jade'),
 		CleanCSS   = require('clean-css'),
-		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
-		lessParser = new(less.Parser)({ processImports: false });
+		async      = require(__dirname+path.sep+'lib'+path.sep+'async');
+
+less.Parser.importer = function (file, paths, callback) {
+	var pathname = path.join(paths.entryPath, file);
+	try {
+		fs.statSync(pathname);
+	} catch (e) {
+		throw new Error('File '+file+' not found');
+	}
+
+	var data = fs.readFileSync(pathname, 'utf-8');
+	new(less.Parser)({
+		paths    : [path.dirname(pathname)].concat(paths),
+		filename : pathname,
+	}).parse(data, function (e, root) {
+		if (e) {
+			less.writeError(e);
+		}
+		callback(e, root);
+	})
+};
 
 mime.define({
 	'text/coffeescript' : ['coffee'],
@@ -259,6 +278,7 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 	async.join(
 		self._concats[pathname].map(function (partPath) {
 			return function (respond) {
+				//TODO: what if file is zerver script
 				var cached = self._cache[partPath];
 				if ( !cached ) {
 					throw Error('file not found for concat, '+partPath);
@@ -470,6 +490,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 			next();
 			return;
 		}
+		//TODO: what if file is zerver script
 		var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
 		self._cacheFile(fullPath, function (headers, body) {
 			if (headers['Content-Encoding'] === 'gzip') {
@@ -567,10 +588,13 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.less && headers['Content-Type'] === 'text/less') {
 		try {
-			lessParser.parse(body.toString(), function (e, r) {
+			var parser = new(less.Parser)({
+				filename: path.join(this._root, pathname)
+			});
+			parser.parse(body.toString(), function (e, r) {
 				body = r.toCSS();
 			});
-			headers['Content-Type'] = 'text/css'
+			headers['Content-Type'] = 'text/css';
 		} catch (err) {
 			console.error('failed to compile LESS file, '+pathname);
 			console.error(err.toString());
@@ -594,7 +618,6 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 			}
 		}
 	}
-
 	callback(headers, body);
 };
 
