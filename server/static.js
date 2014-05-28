@@ -10,6 +10,7 @@ var crypto     = require('crypto'),
 		less       = require('less'),
 		jade       = require('jade'),
 		CleanCSS   = require('clean-css'),
+		htmlMinify = require('html-minifier'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async');
 
 less.Parser.importer = function (file, paths, callback) {
@@ -642,12 +643,38 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 				ast     = uglify.uglify.ast_mangle(ast);
 				ast     = uglify.uglify.ast_squeeze(ast);
 				code    = uglify.uglify.gen_code(ast);
+				if (!code || code.length > body.length) {
+					code = null;
+				}
 			} catch (err) {}
 			break;
 
 		case 'text/css':
 			try {
 				code = new CleanCSS().minify(body);
+				if (!code || code.length > body.length) {
+					code = null;
+				}
+			} catch (err) {}
+			break;
+
+		case 'text/html':
+			try {
+				code = htmlMinify.minify(body, {
+					removeComments            : true,
+					collapseWhitespace        : true,
+					conservativeCollapse      : true,
+					collapseBooleanAttributes : true,
+					removeAttributeQuotes     : true,
+					removeRedundantAttributes : true,
+					removeEmptyAttributes     : true,
+					caseSensitive             : true,
+					minifyJS                  : true,
+					minifyCSS                 : true,
+				});
+				if (!code || code.length > body.length) {
+					code = null;
+				}
 			} catch (err) {}
 			break;
 	}
