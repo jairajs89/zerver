@@ -7,6 +7,7 @@ window.zerver = function (window, zerver) {
 			get       : getRequest,
 			post      : postRequest,
 			put       : putRequest,
+			patch     : patchRequest,
 			del       : deleteRequest,
 			request   : makeAPICall
 		};
@@ -22,6 +23,9 @@ window.zerver = function (window, zerver) {
 	}
 	function putRequest(resource, data, callback) {
 		return makeAPICall('PUT', resource, data, callback);
+	}
+	function patchRequest(resource, data, callback) {
+		return makeAPICall('PATCH', resource, data, callback);
 	}
 	function deleteRequest(resource, data, callback) {
 		return makeAPICall('DELETE', resource, data, callback);
@@ -46,6 +50,7 @@ window.zerver = function (window, zerver) {
 		switch (method) {
 			case 'POST':
 			case 'PUT':
+			case 'PATCH':
 				if (data && (typeof data === 'object')) {
 					contentType = 'application/json';
 					data = JSON.stringify(data);
