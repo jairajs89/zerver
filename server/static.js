@@ -491,9 +491,18 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 			next();
 			return;
 		}
-		//TODO: what if file is zerver script
 		var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
-		self._cacheFile(fullPath, function (headers, body) {
+		var prefix = self._options.apis+'/';
+		if (fullPath.substr(0, prefix.length) === prefix) {
+			var apiName = fullPath.substr(prefix.length).split('.')[0];
+			self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+				handleFile(headers, body);
+			});
+		} else {
+			self._cacheFile(fullPath, handleFile);
+		}
+
+		function handleFile(headers, body) {
 			if (headers['Content-Encoding'] === 'gzip') {
 				zlib.gunzip(body, function (err, newBody) {
 					if (err) {
@@ -509,7 +518,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 			function finish() {
 				next('<script>//<![CDATA[\n'+body+'\n//]]></script>');
 			}
-		});
+		}
 	}, function (body) {
 		callback(headers, body);
 	});
@@ -792,14 +801,6 @@ StaticFiles.prototype._rawGet = function (pathname) {
 
 StaticFiles.prototype.getManifestNames = function () {
 	return Object.keys(this._manifests);
-};
-
-StaticFiles.prototype.dump = function (pathname) {
-	if ( !this._cache ) {
-		throw Error('static builds must be run with cache enabled');
-	}
-	//TODO: dump built files to directory
-	throw Error('not implemented');
 };
 
 

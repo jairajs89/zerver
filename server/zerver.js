@@ -23,6 +23,7 @@ function Zerver(options, callback) {
 
 	self._logger = new Logger(self._options);
 	self._apis   = new APICalls(self._options);
+	self._options._apiModule = self._apis;
 	self._static = new StaticFiles(self._options, function () {
 		var staticFiles = this;
 
