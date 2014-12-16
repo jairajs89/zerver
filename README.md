@@ -23,7 +23,7 @@ Only files on the topmost level of the zerver folder will be saved as api's i.e.
 ```js
 // in website-dir/zerver/MyAPI.js
 // this runs on the server
-exports.logStuff = function (str) {
+exports.logStuff = function (str, callback) {
     console.log(str); // 'hi from client'
     callback('hi from server');
 };
