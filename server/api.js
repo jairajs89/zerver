@@ -310,6 +310,7 @@ APICalls.prototype._customApiCall = function (req, func, finish) {
 		req.body = body;
 		try {
 			req.jsonBody = JSON.parse(body);
+			extend(req.params, req.jsonBody);
 		} catch (err) {}
 		if ((typeof req.jsonBody !== 'object') || (req.jsonBody === null)) {
 			req.jsonBody = {};
