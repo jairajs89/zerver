@@ -42,10 +42,11 @@ function Zerver(options, callback) {
 			self._handleRequest(req, res);
 		});
 
-		self._app.listen(self._options.port, function () {
+		self._app.listen(self._options.port, self._options.hostname, function () {
 			console.log('zerver running:');
 			console.log('- path: ' + self._options.dir);
 			console.log('- port: ' + self._options.port);
+			console.log('- host: ' + ((!self._options.hostname) ? '*' : self._options.hostname));
 			var apiNames = self._apis.getNames();
 			if (apiNames.length) {
 				console.log('- apis: ' + apiNames.join(', '));
