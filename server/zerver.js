@@ -46,7 +46,7 @@ function Zerver(options, callback) {
 			console.log('zerver running:');
 			console.log('- path: ' + self._options.dir);
 			console.log('- port: ' + self._options.port);
-			console.log('- host: ' + ((!self._options.hostname) ? '*' : self._options.hostname));
+			console.log('- host: ' + (self._options.hostname || '0.0.0.0'));
 			var apiNames = self._apis.getNames();
 			if (apiNames.length) {
 				console.log('- apis: ' + apiNames.join(', '));
