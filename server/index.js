@@ -32,6 +32,7 @@ function processOptions() {
 		.version(getZerverVersion(), '-v, --version')
 		.usage('[options] [dir]')
 		.option('-P, --port <n>'            , 'set server port to listen on', parseInt, process.env.PORT||5000)
+		.option('-N, --hostname <addr>'     , 'set server hostname to listen to', undefined)
 		.option('-r, --refresh'             , 'auto-refresh browsers on file changes')
 		.option('-c, --cli'                 , 'js shell for connect remote clients')
 		.option('-p, --production'          , 'enable production mode (caching, concat, minfiy, gzip, etc)')
