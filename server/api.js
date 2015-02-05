@@ -378,19 +378,21 @@ APICalls.prototype._customApiCall = function (req, func, finish) {
 		}
 		switch (typeof body) {
 			case 'object':
-				try {
-					body = JSON.stringify(body);
-				} catch (err) {
-					console.error('response body was not valid JSON');
-					console.error(err && (err.stack || err.message));
-					respondError();
-					return;
-				}
-				var index = Object.keys(headers).map(function (key) {
-					return key.toLowerCase();
-				}).indexOf('content-type');
-				if (index === -1) {
-					headers['Content-Type'] = 'application/json';
+				if ( !Buffer.isBuffer(body) ) {
+					try {
+						body = JSON.stringify(body);
+					} catch (err) {
+						console.error('response body was not valid JSON');
+						console.error(err && (err.stack || err.message));
+						respondError();
+						return;
+					}
+					var index = Object.keys(headers).map(function (key) {
+						return key.toLowerCase();
+					}).indexOf('content-type');
+					if (index === -1) {
+						headers['Content-Type'] = 'application/json';
+					}
 				}
 				break;
 			case 'string':
