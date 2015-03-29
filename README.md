@@ -141,7 +141,7 @@ While zerver tries to provide the best developer experience it is built with pro
 
 ### Inline scripts, styles, images
 
-Zerver can automatically inline files to reduce the number of requests your app makes and protentially speed things up for your users.
+Zerver can automatically inline files to reduce the number of requests your app makes and potentially speed things up for your users.
 
 ```html
 <link rel="stylesheet" href="/css/styles.css?inline=1">
