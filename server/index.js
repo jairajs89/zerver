@@ -41,7 +41,7 @@ function processOptions() {
 	commands
 		.version(getZerverVersion(), '-v, --version')
 		.usage('[options] [dir]')
-		.option('-P, --port <n>'            , 'set server port to listen on', parseInt, process.env.PORT||5000)
+		.option('-P, --port <n>'            , 'set server port to listen on', parseInt)
 		.option('-h, --hostname <addr>'     , 'set server hostname to listen to', undefined)
 		.option('-r, --refresh'             , 'auto-refresh browsers on file changes')
 		.option('-c, --cli'                 , 'js shell for connect remote clients')
@@ -74,6 +74,9 @@ function processOptions() {
 	}
 	commands.logging = commands.cli;
 	commands.dir = path.resolve(process.cwd(), commands.args[0] || '.');
+	if ( !commands.port ) {
+		commands.port = parseInt(process.env.PORT) || 5000;
+	}
 
 	var jsonCommands = {};
 	Object.keys(commands).filter(function (name) {
