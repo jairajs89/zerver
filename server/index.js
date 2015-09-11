@@ -17,6 +17,16 @@ process.nextTick(function () {
 	}
 
 	var options = processOptions();
+	options.env.forEach(function (assign) {
+		var parts = assign.split('=');
+		if (parts.length < 2) {
+			throw TypeError('failed to parse env: '+assign);
+		}
+		var name  = parts[0];
+		var value = parts.slice(1).join('=');
+		process.env[name] = value;
+	});
+
 	if (cluster.isMaster) {
 		new Master(options);
 	} else {
@@ -36,6 +46,7 @@ function processOptions() {
 		.option('-r, --refresh'             , 'auto-refresh browsers on file changes')
 		.option('-c, --cli'                 , 'js shell for connect remote clients')
 		.option('-p, --production'          , 'enable production mode (caching, concat, minfiy, gzip, etc)')
+		.option('--env <assign>'            , 'set environment variables (name="value")', function(v,m){m.push(v);return m}, [])
 		.option('--cache <paths>'           , 'set specific cache life for resources')
 		.option('-M, --missing <paths>'     , 'set a custom 404 page')
 		.option('--ignore-manifest <paths>' , 'disable processing for a particular HTML5 appCache manifest file')
