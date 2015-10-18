@@ -103,17 +103,6 @@ function runTest(testObj, files, callback) {
 		function statFile(filename) {
 			var file = findFile(filename);
 			return {
-				//TODO
-				// dev: 16777218,
-				// mode: 16877,
-				// nlink: 12,
-				// uid: 501,
-				// gid: 20,
-				// rdev: 0,
-				// blksize: 4096,
-				// ino: 44737575,
-				// size: 408,
-				// blocks: 0,
 				atime: time,
 				mtime: time,
 				ctime: time,

@@ -7,6 +7,7 @@ var crypto     = require('crypto'),
 		mime       = require('mime'),
 		uglify     = require('uglify-js'),
 		coffee     = require('coffee-script'),
+		babelCore  = require('babel-core'),
 		less       = require('less'),
 		jade       = require('jade'),
 		CleanCSS   = require('clean-css'),
@@ -34,6 +35,7 @@ less.Parser.importer = function (file, paths, callback) {
 };
 
 mime.define({
+	'text/jsx'          : ['jsx'   ],
 	'text/coffeescript' : ['coffee'],
 	'text/less'         : ['less'  ],
 	'text/jade'         : ['jade'  ],
@@ -596,6 +598,17 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 				process.exit(1);
 			}
 		}
+	} else if (this._options.babel && headers['Content-Type'] === 'text/jsx') {
+		try {
+			body = babelCore.transform(body.toString(), { ast: false, comments: false }).code;
+			headers['Content-Type'] = 'application/javascript';
+		} catch (err) {
+			console.error('failed to compile JSX file, '+pathname);
+			console.error(err.toString());
+			if (this._options.production) {
+				process.exit(1);
+			}
+		}
 	} else if (this._options.less && headers['Content-Type'] === 'text/less') {
 		try {
 			var parser = new(less.Parser)({
@@ -647,6 +660,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 
 		case 'application/javascript':
 			body = body.replace(StaticFiles.DEBUG_LINES, '');
+			body = babelCore.transform(body, { ast: false, comments: false }).code;
 			try {
 				var ast = uglify.parser.parse(body);
 				ast     = uglify.uglify.ast_mangle(ast);
