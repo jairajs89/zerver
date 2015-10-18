@@ -600,7 +600,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.babel && headers['Content-Type'] === 'text/jsx') {
 		try {
-			body = babelCore.transform(body.toString(), { ast: false, comments: false }).code;
+			body = babelCore.transform(body.toString(), { modules: this._options.babelModules, filename: path.join(this._root, pathname), filenameRelative: pathname, ast: false, comments: false }).code;
 			headers['Content-Type'] = 'application/javascript';
 		} catch (err) {
 			console.error('failed to compile JSX file, '+pathname);
@@ -660,7 +660,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 
 		case 'application/javascript':
 			body = body.replace(StaticFiles.DEBUG_LINES, '');
-			body = babelCore.transform(body, { ast: false, comments: false }).code;
+			body = babelCore.transform(body, { modules: this._options.babelModules, filename: path.join(this._root, pathname), filenameRelative: pathname, ast: false, comments: false }).code;
 			try {
 				var ast = uglify.parser.parse(body);
 				ast     = uglify.uglify.ast_mangle(ast);
