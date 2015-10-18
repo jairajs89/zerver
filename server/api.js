@@ -7,6 +7,7 @@ var extend  = require('util')._extend,
 	Cookies = require(__dirname+path.sep+'lib'+path.sep+'cookies');
 
 require('coffee-script/register');
+//TODO: require('babel-core/register');
 
 module.exports = APICalls;
 

@@ -683,6 +683,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 
 		case 'text/html':
 			try {
+				//TODO: run script tags through babel
 				code = htmlMinify.minify(body, {
 					removeComments            : true,
 					collapseWhitespace        : true,

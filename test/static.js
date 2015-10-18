@@ -98,14 +98,24 @@ test.runTest(testObj({
 	'main.css'   : '#a { color : red }',
 }, function (cache, files, callback) {
 	var data1 = cache.get('/main.js');
-	assert.deepEqual(data1.body, 'console.log("hello, world")');
+	assert.deepEqual(data1.body, '"use strict";console.log("hello, world")');
 
 	var data2 = cache.get('/main.css');
 	assert.deepEqual(data2.body, '#a{color:red}');
 
 	var data3 = cache.get('/index.html');
-	assert.deepEqual(data3.body, '<script>//<![CDATA[\nconsole.log("hello, world")\n//]]></script>');
+	assert.deepEqual(data3.body, '<script>//<![CDATA[\n"use strict";console.log("hello, world")\n//]]></script>');
 
+	callback();
+});
+
+test.runTest(testObj({
+	compile: true,
+}), {
+	'test.js' : 'export function sum(arr) { return arr.reduce(((v, t) => v+t), 0) }',
+}, function (cache, files, callback) {
+	var data = cache.get('/test.js');
+	assert.deepEqual(data.body, '"use strict";function sum(e){return e.reduce(function(e,t){return e+t},0)}Object.defineProperty(exports,"__esModule",{value:!0}),exports.sum=sum');
 	callback();
 });
 
