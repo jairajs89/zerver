@@ -83,6 +83,12 @@ module.exports = function (babel) {
                         var importVar = modulePath;
                         if (specifier.imported && importName !== 'default') {
                             importVar = t.memberExpression(importVar, t.identifier(importName));
+                        } else {
+                            importVar = t.binaryExpression(
+                                '||',
+                                importVar,
+                                t.memberExpression(t.identifier('this'), t.identifier(moduleName))
+                            );
                         }
                         return t.variableDeclarator(t.identifier(varName), importVar);
                     })
