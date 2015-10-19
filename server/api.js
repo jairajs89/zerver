@@ -13,6 +13,7 @@ module.exports = APICalls;
 APICalls.CLIENT_API       = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'api.js';
 APICalls.CLIENT_REQUIRE   = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'require.js';
 APICalls.CLIENT_DEBUG     = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'debug.js';
+APICalls.CLIENT_POLYFILL  = __dirname+path.sep+'..'+path.sep+'node_modules'+path.sep+'babel-core'+path.sep+'browser-polyfill.min.js';
 APICalls.INSERT_REFRESH   = '{{__API_REFRESH__}}';
 APICalls.INSERT_LOGGING   = '{{__API_LOGGING__}}';
 APICalls.INSERT_DIR       = '{{__API_DIR__}}';
@@ -36,6 +37,7 @@ function APICalls(options) {
 		scriptAPI      = fs.readFileSync(APICalls.CLIENT_API).toString(),
 		scriptRequire  = scriptAPI+fs.readFileSync(APICalls.CLIENT_REQUIRE).toString(),
 		scriptDebug    = fs.readFileSync(APICalls.CLIENT_DEBUG).toString(),
+		scriptPolyfill = fs.readFileSync(APICalls.CLIENT_POLYFILL).toString(),
 		apiNames;
 
 	try {
@@ -106,6 +108,8 @@ function APICalls(options) {
 	} else {
 		this._requireScript += scriptDebug;
 	}
+
+	this._polyfillScript = scriptPolyfill;
 }
 
 
@@ -151,7 +155,9 @@ APICalls.prototype.getNames = function () {
 
 APICalls.prototype._apiScript = function (apiName, callback) {
 	var script;
-	if (apiName === 'require') {
+	if (apiName === 'polyfill') {
+		script = this._polyfillScript;
+	} else if (apiName === 'require') {
 		script = this._requireScript;
 	} else {
 		script = this._apiScripts[apiName];
