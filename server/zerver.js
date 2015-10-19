@@ -111,7 +111,11 @@ Zerver.prototype._handleRequest = function (req, res) {
 
 	function finish(status, headers, body) {
 		res.writeHeader(status, headers);
-		res.write(body, 'binary');
+		if ( Buffer.isBuffer(body) ) {
+			res.write(body, 'binary');
+		} else {
+			res.write(body, 'utf8');
+		}
 		res.end();
 	}
 };
