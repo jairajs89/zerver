@@ -76,6 +76,10 @@ module.exports = function (babel) {
                 // Declare variable per import
                 var moduleName = path.resolve(path.dirname(file.opts.filenameRelative), node.source.value);
                 var modulePath = getModulePath(moduleName);
+                if (node.source.value === 'window') {
+                    moduleName = '/window';
+                    modulePath = t.identifier('this');
+                }
                 return t.variableDeclaration('var',
                     node.specifiers.map(function (specifier) {
                         var varName = specifier.local.name;
@@ -83,12 +87,6 @@ module.exports = function (babel) {
                         var importVar = modulePath;
                         if (specifier.imported && importName !== 'default') {
                             importVar = t.memberExpression(importVar, t.identifier(importName));
-                        } else if (moduleName.substr(1).indexOf('/') === -1) {
-                            importVar = t.binaryExpression(
-                                '||',
-                                importVar,
-                                t.memberExpression(t.identifier('this'), t.identifier(moduleName.substr(1)))
-                            );
                         }
                         return t.variableDeclarator(t.identifier(varName), importVar);
                     })
