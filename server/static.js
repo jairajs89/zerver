@@ -785,6 +785,7 @@ StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback)
 
 StaticFiles.prototype._babelCompile = function (pathname, body) {
 	return babelCore.transform(body, {
+		blacklist        : ['strict'],
 		plugins          : [babelModuleFormatter],
 		modules          : 'ignore',
 		moduleIds        : true,

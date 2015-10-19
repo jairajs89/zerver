@@ -107,6 +107,11 @@ module.exports = function (babel) {
                     }
                 }
 
+                // Inject "use strict";
+                node.body.unshift(
+                    t.expressionStatement(t.literal('use strict'))
+                );
+
                 // Function scope for module
                 var functionWrap = t.parenthesizedExpression(t.functionDeclaration('',[],t.blockStatement(node.body)));
                 var calledWrap = t.callExpression(t.memberExpression(functionWrap,t.identifier('call')), [t.identifier('this')]);
