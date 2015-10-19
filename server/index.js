@@ -59,6 +59,7 @@ function processOptions() {
 		.option('--no-less'                 , 'disable compilation of LESS to CSS')
 		.option('--no-jade'                 , 'disable compilation of Jade to HTML')
 		.option('--babel'                   , 'enable Babel compilation for JS/JSX')
+		.option('--babel-exclude <paths>'   , 'exclude paths from Babel compilation')
 		.option('-V, --verbose'             , 'verbose request logging')
 		.option('-H, --headers'             , 'show headers in logs')
 		.option('-j, --json'                , 'requests get logged as json')

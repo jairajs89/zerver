@@ -631,7 +631,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		if (hadCompilation) {
 			body = $.html();
 		}
-	} else if (this._options.babel && (headers['Content-Type'] === 'text/jsx' || headers['Content-Type'] === 'application/javascript')) {
+	} else if (this._options.babel && !this._isBabelExcluded(pathname) && (headers['Content-Type'] === 'text/jsx' || headers['Content-Type'] === 'application/javascript')) {
 		try {
 			body = this._babelCompile(pathname, body.toString());
 			headers['Content-Type'] = 'application/javascript';
@@ -777,12 +777,25 @@ StaticFiles.prototype._babelCompile = function (pathname, body) {
 		moduleIds        : true,
 		filename         : path.join(this._root, pathname),
 		filenameRelative : pathname,
-		compact          : true,
+		compact          : false,
 		ast              : false,
 		comments         : false,
 		loose            : "all",
 	}).code;
-}
+};
+
+StaticFiles.prototype._isBabelExcluded = function (pathname) {
+	if (this._options.babelExclude) {
+		var paths = this._options.babelExclude.split(',');
+		for (var i=0, l=paths.length; i<l; i++) {
+			var excludePath = relativePath('/', paths[i]);
+			if (pathname.substr(0, excludePath.length) === excludePath) {
+				return true;
+			}
+		}
+	}
+	return false;
+};
 
 
 
