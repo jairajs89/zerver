@@ -777,8 +777,10 @@ StaticFiles.prototype._babelCompile = function (pathname, body) {
 		moduleIds        : true,
 		filename         : path.join(this._root, pathname),
 		filenameRelative : pathname,
+		compact          : true,
 		ast              : false,
 		comments         : false,
+		loose            : "all",
 	}).code;
 }
 
