@@ -284,8 +284,20 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 	async.join(
 		self._concats[pathname].map(function (partPath) {
 			return function (respond) {
-				//TODO: what if file is zerver script
 				var cached = self._cache[partPath];
+				var prefix = self._options.apis+'/';
+				if (partPath.substr(0, prefix.length) === prefix) {
+					var apiName = partPath.substr(prefix.length).split('.')[0];
+					self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+						// This callback happens synchronously
+						if (status) {
+							cached = {
+								headers : headers ,
+								body    : body    ,
+							};
+						}
+					});
+				}
 				if ( !cached ) {
 					throw Error('file not found for concat, '+partPath);
 				}
@@ -501,6 +513,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 		if (fullPath.substr(0, prefix.length) === prefix) {
 			var apiName = fullPath.substr(prefix.length).split('.')[0];
 			self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+				// This callback happens synchronously
 				handleFile(headers, body);
 			});
 		} else {
