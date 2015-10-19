@@ -1,4 +1,4 @@
-import {foo, bar} from "test1";
+import {foo, bar} from "js/test1";
 
 foo();
 bar();

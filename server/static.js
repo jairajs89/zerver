@@ -12,7 +12,8 @@ var crypto     = require('crypto'),
 		jade       = require('jade'),
 		CleanCSS   = require('clean-css'),
 		htmlMinify = require('html-minifier'),
-		async      = require(__dirname+path.sep+'lib'+path.sep+'async');
+		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
+		babelModuleFormatter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-formatter');
 
 less.Parser.importer = function (file, paths, callback) {
 	var pathname = path.join(paths.entryPath, file);
@@ -587,23 +588,23 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._compileLanguages = function (pathname, headers, body, callback) {
-	if (this._options.coffee && headers['Content-Type'] === 'text/coffeescript') {
+	if (this._options.babel && (headers['Content-Type'] === 'text/jsx' || headers['Content-Type'] === 'application/javascript')) {
 		try {
-			body = coffee.compile(body.toString());
-			headers['Content-Type'] = 'application/javascript'
+			body = this._babelCompile(pathname, body.toString());
+			headers['Content-Type'] = 'application/javascript';
 		} catch (err) {
-			console.error('failed to compile CoffeeScript file, '+pathname);
+			console.error('failed to compile JSX file, '+pathname);
 			console.error(err.toString());
 			if (this._options.production) {
 				process.exit(1);
 			}
 		}
-	} else if (this._options.babel && headers['Content-Type'] === 'text/jsx') {
+	} else if (this._options.coffee && headers['Content-Type'] === 'text/coffeescript') {
 		try {
-			body = babelCore.transform(body.toString(), { modules: this._options.babelModules, filename: path.join(this._root, pathname), filenameRelative: pathname, ast: false, comments: false }).code;
+			body = coffee.compile(body.toString());
 			headers['Content-Type'] = 'application/javascript';
 		} catch (err) {
-			console.error('failed to compile JSX file, '+pathname);
+			console.error('failed to compile CoffeeScript file, '+pathname);
 			console.error(err.toString());
 			if (this._options.production) {
 				process.exit(1);
@@ -660,7 +661,6 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 
 		case 'application/javascript':
 			body = body.replace(StaticFiles.DEBUG_LINES, '');
-			body = babelCore.transform(body, { modules: this._options.babelModules, filename: path.join(this._root, pathname), filenameRelative: pathname, ast: false, comments: false }).code;
 			try {
 				var ast = uglify.parser.parse(body);
 				ast     = uglify.uglify.ast_mangle(ast);
@@ -723,6 +723,18 @@ StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback)
 		}
 	});
 };
+
+StaticFiles.prototype._babelCompile = function (pathname, body) {
+	return babelCore.transform(body, {
+		plugins          : [babelModuleFormatter],
+		modules          : 'ignore',
+		moduleIds        : true,
+		filename         : path.join(this._root, pathname),
+		filenameRelative : pathname,
+		ast              : false,
+		comments         : false,
+	}).code;
+}
 
 
 
