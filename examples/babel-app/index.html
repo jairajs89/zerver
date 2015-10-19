@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 
 <head>
-	<title>Babel App</title>
+    <title>Babel App</title>
 </head>
 
 <body>
-	<script src="/js/test1.js"></script>
-	<script src="/test2.js"></script>
+    <script src="/js/test1.js"></script>
+    <script src="/test2.js"></script>
+    <script type="text/javascript">
+        import {foo} from "/js/test1";
+        foo();
+    </script>
 </body>

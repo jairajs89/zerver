@@ -12,6 +12,7 @@ var crypto     = require('crypto'),
 		jade       = require('jade'),
 		CleanCSS   = require('clean-css'),
 		htmlMinify = require('html-minifier'),
+		cheerio    = require('cheerio'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
 		babelModuleFormatter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-formatter');
 
@@ -52,6 +53,7 @@ StaticFiles.MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
 StaticFiles.SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g;
 StaticFiles.STYLES_MATCH        = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g;
 StaticFiles.CONCAT_MATCH        = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g;
+StaticFiles.WHITESPACE_MATCH    = /^[\s\n\t\r]*$/;
 StaticFiles.GZIPPABLE           = {
 	'application/json'       : true ,
 	'application/javascript' : true ,
@@ -588,7 +590,48 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._compileLanguages = function (pathname, headers, body, callback) {
-	if (this._options.babel && (headers['Content-Type'] === 'text/jsx' || headers['Content-Type'] === 'application/javascript')) {
+	var self = this;
+	var originalContentType = headers['Content-Type'];
+	if (headers['Content-Type'] === 'text/html') {
+		var hadCompilation = false;
+		var $ = cheerio.load(body.toString());
+		$('script').each(function () {
+			var $script = $(this);
+			var code = $script.html();
+			var type = ($script.attr('type')||'').trim();
+			if (['', 'text/javascript', 'text/jsx'].indexOf(type) !== -1) {
+				type = 'application/javascript';
+			}
+			if (!StaticFiles.WHITESPACE_MATCH.test(code) && ['application/javascript', 'text/coffeescript'].indexOf(type) !== -1) {
+				self._compileLanguages(pathname, {
+					'Content-Type': type
+				}, code, function (newHeaders, newBody) {
+					if (code !== newBody) {
+						hadCompilation = true;
+						$script.attr('type', newHeaders['Content-Type']).html(newBody);
+					}
+				});
+			}
+		});
+		$('style').each(function () {
+			var $style = $(this);
+			var code = $style.html();
+			var type = ($style.attr('type')||'').trim();
+			if (!StaticFiles.WHITESPACE_MATCH.test(code) && type === 'text/less') {
+				self._compileLanguages(pathname, {
+					'Content-Type': type
+				}, code, function (newHeaders, newBody) {
+					if (code !== newBody) {
+						hadCompilation = true;
+						$style.attr('type', newHeaders['Content-Type']).html(newBody);
+					}
+				});
+			}
+		});
+		if (hadCompilation) {
+			body = $.html();
+		}
+	} else if (this._options.babel && (headers['Content-Type'] === 'text/jsx' || headers['Content-Type'] === 'application/javascript')) {
 		try {
 			body = this._babelCompile(pathname, body.toString());
 			headers['Content-Type'] = 'application/javascript';
@@ -642,7 +685,11 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 			}
 		}
 	}
-	callback(headers, body);
+	if (originalContentType === headers['Content-Type']) {
+		callback(headers, body);
+	} else {
+		this._compileLanguages(pathname, headers, body, callback);
+	}
 };
 
 StaticFiles.prototype._compileOutput = function (pathname, headers, body, callback) {
@@ -683,7 +730,6 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 
 		case 'text/html':
 			try {
-				//TODO: run script tags through babel
 				code = htmlMinify.minify(body, {
 					removeComments            : true,
 					collapseWhitespace        : true,
