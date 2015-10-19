@@ -13,7 +13,7 @@ module.exports = APICalls;
 APICalls.CLIENT_API       = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'api.js';
 APICalls.CLIENT_REQUIRE   = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'require.js';
 APICalls.CLIENT_DEBUG     = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'debug.js';
-APICalls.CLIENT_POLYFILL  = path.resolve(require.resolve('babel-core'), '..'+path.sep+'browser-polyfill.min.js');
+APICalls.CLIENT_POLYFILL  = path.resolve(require.resolve('babel-core'), '..'+path.sep+'browser-polyfill.js');
 APICalls.INSERT_REFRESH   = '{{__API_REFRESH__}}';
 APICalls.INSERT_LOGGING   = '{{__API_LOGGING__}}';
 APICalls.INSERT_DIR       = '{{__API_DIR__}}';
@@ -110,6 +110,14 @@ function APICalls(options) {
 	}
 
 	this._polyfillScript = scriptPolyfill;
+	if (this._options.production) {
+		try {
+			var ast              = uglify.parser.parse(this._polyfillScript);
+			ast                  = uglify.uglify.ast_mangle(ast);
+			ast                  = uglify.uglify.ast_squeeze(ast);
+			this._polyfillScript = uglify.uglify.gen_code(ast);
+		} catch (err) {}
+	}
 }
 
 
