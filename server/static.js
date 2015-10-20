@@ -168,6 +168,14 @@ StaticFiles.prototype._loadCache = function (callback) {
 	});
 };
 
+StaticFiles.prototype._cacheFileOrConcat = function (pathname, callback) {
+	if (pathname in self._concats) {
+		this._cacheConcatFile(pathname, handleFile);
+	} else {
+		this._cacheFile(pathname, handleFile);
+	}
+};
+
 StaticFiles.prototype._cacheFile = function (pathname, callback) {
 	var self = this;
 
@@ -208,12 +216,12 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 		'inlineManifestFiles',
 		'prepareManifestConcatFiles',
 		'prepareConcatFiles',
-		'versionScripts',
-		'versionStyles',
-		'versionImages',
 		'inlineScripts',
 		'inlineStyles',
 		'inlineImages',
+		'versionScripts',
+		'versionStyles',
+		'versionImages',
 		'compileOutput',
 		'gzipOutput',
 	], function (transform, next) {
@@ -302,19 +310,29 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 						}
 					});
 				}
-				if ( !cached ) {
-					throw Error('file not found for concat, '+partPath);
-				}
-				if (cached.headers['Content-Encoding'] === 'gzip') {
-					zlib.gunzip(cached.body, function (err, body) {
-						if (err) {
-							throw Error('failed to gunzip file, '+partPath);
-						} else {
-							respond(body);
-						}
-					});
+				if (cached) {
+					finish();
 				} else {
-					respond(cached.body);
+					self._cacheFile(partPath, function (headers, body) {
+						cached = {
+							headers : headers,
+							body    : body,
+						};
+						finish();
+					});
+				}
+				function finish() {
+					if (cached.headers['Content-Encoding'] === 'gzip') {
+						zlib.gunzip(cached.body, function (err, body) {
+							if (err) {
+								throw Error('failed to gunzip file, '+partPath);
+							} else {
+								respond(body);
+							}
+						});
+					} else {
+						respond(cached.body);
+					}
 				}
 			};
 		}),
@@ -455,7 +473,7 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 
 	body = body.replace(StaticFiles.CONCAT_MATCH, function (original, concatPath, concatables) {
 		var files   = [],
-			absPath = relativePath(pathname, concatPath),
+			absPath = relativePath(pathname, concatPath).split('?')[0],
 			fileType, match;
 
 		if ( !fileType ) {
@@ -521,7 +539,7 @@ StaticFiles.prototype._versionScripts = function (pathname, headers, body, callb
 				handleFile(headers, body);
 			});
 		} else {
-			self._cacheFile(fullPath, handleFile);
+			self._cacheFileOrConcat(fullPath, handleFile);
 		}
 
 		function handleFile(headers, body) {
@@ -559,7 +577,7 @@ StaticFiles.prototype._versionStyles = function (pathname, headers, body, callba
 			return;
 		}
 		var fullPath = relativePath(pathname, stylePath.split('?')[0]);
-		self._cacheFile(fullPath, function (headers, body) {
+		self._cacheFileOrConcat(fullPath, function (headers, body) {
 			if (headers['Content-Encoding'] === 'gzip') {
 				zlib.gunzip(body, function (err, newBody) {
 					if (err) {
@@ -598,7 +616,7 @@ StaticFiles.prototype._versionImages = function (pathname, headers, body, callba
 			return;
 		}
 		var fullPath = relativePath(pathname, imgPath.split('?')[0]);
-		self._cacheFile(fullPath, function (headers, body) {
+		self._cacheFileOrConcat(fullPath, function (headers, body) {
 			respond(matches[0].replace(matches[1], getFileVersion(imgPath, body)));
 		});
 	}, function (body) {

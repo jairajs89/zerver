@@ -55,6 +55,7 @@ function processOptions() {
 		.option('--no-concat'               , 'disable file concatenation compression in production mode')
 		.option('--no-compile'              , 'disable js, css minification in production mode')
 		.option('--no-inline'               , 'disable file inlining in production mode')
+		.option('--no-versioning'           , 'disable file versioning in production mode')
 		.option('--no-coffee'               , 'disable compilation of CoffeeScript to JavaScript')
 		.option('--no-less'                 , 'disable compilation of LESS to CSS')
 		.option('--no-jade'                 , 'disable compilation of Jade to HTML')
