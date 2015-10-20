@@ -12,19 +12,14 @@ module.exports = function (babel) {
     }
 
     function getModulePath(moduleName) {
-        return t.memberExpression(modules, t.identifier(moduleName));
+        return getObjectKey(modules, moduleName);
     }
 
-    function initWithDefaultVlaue(node, defaultValue) {
-        return t.expressionStatement(
-            t.assignmentPattern(
-                node,
-                t.binaryExpression('||', node, t.identifier(defaultValue))
-            )
-        );
+    function getObjectKey(node, keyName) {
+             return t.memberExpression(node, t.literal(keyName), true);
     }
 
-    return new babel.Transformer("bable-module-formatter", {
+    return new babel.Transformer("bable-module-inner", {
         ExportDefaultDeclaration: {
             enter: function (node, parent, scope, file) {
                 // Declare module export
@@ -57,7 +52,7 @@ module.exports = function (babel) {
                     var exportName = (specifier.exported && specifier.exported.name) || varName;
                     var exportNode = modulePath;
                     if (exportName !== 'default') {
-                        exportNode = t.memberExpression(exportNode, t.identifier(exportName));
+                        exportNode = getObjectKey(exportNode, exportName);
                     }
                     return t.expressionStatement(
                         t.assignmentPattern(
@@ -86,36 +81,11 @@ module.exports = function (babel) {
                         var importName = (specifier.imported && specifier.imported.name) || varName;
                         var importVar = modulePath;
                         if (specifier.imported && importName !== 'default') {
-                            importVar = t.memberExpression(importVar, t.identifier(importName));
+                            importVar = getObjectKey(importVar, importName);
                         }
                         return t.variableDeclarator(t.identifier(varName), importVar);
                     })
                 );
-            }
-        },
-        Program: {
-            exit: function (node, parent, scope, file) {
-                // Inject module declaration
-                if ( Object.keys(scope.references).length ) {
-                    var moduleName = getModuleName(file);
-                    if (moduleName) {
-                        var modulePath = getModulePath(moduleName);
-                        node.body = [
-                            initWithDefaultVlaue(modules, '{}'),
-                            initWithDefaultVlaue(modulePath, '{}'),
-                        ].concat(node.body);
-                    }
-                }
-
-                // Inject "use strict";
-                node.body.unshift(
-                    t.expressionStatement(t.literal('use strict'))
-                );
-
-                // Function scope for module
-                var functionWrap = t.parenthesizedExpression(t.functionDeclaration('',[],t.blockStatement(node.body)));
-                var calledWrap = t.callExpression(t.memberExpression(functionWrap,t.identifier('call')), [t.identifier('this')]);
-                node.body = [t.expressionStatement(calledWrap)];
             }
         },
     });

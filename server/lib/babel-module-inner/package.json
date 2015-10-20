@@ -1,0 +1,8 @@
+{
+  "name": "babel-module-inner",
+  "version": "0.0.1",
+  "main": "index.js",
+  "dependencies": {
+    "babel-core": "^5.8.25"
+  }
+}

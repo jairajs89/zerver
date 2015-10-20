@@ -70,9 +70,11 @@ test.runTest(testObj({
 	manifest : true,
 }), {
 	'index.html'        : '<!-- zerver:main2.js -->\n<script src="main.js"></script>\n<script src="main.js"></script>\n<!-- /zerver -->',
+	'inde2.html'        : '<!-- zerver:main3.js -->\n<script src="empty.js"></script>\n<script src="main.js"></script>\n<script src="empty.js"></script>\n<!-- /zerver -->',
 	'manifest.appcache' : 'CACHE MANIFEST\n# zerver:alt2.js\nalt.js\nalt.js\n# /zerver',
 	'main.js'           : 'console.log("hello, world")',
 	'alt.js'            : 'console.log("alt world")',
+	'empty.js'          : '',
 }, function (cache, files, callback) {
 	var data1 = cache.get('/index.html');
 	assert.deepEqual(data1.body, '<script src="main2.js"></script>');
@@ -85,6 +87,9 @@ test.runTest(testObj({
 
 	var data4 = cache.get('/alt2.js');
 	assert.deepEqual(data4.body, files['alt.js']+';\n'+files['alt.js']);
+
+	var data5 = cache.get('/main3.js');
+	assert.deepEqual(data5.body, files['main.js']);
 
 	callback();
 });

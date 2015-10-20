@@ -15,7 +15,8 @@ var crypto     = require('crypto'),
 		htmlMinify = require('html-minifier'),
 		cheerio    = require('cheerio'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
-		babelModuleFormatter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-formatter');
+		babelModuleInner = require(__dirname+path.sep+'lib'+path.sep+'babel-module-inner'),
+		babelModuleOuter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-outer');
 
 less.Parser.importer = function (file, paths, callback) {
 	var pathname = path.join(paths.entryPath, file);
@@ -169,7 +170,7 @@ StaticFiles.prototype._loadCache = function (callback) {
 };
 
 StaticFiles.prototype._cacheFileOrConcat = function (pathname, callback) {
-	if (pathname in this._concats) {
+	if (this._concats && (pathname in this._concats)) {
 		this._cacheConcatFile(pathname, callback);
 	} else {
 		this._cacheFile(pathname, callback);
@@ -337,6 +338,12 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
 			};
 		}),
 		function (parts) {
+			parts = parts.map(function (part) {
+				return part.toString().trim();
+			}).filter(function (part) {
+				return part.length > 0;
+			});
+
 			var body;
 			if (headers['Content-Type'] === 'application/javascript') {
 				body = parts.join(';\n');
@@ -914,7 +921,10 @@ StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback)
 StaticFiles.prototype._babelCompile = function (pathname, body) {
 	return babelCore.transform(body, {
 		blacklist        : ['strict'],
-		plugins          : [babelModuleFormatter],
+		plugins          : [
+			{ transformer: babelModuleInner, position: 'before' },
+			{ transformer: babelModuleOuter, position: 'after'  },
+		],
 		modules          : 'ignore',
 		moduleIds        : true,
 		filename         : path.join(this._root, pathname),
