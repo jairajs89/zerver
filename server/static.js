@@ -170,9 +170,9 @@ StaticFiles.prototype._loadCache = function (callback) {
 
 StaticFiles.prototype._cacheFileOrConcat = function (pathname, callback) {
 	if (pathname in this._concats) {
-		this._cacheConcatFile(pathname, handleFile);
+		this._cacheConcatFile(pathname, callback);
 	} else {
-		this._cacheFile(pathname, handleFile);
+		this._cacheFile(pathname, callback);
 	}
 };
 
