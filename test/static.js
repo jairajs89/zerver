@@ -111,12 +111,35 @@ test.runTest(testObj({
 
 test.runTest(testObj({
 	compile: true,
+	versioning: true,
+}), {
+	'index.html'  : '<script src="main.js?version=1"></script>',
+	'main.js'     : 'console.log("hello, world");',
+	'index2.html' : '<link rel="stylesheet" href="main.css?version=1">',
+	'main.css'    : '#a { color : red }',
+	'inline.css'  : 'div{background-image:url(img.png?version=1)}',
+	'img.png'     : 'gahhhh',
+}, function (cache, files, callback) {
+	var data1 = cache.get('/index.html');
+	assert.deepEqual(data1.body, '<script src="main.js?version=37de8ccba10a2ce4ae9d2648bb00f33a"></script>');
+
+	var data2 = cache.get('/index2.html');
+	assert.deepEqual(data2.body, '<link rel=stylesheet href="main.css?version=e22e2f02bc00f96eaef4e55895a363b7">');
+
+	var data3 = cache.get('/inline.css');
+	assert.deepEqual(data3.body, 'div{background-image:url(img.png?version=94e1c3da437b9edd176aeb47e12dab05)}');
+
+	callback();
+});
+
+test.runTest(testObj({
+	compile: true,
 	babel: true,
 }), {
 	'test.js' : 'export function sum(arr) { return arr.reduce(((v, t) => v+t), 0) }',
 }, function (cache, files, callback) {
 	var data = cache.get('/test.js');
-	assert.deepEqual(data.body, '"use strict";(function(){function e(e){return e.reduce(function(e,t){return e+t},0)}this.__ZERVER_MODULES=this.__ZERVER_MODULES||{},this.__ZERVER_MODULES["/test"]=this.__ZERVER_MODULES["/test"]||{}}).call(this)');
+	assert.deepEqual(data.body, '(function(){"use strict";function e(e){return e.reduce(function(e,t){return e+t},0)}this.__ZERVER_MODULES=this.__ZERVER_MODULES||{},this.__ZERVER_MODULES["/test"]=this.__ZERVER_MODULES["/test"]||{}}).call(this)');
 	callback();
 });
 

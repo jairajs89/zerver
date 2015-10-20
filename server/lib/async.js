@@ -83,7 +83,7 @@ function asyncReplace(str, matcher, handler, callback) {
 					matches[matchID] = matches[matchID][0];
 				}
 				respond();
-			});
+			}, matches[matchID]);
 		},
 		function () {
 			for (var matchID in matches) {

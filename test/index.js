@@ -1,5 +1,6 @@
-var fs   = require('fs'),
-	path = require('path');
+var fs     = require('fs'),
+	path   = require('path'),
+	Module = require('module');
 
 var projectRoot = path.resolve(__dirname+'/../'),
 	time        = new Date(),
@@ -7,7 +8,8 @@ var projectRoot = path.resolve(__dirname+'/../'),
 	fs_dir      = fs.readdirSync,
 	fs_read     = fs.readFileSync,
 	fs_stat     = fs.statSync,
-	fs_lstat    = fs.lstatSync;
+	fs_lstat    = fs.lstatSync,
+	module_find = Module._findPath;
 
 exports.time    = time;
 exports.runTest = runTest;
@@ -97,6 +99,14 @@ function runTest(testObj, files, callback) {
 				return fs_lstat.call(fs, filename);
 			} else {
 				return statFile(filename);
+			}
+		};
+
+		Module._findPath = function (filename, paths) {
+			if (filename[0] === '/' && filename.substr(0, projectRoot.length) !== projectRoot) {
+				return filename+'.js';
+			} else {
+				return module_find.apply(this, arguments);
 			}
 		};
 

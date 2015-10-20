@@ -1,6 +1,7 @@
 var crypto     = require('crypto'),
 		fs         = require('fs'),
 		path       = require('path'),
+		qs         = require('querystring'),
 		urllib     = require('url'),
 		extend     = require('util')._extend,
 		zlib       = require('zlib'),
@@ -207,6 +208,9 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 		'inlineManifestFiles',
 		'prepareManifestConcatFiles',
 		'prepareConcatFiles',
+		'versionScripts',
+		'versionStyles',
+		'versionImages',
 		'inlineScripts',
 		'inlineStyles',
 		'inlineImages',
@@ -494,6 +498,112 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 	});
 
 	callback(headers, body);
+};
+
+StaticFiles.prototype._versionScripts = function (pathname, headers, body, callback) {
+	if (!this._options.versioning || (headers['Content-Type'] !== 'text/html')) {
+		callback(headers, body);
+		return;
+	}
+
+	var self = this;
+	async.replace(body, StaticFiles.SCRIPT_MATCH, function (scriptPath, next, matches) {
+		if ( !urllib.parse(scriptPath,true).query.version ) {
+			next();
+			return;
+		}
+		var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
+		var prefix = self._options.apis+'/';
+		if (fullPath.substr(0, prefix.length) === prefix) {
+			var apiName = fullPath.substr(prefix.length).split('.')[0];
+			self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+				// This callback happens synchronously
+				handleFile(headers, body);
+			});
+		} else {
+			self._cacheFile(fullPath, handleFile);
+		}
+
+		function handleFile(headers, body) {
+			if (headers['Content-Encoding'] === 'gzip') {
+				zlib.gunzip(body, function (err, newBody) {
+					if (err) {
+						next();
+					} else {
+						body = newBody;
+						finish();
+					}
+				});
+			} else {
+				finish();
+			}
+			function finish() {
+				next(matches[0].replace(matches[1], getFileVersion(scriptPath, body)));
+			}
+		}
+	}, function (body) {
+		callback(headers, body);
+	});
+};
+
+StaticFiles.prototype._versionStyles = function (pathname, headers, body, callback) {
+	if (!this._options.versioning || (headers['Content-Type'] !== 'text/html')) {
+		callback(headers, body);
+		return;
+	}
+
+	var self = this;
+	async.replace(body, StaticFiles.STYLES_MATCH, function (stylePath, next, matches) {
+		if ( !urllib.parse(stylePath,true).query.version ) {
+			next();
+			return;
+		}
+		var fullPath = relativePath(pathname, stylePath.split('?')[0]);
+		self._cacheFile(fullPath, function (headers, body) {
+			if (headers['Content-Encoding'] === 'gzip') {
+				zlib.gunzip(body, function (err, newBody) {
+					if (err) {
+						next();
+					} else {
+						body = newBody;
+						finish();
+					}
+				});
+			} else {
+				finish();
+			}
+			function finish() {
+				next(matches[0].replace(matches[1], getFileVersion(stylePath, body)));
+			}
+		});
+	}, function (body) {
+		callback(headers, body);
+	});
+};
+
+StaticFiles.prototype._versionImages = function (pathname, headers, body, callback) {
+	if (!this._options.versioning || (headers['Content-Type'] !== 'text/css')) {
+		callback(headers, body);
+		return;
+	}
+
+	var self = this;
+	async.replace(body, StaticFiles.CSS_IMAGE, function (imgPath, respond, matches) {
+		if (imgPath.substr(0,5) === 'data:') {
+			respond();
+			return;
+		}
+		if ( !urllib.parse(imgPath,true).query.version ) {
+			respond();
+			return;
+		}
+		var fullPath = relativePath(pathname, imgPath.split('?')[0]);
+		self._cacheFile(fullPath, function (headers, body) {
+			respond(matches[0].replace(matches[1], getFileVersion(imgPath, body)));
+		});
+	}, function (body) {
+		callback(headers, body);
+	});
 };
 
 StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callback) {
@@ -1000,4 +1110,11 @@ function getLastModifiedTimestamp(root, ignores) {
 function isDirectoryRootFile(pathname) {
 	var fileName = pathname.split('/').pop();
 	return StaticFiles.INDEX_FILES.indexOf(fileName) !== -1;
+}
+
+function getFileVersion(url, body) {
+	var parsed = urllib.parse(url, true);
+	parsed.query.version = crypto.createHash('md5').update(body).digest('hex');
+	parsed.search = '?'+qs.stringify(parsed.query);
+	return parsed.format();
 }
