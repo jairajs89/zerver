@@ -28,39 +28,65 @@ module.exports = function (babel) {
                     return;
                 }
                 var modulePath = getModulePath(moduleName);
-                return t.expressionStatement(
-                    t.assignmentPattern(
-                        modulePath,
-                        t.identifier(node.declaration.name)
-                    )
-                );
+                if (node.declaration.name) {
+                    return t.expressionStatement(
+                        t.assignmentPattern(
+                            modulePath,
+                            t.identifier(node.declaration.name)
+                        )
+                    );
+                } else if (node.declaration.type === 'ClassDeclaration') {
+                    return [
+                        node.declaration,
+                        t.assignmentPattern(
+                            modulePath,
+                            t.identifier(node.declaration.id.name)
+                        )
+                    ];
+                } else {
+                    return t.expressionStatement(
+                        t.assignmentPattern(
+                            modulePath,
+                            node.declaration
+                        )
+                    );
+                }
             }
         },
         ExportNamedDeclaration: {
             enter: function (node, parent, scope, file) {
-                if (!node.specifiers || !node.specifiers.length) {
-                    return;
-                }
                 // Declare export per variable
                 var moduleName = getModuleName(file);
                 if ( !moduleName ) {
                     return;
                 }
                 var modulePath = getModulePath(moduleName);
-                return node.specifiers.map(function (specifier) {
-                    var varName = specifier.local.name;
-                    var exportName = (specifier.exported && specifier.exported.name) || varName;
-                    var exportNode = modulePath;
-                    if (exportName !== 'default') {
-                        exportNode = getObjectKey(exportNode, exportName);
-                    }
-                    return t.expressionStatement(
-                        t.assignmentPattern(
-                            exportNode,
-                            t.identifier(varName)
+                if (node.specifiers && node.specifiers.length) {
+                    return node.specifiers.map(function (specifier) {
+                        var varName = specifier.local.name;
+                        var exportName = (specifier.exported && specifier.exported.name) || varName;
+                        var exportNode = modulePath;
+                        if (exportName !== 'default') {
+                            exportNode = getObjectKey(exportNode, exportName);
+                        }
+                        return t.expressionStatement(
+                            t.assignmentPattern(
+                                exportNode,
+                                t.identifier(varName)
+                            )
+                        );
+                    });
+                } else {
+                    return [
+                        node.declaration,
+                        t.expressionStatement(
+                            t.assignmentPattern(
+                                getObjectKey(modulePath, node.declaration.id.name),
+                                t.identifier(node.declaration.id.name)
+                            )
                         )
-                    );
-                });
+                    ];
+                }
             }
         },
         ImportDeclaration: {
