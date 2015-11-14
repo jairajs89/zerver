@@ -25,54 +25,73 @@ function Zerver(options, callback) {
 	self._apis   = new APICalls(self._options);
 	self._options._apiModule = self._apis;
 	self._static = new StaticFiles(self._options, function () {
-		var staticFiles = this;
-
-		if (self._options.missing) {
-			if (self._options.missing[0] !== '/') {
-				self._options.missing = '/'+self._options.missing;
-			}
-			if ( staticFiles.get(self._options.missing) ) {
-				self._missing = self._options.missing;
-			}
+		if (self._options.build) {
+			self._build(callback);
+		} else {
+			self._start(callback);
 		}
-
-		http.globalAgent.maxSockets = 50;
-
-		self._app = http.createServer(function (req, res) {
-			self._handleRequest(req, res);
-		});
-
-		self._app.listen(self._options.port, self._options.hostname, function () {
-			console.log('zerver running:');
-			console.log('- path: ' + self._options.dir);
-			console.log('- port: ' + self._options.port);
-			console.log('- host: ' + (self._options.hostname || '0.0.0.0'));
-			var apiNames = self._apis.getNames();
-			if (apiNames.length) {
-				console.log('- apis: ' + apiNames.join(', '));
-			}
-			var manifestList = staticFiles.getManifestNames();
-			if (manifestList.length) {
-				console.log('- manifests: ' + manifestList.join(', '));
-			}
-			if (self._options.production) {
-				console.log('- production: true');
-			}
-			if (self._options.refresh) {
-				console.log('- refresh: true');
-			}
-			if (self._options.cli) {
-				console.log('- cli: true');
-			}
-			if (self._options.stats) {
-				console.log('- stats: true');
-			}
-			console.log('');
-
-			callback();
-		});
 	});
 }
+
+Zerver.prototype._build = function (callback) {
+	//TODO
+	throw Error('--build not implemented');
+
+	if (callback) {
+		callback();
+	}
+};
+
+Zerver.prototype._start = function (callback) {
+	var self = this;
+
+	if (self._options.missing) {
+		if (self._options.missing[0] !== '/') {
+			self._options.missing = '/'+self._options.missing;
+		}
+		if ( self._static.get(self._options.missing) ) {
+			self._missing = self._options.missing;
+		}
+	}
+
+	http.globalAgent.maxSockets = 50;
+
+	self._app = http.createServer(function (req, res) {
+		self._handleRequest(req, res);
+	});
+
+	self._app.listen(self._options.port, self._options.hostname, function () {
+		console.log('zerver running:');
+		console.log('- path: ' + self._options.dir);
+		console.log('- port: ' + self._options.port);
+		console.log('- host: ' + (self._options.hostname || '0.0.0.0'));
+		var apiNames = self._apis.getNames();
+		if (apiNames.length) {
+			console.log('- apis: ' + apiNames.join(', '));
+		}
+		var manifestList = self._static.getManifestNames();
+		if (manifestList.length) {
+			console.log('- manifests: ' + manifestList.join(', '));
+		}
+		if (self._options.production) {
+			console.log('- production: true');
+		}
+		if (self._options.refresh) {
+			console.log('- refresh: true');
+		}
+		if (self._options.cli) {
+			console.log('- cli: true');
+		}
+		if (self._options.stats) {
+			console.log('- stats: true');
+		}
+		console.log('');
+
+		if (callback) {
+			callback();
+		}
+	});
+};
 
 Zerver.prototype.stop = function (callback) {
 	if (this._app) {

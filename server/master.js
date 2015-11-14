@@ -25,12 +25,9 @@ function Master(options) {
 	}, Master.MAX_AGE/2);
 
 	self.createChild();
-
-	if ( !self.options.production ) {
-		self.setupWatcher();
-		if (self.options.cli) {
-			self.setupCLI();
-		}
+	self.setupWatcher();
+	if (self.options.cli) {
+		self.setupCLI();
 	}
 
 	process.on('SIGUSR2', killMaster);
