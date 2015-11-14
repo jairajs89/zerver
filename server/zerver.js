@@ -34,7 +34,11 @@ function Zerver(options, callback) {
 }
 
 Zerver.prototype._build = function (callback) {
-	//TODO
+	//TODO: wipe build dir
+	//TODO: create build dir
+	//TODO: loop through files accessible through static.get
+	//TODO: include polyfill file
+	//TODO: deploy files to s3
 	throw Error('--build not implemented');
 
 	if (callback) {
