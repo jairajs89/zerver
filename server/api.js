@@ -495,7 +495,7 @@ function uglifyJs(code) {
 
 function hasCoffeeScript(apiNames) {
 	for (var i=0, l=apiNames.length; i<l; i++) {
-		var parts = pathname.split('/').pop().split('.'),
+		var parts = apiNames[i].split('/').pop().split('.'),
 			ext   = parts.length > 1 ? parts.pop() : null;
 		if (ext === 'coffee') {
 			return true;
