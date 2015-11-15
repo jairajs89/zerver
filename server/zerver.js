@@ -3,7 +3,8 @@ var http        = require('http'),
 	extend      = require('util')._extend,
 	APICalls    = require(__dirname+path.sep+'api'),
 	Logger      = require(__dirname+path.sep+'log'),
-	StaticFiles = require(__dirname+path.sep+'static');
+	StaticFiles = require(__dirname+path.sep+'static'),
+	s3deploy    = require(__dirname+path.sep+'s3deploy');
 
 module.exports = Zerver;
 
@@ -25,32 +26,13 @@ function Zerver(options, callback) {
 	self._apis   = new APICalls(self._options);
 	self._options._apiModule = self._apis;
 	self._static = new StaticFiles(self._options, function () {
-		if (self._options.s3Build) {
-			self._s3build(callback);
+		if (self._options.s3Deploy) {
+			s3deploy(self._options, self._static, self._apis, callback);
 		} else {
 			self._start(callback);
 		}
 	});
 }
-
-Zerver.prototype._s3build = function (callback) {
-	var self = this;
-
-	var AWS   = require('aws-sdk'),
-		s3url = self._options.s3Build;
-
-	//TODO: loop through files accessible through static.get
-	//TODO: include polyfill file
-	//TODO: deploy files to s3
-
-	console.error('URL:', s3url);
-	console.error('PROFILE:', awsProfile);
-	throw Error('--s3-build not implemented');
-
-	if (callback) {
-		callback();
-	}
-};
 
 Zerver.prototype._start = function (callback) {
 	var self = this;

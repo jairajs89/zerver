@@ -52,7 +52,7 @@ function processOptions() {
 		.option('--env <assign>'            , 'set environment variables (name="value")', function(v,m){m.push(v);return m}, [])
 		.option('--cache <paths>'           , 'set specific cache life for resources')
 		.option('-M, --missing <paths>'     , 'set a custom 404 page')
-		.option('--s3-build <path>'         , 'dump generated static output to S3')
+		.option('--s3-deploy <path>'        , 'dump generated static output to S3')
 		.option('--ignore-manifest <paths>' , 'disable processing for a particular HTML5 appCache manifest file')
 		.option('--no-manifest'             , 'disable processing for ALL HTML5 appCache manifest files')
 		.option('--no-gzip'                 , 'disable gzip compression in production mode')
@@ -70,7 +70,7 @@ function processOptions() {
 		.option('-j, --json'                , 'requests get logged as json')
 		.option('-s, --stats'               , 'periodically print memory usage and other stats')
 		.parse(getCLIArgs());
-	if (commands.s3Build) {
+	if (commands.s3Deploy) {
 		commands.production = true;
 	}
 	if (commands.production) {
