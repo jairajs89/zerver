@@ -7,9 +7,11 @@ var commander = require('commander');
 
 var PACKAGE = __dirname+path.sep+'..'+path.sep+'package.json';
 
+init();
 
 
-process.nextTick(function () {
+
+function init() {
 	if (require.main !== module) {
 		throw Error('server/index.js must be run as main module');
 	}
@@ -32,9 +34,7 @@ process.nextTick(function () {
 	} else {
 		new (require(__dirname+path.sep+'slave'))(options);
 	}
-});
-
-
+}
 
 function processOptions() {
 	var commands = new commander.Command('zerver');
