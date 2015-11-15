@@ -3,10 +3,7 @@ var extend  = require('util')._extend,
 	path    = require('path'),
 	qs      = require('querystring'),
 	urllib  = require('url'),
-	uglify  = require('uglify-js'),
 	Cookies = require(__dirname+path.sep+'lib'+path.sep+'cookies');
-
-require('coffee-script/register');
 
 module.exports = APICalls;
 
@@ -45,6 +42,11 @@ function APICalls(options) {
 	} catch (err) {
 		apiNames = [];
 	}
+
+	if ( hasCoffeeScript(apiNames) ) {
+		require('coffee-script/register');
+	}
+
 	apiNames.forEach(function (fileName) {
 		var apiName = getApiName(fileName);
 		if ( !apiName ) {
@@ -77,12 +79,7 @@ function APICalls(options) {
 		file = file.replace(APICalls.INSERT_LOGGING  , JSON.stringify(self._options.logging));
 
 		if (self._options.production) {
-			try {
-				var ast = uglify.parser.parse(file);
-				ast     = uglify.uglify.ast_mangle(ast);
-				ast     = uglify.uglify.ast_squeeze(ast);
-				file    = uglify.uglify.gen_code(ast);
-			} catch (err) {}
+			file = uglifyJs(file);
 		} else {
 			file += scriptDebug;
 		}
@@ -99,24 +96,14 @@ function APICalls(options) {
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_REFRESH  , JSON.stringify(this._options.refresh));
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_LOGGING  , JSON.stringify(this._options.logging));
 	if (this._options.production) {
-		try {
-			var ast             = uglify.parser.parse(this._requireScript);
-			ast                 = uglify.uglify.ast_mangle(ast);
-			ast                 = uglify.uglify.ast_squeeze(ast);
-			this._requireScript = uglify.uglify.gen_code(ast);
-		} catch (err) {}
+		this._requireScript = uglifyJs(this._requireScript);
 	} else {
 		this._requireScript += scriptDebug;
 	}
 
 	this._polyfillScript = scriptPolyfill;
 	if (this._options.production) {
-		try {
-			var ast              = uglify.parser.parse(this._polyfillScript);
-			ast                  = uglify.uglify.ast_mangle(ast);
-			ast                  = uglify.uglify.ast_squeeze(ast);
-			this._polyfillScript = uglify.uglify.gen_code(ast);
-		} catch (err) {}
+		this._polyfillScript = uglifyJs(this._polyfillScript);
 	}
 }
 
@@ -492,4 +479,27 @@ function getClientProtocol(req) {
 	} else {
 		return 'http';
 	}
+}
+
+function uglifyJs(code) {
+	var uglify = require('uglify-js');
+	try {
+		var ast = uglify.parser.parse(code);
+		ast     = uglify.uglify.ast_mangle(ast);
+		ast     = uglify.uglify.ast_squeeze(ast);
+		return uglify.uglify.gen_code(ast);
+	} catch (err) {
+		return code;
+	}
+}
+
+function hasCoffeeScript(apiNames) {
+	for (var i=0, l=apiNames.length; i<l; i++) {
+		var parts = pathname.split('/').pop().split('.'),
+			ext   = parts.length > 1 ? parts.pop() : null;
+		if (ext === 'coffee') {
+			return true;
+		}
+	}
+	return false;
 }

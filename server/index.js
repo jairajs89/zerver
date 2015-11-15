@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 
-var cluster   = require('cluster'),
-	path      = require('path'),
-	fs        = require('fs'),
-	commander = require('commander'),
-	Zerver    = require(__dirname+path.sep+'zerver'),
-	Master    = require(__dirname+path.sep+'master'),
-	Slave     = require(__dirname+path.sep+'slave');
+var cluster   = require('cluster');
+var path      = require('path');
+var fs        = require('fs');
+var commander = require('commander');
 
 var PACKAGE = __dirname+path.sep+'..'+path.sep+'package.json';
 
@@ -29,11 +26,11 @@ process.nextTick(function () {
 	});
 
 	if (options.production) {
-		new Zerver(options);
+		new (require(__dirname+path.sep+'zerver'))(options);
 	} else if (cluster.isMaster) {
-		new Master(options);
+		new (require(__dirname+path.sep+'master'))(options);
 	} else {
-		new Slave(options);
+		new (require(__dirname+path.sep+'slave'))(options);
 	}
 });
 

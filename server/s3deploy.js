@@ -1,12 +1,11 @@
 var mime   = require('mime');
 var urllib = require('url');
-var AWS    = require('aws-sdk');
 var async  = require('./lib/async');
 
 module.exports = function (options, static, apis, callback) {
     var params  = parseS3Url(options.s3Deploy);
     var uploads = getUploads(options, static, apis);
-    var s3      = new AWS.S3();
+    var s3      = new (require('aws-sdk').S3)();
 
     async.join(
         Object.keys(uploads).sort(function (pathname) {

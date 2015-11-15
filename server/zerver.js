@@ -1,10 +1,9 @@
-var http        = require('http'),
-	path        = require('path'),
-	extend      = require('util')._extend,
-	APICalls    = require(__dirname+path.sep+'api'),
-	Logger      = require(__dirname+path.sep+'log'),
-	StaticFiles = require(__dirname+path.sep+'static'),
-	s3deploy    = require(__dirname+path.sep+'s3deploy');
+var http        = require('http');
+var path        = require('path');
+var extend      = require('util')._extend;
+var APICalls    = require(__dirname+path.sep+'api');
+var Logger      = require(__dirname+path.sep+'log');
+var s3deploy    = require(__dirname+path.sep+'s3deploy');
 
 module.exports = Zerver;
 
@@ -25,7 +24,7 @@ function Zerver(options, callback) {
 	self._logger = new Logger(self._options);
 	self._apis   = new APICalls(self._options);
 	self._options._apiModule = self._apis;
-	self._static = new StaticFiles(self._options, function () {
+	self._static = new (require(__dirname+path.sep+'static'))(self._options, function () {
 		if (self._options.s3Deploy) {
 			s3deploy(self._options, self._static, self._apis, callback);
 		} else {

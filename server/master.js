@@ -1,7 +1,6 @@
 var cluster = require('cluster'),
 	extend  = require('util')._extend,
-	path    = require('path'),
-	Zerver  = require(__dirname+path.sep+'zerver');
+	path    = require('path');
 
 module.exports = Master;
 
@@ -119,7 +118,7 @@ Master.prototype.pruneRetries = function () {
 Master.prototype.setupWatcher = function () {
 	var self       = this,
 		watcher    = require(Master.WATCHER),
-		apiCheck   = new RegExp('^'+path.join(this.options.dir, Zerver.API_PATH)),
+		apiCheck   = new RegExp('^'+path.join(this.options.dir, require(__dirname+path.sep+'zerver').API_PATH)),
 		lastChange = null;
 
 	watcher.watch(this.options.dir, function (fileName) {

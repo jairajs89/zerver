@@ -6,37 +6,10 @@ var crypto     = require('crypto'),
 		extend     = require('util')._extend,
 		zlib       = require('zlib'),
 		mime       = require('mime'),
-		uglify     = require('uglify-js'),
-		coffee     = require('coffee-script'),
-		babelCore  = require('babel-core'),
-		less       = require('less'),
-		jade       = require('jade'),
-		CleanCSS   = require('clean-css'),
-		htmlMinify = require('html-minifier'),
-		cheerio    = require('cheerio'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
 		babelModuleInner = require(__dirname+path.sep+'lib'+path.sep+'babel-module-inner'),
-		babelModuleOuter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-outer');
-
-less.Parser.importer = function (file, paths, callback) {
-	var pathname = path.join(paths.entryPath, file);
-	try {
-		fs.statSync(pathname);
-	} catch (e) {
-		throw new Error('File '+file+' not found');
-	}
-
-	var data = fs.readFileSync(pathname, 'utf-8');
-	new(less.Parser)({
-		paths    : [path.dirname(pathname)].concat(paths),
-		filename : pathname,
-	}).parse(data, function (e, root) {
-		if (e) {
-			less.writeError(e);
-		}
-		callback(e, root);
-	})
-};
+		babelModuleOuter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-outer'),
+		less;
 
 mime.define({
 	'text/jsx'          : ['jsx'   ],
@@ -745,7 +718,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 	var originalContentType = headers['Content-Type'];
 	if (headers['Content-Type'] === 'text/html') {
 		var hadCompilation = false;
-		var $ = cheerio.load(body.toString());
+		var $ = require('cheerio').load(body.toString());
 		$('script').each(function () {
 			var $script = $(this);
 			var code = $script.html();
@@ -795,7 +768,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.coffee && headers['Content-Type'] === 'text/coffeescript') {
 		try {
-			body = coffee.compile(body.toString());
+			body = require('coffee-script').compile(body.toString());
 			headers['Content-Type'] = 'application/javascript';
 		} catch (err) {
 			console.error('failed to compile CoffeeScript file, '+pathname);
@@ -806,7 +779,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.less && headers['Content-Type'] === 'text/less') {
 		try {
-			var parser = new(less.Parser)({
+			var parser = new(getLess().Parser)({
 				filename: path.join(this._root, pathname)
 			});
 			parser.parse(body.toString(), function (e, r) {
@@ -822,7 +795,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.jade && headers['Content-Type'] === 'text/jade') {
 		try {
-			body = jade.render(body.toString(), {
+			body = require('jade').render(body.toString(), {
 				filename     : path.join(this._root, pathname),
 				pretty       : !this._options.production,
 				compileDebug : !this._options.production,
@@ -862,6 +835,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 
 		case 'application/javascript':
 			body = body.toString().replace(StaticFiles.DEBUG_LINES, '');
+			var uglify = require('uglify-js');
 			try {
 				var ast = uglify.parser.parse(body);
 				ast     = uglify.uglify.ast_mangle(ast);
@@ -876,7 +850,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 		case 'text/css':
 			body = body.toString();
 			try {
-				code = new CleanCSS().minify(body);
+				code = new (require('clean-css'))().minify(body);
 				if (code && code.length < body.length) {
 					body = code;
 				}
@@ -886,7 +860,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 		case 'text/html':
 			body = body.toString();
 			try {
-				code = htmlMinify.minify(body, {
+				code = require('html-minifier').minify(body, {
 					removeComments            : true,
 					collapseWhitespace        : true,
 					conservativeCollapse      : true,
@@ -924,7 +898,7 @@ StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback)
 };
 
 StaticFiles.prototype._babelCompile = function (pathname, body) {
-	return babelCore.transform(body, {
+	return require('babel-core').transform(body, {
 		blacklist        : ['strict'],
 		plugins          : [
 			{ transformer: babelModuleInner, position: 'before' },
@@ -1150,4 +1124,30 @@ function getFileVersion(url, body) {
 	parsed.query.version = crypto.createHash('md5').update(body).digest('hex');
 	parsed.search = '?'+qs.stringify(parsed.query);
 	return parsed.format();
+}
+
+function getLess() {
+	if ( !less ) {
+		less = require('less');
+		less.Parser.importer = function (file, paths, callback) {
+			var pathname = path.join(paths.entryPath, file);
+			try {
+				fs.statSync(pathname);
+			} catch (e) {
+				throw new Error('File '+file+' not found');
+			}
+
+			var data = fs.readFileSync(pathname, 'utf-8');
+			new(less.Parser)({
+				paths    : [path.dirname(pathname)].concat(paths),
+				filename : pathname,
+			}).parse(data, function (e, root) {
+				if (e) {
+					less.writeError(e);
+				}
+				callback(e, root);
+			})
+		};
+	}
+	return less;
 }

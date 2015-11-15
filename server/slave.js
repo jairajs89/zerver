@@ -1,13 +1,7 @@
 var extend       = require('util')._extend,
 	path         = require('path'),
 	EventEmitter = require('events').EventEmitter,
-	Zerver       = require(__dirname+path.sep+'zerver'),
 	WebSocketServer;
-
-var _warn = console.warn;
-console.warn = function () {};
-WebSocketServer = require('websocket').server;
-console.warn = _warn;
 
 module.exports = Slave;
 
@@ -29,11 +23,11 @@ function Slave(options) {
 		});
 	});
 
-	var zerver = new Zerver(self.options, function () {
+	var zerver = new (require(__dirname+path.sep+'zerver'))(self.options, function () {
 		process.send({ started: true });
 		process.nextTick(function () {
 			try {
-				new WebSocketServer({ httpServer: zerver._app })
+				new (getWebsocketServer())({ httpServer: zerver._app })
 					.on('request', function (req) {
 						var conn = req.accept('zerver-debug', req.origin);
 						self.handleRequest(conn);
@@ -165,3 +159,14 @@ Slave.prototype.handleRequest = function (stream) {
 		}
 	}
 };
+
+
+function getWebsocketServer() {
+	if ( !WebSocketServer ) {
+		var _warn = console.warn;
+		console.warn = function () {};
+		WebSocketServer = require('websocket').server;
+		console.warn = _warn;
+	}
+	return WebSocketServer;
+}
