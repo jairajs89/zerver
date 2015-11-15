@@ -210,6 +210,10 @@ NETWORK:
 
 # Server side
 
+### Static S3 builds
+
+//TODO
+
 ### Custom API calls
 
 Zerver allows you server custom API in a more tradional manner:
