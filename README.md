@@ -212,7 +212,11 @@ NETWORK:
 
 ### Static S3 builds
 
-//TODO
+```bash
+zerver --s3-build="mybucket/path/to/store"
+```
+
+Zerver will build static assets and deploy them to the chosen S3 bucket and directory. Zerver takes advantage of AWS' NodeJS SDK which standardizes credentials management. [Read their docs here](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html) and note that Zerver fully supports the `AWS_PROFILE` environment variable.
 
 ### Custom API calls
 
