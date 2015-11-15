@@ -25,21 +25,29 @@ function Zerver(options, callback) {
 	self._apis   = new APICalls(self._options);
 	self._options._apiModule = self._apis;
 	self._static = new StaticFiles(self._options, function () {
-		if (self._options.build) {
-			self._build(callback);
+		if (self._options.s3Build) {
+			self._s3build(callback);
 		} else {
 			self._start(callback);
 		}
 	});
 }
 
-Zerver.prototype._build = function (callback) {
+Zerver.prototype._s3build = function (callback) {
+	var self = this;
+
+	var s3url      = self._options.s3Build,
+		awsProfile = self._options.s3Profile;
+
 	//TODO: wipe build dir
 	//TODO: create build dir
 	//TODO: loop through files accessible through static.get
 	//TODO: include polyfill file
 	//TODO: deploy files to s3
-	throw Error('--build not implemented');
+
+	console.error('URL:', s3url);
+	console.error('PROFILE:', awsProfile);
+	throw Error('--s3-build not implemented');
 
 	if (callback) {
 		callback();

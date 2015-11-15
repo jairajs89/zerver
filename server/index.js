@@ -52,7 +52,8 @@ function processOptions() {
 		.option('--env <assign>'            , 'set environment variables (name="value")', function(v,m){m.push(v);return m}, [])
 		.option('--cache <paths>'           , 'set specific cache life for resources')
 		.option('-M, --missing <paths>'     , 'set a custom 404 page')
-		.option('--build <path>'            , 'dump generated static output to a directory (for CDN use, etc)')
+		.option('--s3-build <path>'         , 'dump generated static output to S3')
+		.option('--s3-profile <path>'       , 'AWS credential profile to use', 'default')
 		.option('--ignore-manifest <paths>' , 'disable processing for a particular HTML5 appCache manifest file')
 		.option('--no-manifest'             , 'disable processing for ALL HTML5 appCache manifest files')
 		.option('--no-gzip'                 , 'disable gzip compression in production mode')
@@ -70,7 +71,7 @@ function processOptions() {
 		.option('-j, --json'                , 'requests get logged as json')
 		.option('-s, --stats'               , 'periodically print memory usage and other stats')
 		.parse(getCLIArgs());
-	if (commands.build) {
+	if (commands.s3Build) {
 		commands.production = true;
 	}
 	if (commands.production) {
