@@ -39,8 +39,6 @@ Zerver.prototype._s3build = function (callback) {
 	var s3url      = self._options.s3Build,
 		awsProfile = self._options.s3Profile;
 
-	//TODO: wipe build dir
-	//TODO: create build dir
 	//TODO: loop through files accessible through static.get
 	//TODO: include polyfill file
 	//TODO: deploy files to s3
