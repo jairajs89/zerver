@@ -36,8 +36,8 @@ function Zerver(options, callback) {
 Zerver.prototype._s3build = function (callback) {
 	var self = this;
 
-	var s3url      = self._options.s3Build,
-		awsProfile = self._options.s3Profile;
+	var AWS   = require('aws-sdk'),
+		s3url = self._options.s3Build;
 
 	//TODO: loop through files accessible through static.get
 	//TODO: include polyfill file
