@@ -7,6 +7,7 @@ module.exports = function (options, static, apis, callback) {
     //TODO: include polyfill file
     //TODO: ignore paths that end with /
     //TODO: deploy files to s3
+    //TODO: order: else, styles/scripts, html, manifest
 
     console.error('URL:', s3url);
     throw Error('--s3-deploy not implemented');
