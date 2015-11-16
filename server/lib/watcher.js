@@ -4,7 +4,7 @@ var sys = require('util')
   , events = require('events');
 
 exports.watch = function (reqPath, onChange) {
-	watchTree(path.resolve(reqPath), onChange);
+	watchTree(path.resolve(reqPath), { ignoreDotFiles: true }, onChange);
 };
 
 
