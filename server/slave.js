@@ -1,13 +1,7 @@
 var extend       = require('util')._extend,
 	path         = require('path'),
 	EventEmitter = require('events').EventEmitter,
-	Zerver       = require(__dirname+path.sep+'zerver'),
 	WebSocketServer;
-
-var _warn = console.warn;
-console.warn = function () {};
-WebSocketServer = require('websocket').server;
-console.warn = _warn;
 
 module.exports = Slave;
 
@@ -17,42 +11,50 @@ function Slave(options) {
 	var self = this;
 	self.options = extend({}, options || {});
 
-	self.streams = new EventEmitter();
-	self.streams.list = [];
-	self.streams.on('connection', function (stream) {
-		stream.on('_message', function (data) {
-			if (data.type === 'log') {
-				try {
-					process.send({ log: (data.level+': '+data.message) });
-				} catch (err) {}
-			}
-		});
-	});
+	var needsStream = options.cli || options.refresh;
 
-	var zerver = new Zerver(self.options, function () {
+	if (needsStream) {
+		self.streams = new EventEmitter();
+		self.streams.list = [];
+		self.streams.on('connection', function (stream) {
+			stream.on('_message', function (data) {
+				if (data.type === 'log') {
+					try {
+						process.send({ log: (data.level+': '+data.message) });
+					} catch (err) {}
+				}
+			});
+		});
+	}
+
+	var zerver = new (require(__dirname+path.sep+'zerver'))(self.options, function () {
 		process.send({ started: true });
-		process.nextTick(function () {
-			try {
-				new WebSocketServer({ httpServer: zerver._app })
-					.on('request', function (req) {
-						var conn = req.accept('zerver-debug', req.origin);
-						self.handleRequest(conn);
-					});
-			} catch (err) {
-				console.error('failed to init debug channel');
-			}
-		});
-	});
-
-	process.on('message', function (data) {
-		if (data) {
-			if (data.debugRefresh) {
-				self.refresh();
-			} else if (data.cli) {
-				self.cliRequest(data.cli);
-			}
+		if (needsStream) {
+			process.nextTick(function () {
+				try {
+					new (getWebsocketServer())({ httpServer: zerver._app })
+						.on('request', function (req) {
+							var conn = req.accept('zerver-debug', req.origin);
+							self.handleRequest(conn);
+						});
+				} catch (err) {
+					console.error('failed to init debug channel');
+				}
+			});
 		}
 	});
+
+	if (needsStream) {
+		process.on('message', function (data) {
+			if (data) {
+				if (data.debugRefresh) {
+					self.refresh();
+				} else if (data.cli) {
+					self.cliRequest(data.cli);
+				}
+			}
+		});
+	}
 }
 
 Slave.prototype.refresh = function () {
@@ -165,3 +167,14 @@ Slave.prototype.handleRequest = function (stream) {
 		}
 	}
 };
+
+
+function getWebsocketServer() {
+	if ( !WebSocketServer ) {
+		var _warn = console.warn;
+		console.warn = function () {};
+		WebSocketServer = require('websocket').server;
+		console.warn = _warn;
+	}
+	return WebSocketServer;
+}

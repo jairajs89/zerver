@@ -2,7 +2,7 @@
   "author": "Jairaj Sethi <j@jairaj.org> (http://jairaj.org/)",
   "name": "zerver",
   "description": "a modern webapp server",
-  "version": "0.16.16",
+  "version": "0.17.4",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,7 +22,8 @@
     "jade": "1.3.0",
     "html-minifier": "0.8.0",
     "babel-core": "5.8.25",
-    "cheerio": "0.19.0"
+    "cheerio": "0.19.0",
+    "aws-sdk": "2.2.17"
   },
   "main": "server/zerver.js",
   "bin": {

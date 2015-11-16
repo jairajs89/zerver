@@ -1,7 +1,6 @@
 var cluster = require('cluster'),
 	extend  = require('util')._extend,
-	path    = require('path'),
-	Zerver  = require(__dirname+path.sep+'zerver');
+	path    = require('path');
 
 module.exports = Master;
 
@@ -25,12 +24,9 @@ function Master(options) {
 	}, Master.MAX_AGE/2);
 
 	self.createChild();
-
-	if ( !self.options.production ) {
-		self.setupWatcher();
-		if (self.options.cli) {
-			self.setupCLI();
-		}
+	self.setupWatcher();
+	if (self.options.cli) {
+		self.setupCLI();
 	}
 
 	process.on('SIGUSR2', killMaster);
@@ -122,7 +118,7 @@ Master.prototype.pruneRetries = function () {
 Master.prototype.setupWatcher = function () {
 	var self       = this,
 		watcher    = require(Master.WATCHER),
-		apiCheck   = new RegExp('^'+path.join(this.options.dir, Zerver.API_PATH)),
+		apiCheck   = new RegExp('^'+path.join(this.options.dir, require(__dirname+path.sep+'zerver').API_PATH)),
 		lastChange = null;
 
 	watcher.watch(this.options.dir, function (fileName) {

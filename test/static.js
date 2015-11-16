@@ -144,7 +144,7 @@ test.runTest(testObj({
 	'test.js' : 'export function sum(arr) { return arr.reduce(((v, t) => v+t), 0) }',
 }, function (cache, files, callback) {
 	var data = cache.get('/test.js');
-	assert.deepEqual(data.body, '(function(){"use strict";function e(e){return e.reduce(function(e,t){return e+t},0)}this.__ZERVER_MODULES=this.__ZERVER_MODULES||{},this.__ZERVER_MODULES["/test"]=this.__ZERVER_MODULES["/test"]||{}}).call(this)');
+	assert.deepEqual(data.body, '(function(){"use strict";function e(e){return e.reduce(function(e,t){return e+t},0)}this.__ZERVER_MODULES=this.__ZERVER_MODULES||{},this.__ZERVER_MODULES["/test"]=this.__ZERVER_MODULES["/test"]||{},this.__ZERVER_MODULES["/test"].sum=e}).call(this)');
 	callback();
 });
 

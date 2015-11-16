@@ -6,37 +6,10 @@ var crypto     = require('crypto'),
 		extend     = require('util')._extend,
 		zlib       = require('zlib'),
 		mime       = require('mime'),
-		uglify     = require('uglify-js'),
-		coffee     = require('coffee-script'),
-		babelCore  = require('babel-core'),
-		less       = require('less'),
-		jade       = require('jade'),
-		CleanCSS   = require('clean-css'),
-		htmlMinify = require('html-minifier'),
-		cheerio    = require('cheerio'),
 		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
 		babelModuleInner = require(__dirname+path.sep+'lib'+path.sep+'babel-module-inner'),
-		babelModuleOuter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-outer');
-
-less.Parser.importer = function (file, paths, callback) {
-	var pathname = path.join(paths.entryPath, file);
-	try {
-		fs.statSync(pathname);
-	} catch (e) {
-		throw new Error('File '+file+' not found');
-	}
-
-	var data = fs.readFileSync(pathname, 'utf-8');
-	new(less.Parser)({
-		paths    : [path.dirname(pathname)].concat(paths),
-		filename : pathname,
-	}).parse(data, function (e, root) {
-		if (e) {
-			less.writeError(e);
-		}
-		callback(e, root);
-	})
-};
+		babelModuleOuter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-outer'),
+		less;
 
 mime.define({
 	'text/jsx'          : ['jsx'   ],
@@ -205,28 +178,28 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 	}
 
 	var filePath = path.join(self._root, pathname),
-		body     = fs.readFileSync(filePath, 'binary'),
+		body     = fs.readFileSync(filePath),
 		headers  = {
 			'Content-Type'  : mime.lookup(filePath),
 			'Cache-Control' : self._getCacheControl(pathname),
 		};
 
 	async.forEach([
-		'compileLanguages',
-		'prepareManifest',
-		'inlineManifestFiles',
-		'prepareManifestConcatFiles',
-		'prepareConcatFiles',
-		'inlineScripts',
-		'inlineStyles',
-		'inlineImages',
-		'versionScripts',
-		'versionStyles',
-		'versionImages',
-		'compileOutput',
-		'gzipOutput',
+		self._compileLanguages,
+		self._prepareManifest,
+		self._inlineManifestFiles,
+		self._prepareManifestConcatFiles,
+		self._prepareConcatFiles,
+		self._inlineScripts,
+		self._inlineStyles,
+		self._inlineImages,
+		self._versionScripts,
+		self._versionStyles,
+		self._versionImages,
+		self._compileOutput,
+		self._gzipOutput,
 	], function (transform, next) {
-		self['_'+transform](pathname, headers, body, function (newHeaders, newBody) {
+		transform.call(self, pathname, headers, body, function (newHeaders, newBody) {
 			headers = newHeaders;
 			body    = newBody;
 			next();
@@ -389,7 +362,7 @@ StaticFiles.prototype._prepareManifest = function (pathname, headers, body, call
 		return;
 	}
 
-	body += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
+	body = body.toString()+'\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
 	callback(headers, body);
 };
 
@@ -399,7 +372,7 @@ StaticFiles.prototype._inlineManifestFiles = function (pathname, headers, body, 
 		return;
 	}
 
-	var lines = body.split('\n');
+	var lines = body.toString().split('\n');
 
 	for (var i=0, l=lines.length; i<l; i++) {
 		var urlParts;
@@ -423,7 +396,7 @@ StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers,
 		return;
 	}
 
-	var lines = body.split('\n'),
+	var lines = body.toString().split('\n'),
 		concatFile, concatIndex;
 
 	for (var i=0, l=lines.length; i<l; i++) {
@@ -478,7 +451,7 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 
 	var self = this;
 
-	body = body.replace(StaticFiles.CONCAT_MATCH, function (original, concatPath, concatables) {
+	body = body.toString().replace(StaticFiles.CONCAT_MATCH, function (original, concatPath, concatables) {
 		var files   = [],
 			absPath = relativePath(pathname, concatPath).split('?')[0],
 			fileType, match;
@@ -532,7 +505,7 @@ StaticFiles.prototype._versionScripts = function (pathname, headers, body, callb
 	}
 
 	var self = this;
-	async.replace(body, StaticFiles.SCRIPT_MATCH, function (scriptPath, next, matches) {
+	async.replace(body.toString(), StaticFiles.SCRIPT_MATCH, function (scriptPath, next, matches) {
 		if ( !urllib.parse(scriptPath,true).query.version ) {
 			next();
 			return;
@@ -578,7 +551,7 @@ StaticFiles.prototype._versionStyles = function (pathname, headers, body, callba
 	}
 
 	var self = this;
-	async.replace(body, StaticFiles.STYLES_MATCH, function (stylePath, next, matches) {
+	async.replace(body.toString(), StaticFiles.STYLES_MATCH, function (stylePath, next, matches) {
 		if ( !urllib.parse(stylePath,true).query.version ) {
 			next();
 			return;
@@ -613,7 +586,7 @@ StaticFiles.prototype._versionImages = function (pathname, headers, body, callba
 	}
 
 	var self = this;
-	async.replace(body, StaticFiles.CSS_IMAGE, function (imgPath, respond, matches) {
+	async.replace(body.toString(), StaticFiles.CSS_IMAGE, function (imgPath, respond, matches) {
 		if (imgPath.substr(0,5) === 'data:') {
 			respond();
 			return;
@@ -638,7 +611,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 	}
 
 	var self = this;
-	async.replace(body, StaticFiles.SCRIPT_MATCH, function (scriptPath, next) {
+	async.replace(body.toString(), StaticFiles.SCRIPT_MATCH, function (scriptPath, next) {
 		if ( !urllib.parse(scriptPath,true).query.inline ) {
 			next();
 			return;
@@ -669,7 +642,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
 				finish();
 			}
 			function finish() {
-				next('<script>//<![CDATA[\n'+body+'\n//]]></script>');
+				next('<script>//<![CDATA[\n'+body.toString()+'\n//]]></script>');
 			}
 		}
 	}, function (body) {
@@ -684,7 +657,7 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
 	}
 
 	var self = this;
-	async.replace(body, StaticFiles.STYLES_MATCH, function (stylePath, next) {
+	async.replace(body.toString(), StaticFiles.STYLES_MATCH, function (stylePath, next) {
 		if ( !urllib.parse(stylePath,true).query.inline ) {
 			next();
 			return;
@@ -704,7 +677,7 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
 				finish();
 			}
 			function finish() {
-				next('<style>\n'+body+'\n</style>');
+				next('<style>\n'+body.toString()+'\n</style>');
 			}
 		});
 	}, function (body) {
@@ -719,7 +692,7 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 	}
 
 	var self = this;
-	async.replace(body, StaticFiles.CSS_IMAGE, function (imgPath, respond) {
+	async.replace(body.toString(), StaticFiles.CSS_IMAGE, function (imgPath, respond) {
 		if (imgPath.substr(0,5) === 'data:') {
 			respond();
 			return;
@@ -730,7 +703,10 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
 		}
 		var fullPath = relativePath(pathname, imgPath.split('?')[0]);
 		self._cacheFile(fullPath, function (headers, body) {
-			respond('url(data:'+headers['Content-Type']+';base64,'+new Buffer(body, 'binary').toString('base64')+')');
+			if ( !Buffer.isBuffer(body) ) {
+				body = new Buffer(body, 'binary');
+			}
+			respond('url(data:'+headers['Content-Type']+';base64,'+body.toString('base64')+')');
 		});
 	}, function (body) {
 		callback(headers, body);
@@ -742,7 +718,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 	var originalContentType = headers['Content-Type'];
 	if (headers['Content-Type'] === 'text/html') {
 		var hadCompilation = false;
-		var $ = cheerio.load(body.toString());
+		var $ = require('cheerio').load(body.toString());
 		$('script').each(function () {
 			var $script = $(this);
 			var code = $script.html();
@@ -792,7 +768,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.coffee && headers['Content-Type'] === 'text/coffeescript') {
 		try {
-			body = coffee.compile(body.toString());
+			body = require('coffee-script').compile(body.toString());
 			headers['Content-Type'] = 'application/javascript';
 		} catch (err) {
 			console.error('failed to compile CoffeeScript file, '+pathname);
@@ -803,7 +779,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.less && headers['Content-Type'] === 'text/less') {
 		try {
-			var parser = new(less.Parser)({
+			var parser = new(getLess().Parser)({
 				filename: path.join(this._root, pathname)
 			});
 			parser.parse(body.toString(), function (e, r) {
@@ -819,7 +795,7 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
 		}
 	} else if (this._options.jade && headers['Content-Type'] === 'text/jade') {
 		try {
-			body = jade.render(body.toString(), {
+			body = require('jade').render(body.toString(), {
 				filename     : path.join(this._root, pathname),
 				pretty       : !this._options.production,
 				compileDebug : !this._options.production,
@@ -850,35 +826,41 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 	switch (headers['Content-Type']) {
 		case 'application/json':
 			try {
-				code = JSON.stringify(JSON.parse(body));
+				code = JSON.stringify(JSON.parse(body.toString()));
 			} catch (err) {}
+			if (code) {
+				body = code;
+			}
 			break;
 
 		case 'application/javascript':
-			body = body.replace(StaticFiles.DEBUG_LINES, '');
+			body = body.toString().replace(StaticFiles.DEBUG_LINES, '');
+			var uglify = require('uglify-js');
 			try {
 				var ast = uglify.parser.parse(body);
 				ast     = uglify.uglify.ast_mangle(ast);
 				ast     = uglify.uglify.ast_squeeze(ast);
 				code    = uglify.uglify.gen_code(ast);
-				if (!code || code.length > body.length) {
-					code = null;
+				if (code && code.length < body.length) {
+					body = code;
 				}
 			} catch (err) {}
 			break;
 
 		case 'text/css':
+			body = body.toString();
 			try {
-				code = new CleanCSS().minify(body);
-				if (!code || code.length > body.length) {
-					code = null;
+				code = new (require('clean-css'))().minify(body);
+				if (code && code.length < body.length) {
+					body = code;
 				}
 			} catch (err) {}
 			break;
 
 		case 'text/html':
+			body = body.toString();
 			try {
-				code = htmlMinify.minify(body, {
+				code = require('html-minifier').minify(body, {
 					removeComments            : true,
 					collapseWhitespace        : true,
 					conservativeCollapse      : true,
@@ -890,16 +872,13 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 					minifyJS                  : true,
 					minifyCSS                 : true,
 				});
-				if (!code || code.length > body.length) {
-					code = null;
+				if (code && code.length < body.length) {
+					body = code;
 				}
 			} catch (err) {}
 			break;
 	}
 
-	if (code) {
-		body = code;
-	}
 	callback(headers, body);
 };
 
@@ -919,7 +898,7 @@ StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback)
 };
 
 StaticFiles.prototype._babelCompile = function (pathname, body) {
-	return babelCore.transform(body, {
+	return require('babel-core').transform(body, {
 		blacklist        : ['strict'],
 		plugins          : [
 			{ transformer: babelModuleInner, position: 'before' },
@@ -1145,4 +1124,30 @@ function getFileVersion(url, body) {
 	parsed.query.version = crypto.createHash('md5').update(body).digest('hex');
 	parsed.search = '?'+qs.stringify(parsed.query);
 	return parsed.format();
+}
+
+function getLess() {
+	if ( !less ) {
+		less = require('less');
+		less.Parser.importer = function (file, paths, callback) {
+			var pathname = path.join(paths.entryPath, file);
+			try {
+				fs.statSync(pathname);
+			} catch (e) {
+				throw new Error('File '+file+' not found');
+			}
+
+			var data = fs.readFileSync(pathname, 'utf-8');
+			new(less.Parser)({
+				paths    : [path.dirname(pathname)].concat(paths),
+				filename : pathname,
+			}).parse(data, function (e, root) {
+				if (e) {
+					less.writeError(e);
+				}
+				callback(e, root);
+			})
+		};
+	}
+	return less;
 }

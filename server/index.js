@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
-var cluster   = require('cluster'),
-	path      = require('path'),
-	fs        = require('fs'),
-	commander = require('commander'),
-	Master    = require(__dirname+path.sep+'master'),
-	Slave     = require(__dirname+path.sep+'slave');
+var cluster   = require('cluster');
+var path      = require('path');
+var fs        = require('fs');
+var commander = require('commander');
 
 var PACKAGE = __dirname+path.sep+'..'+path.sep+'package.json';
 
+init();
 
 
-process.nextTick(function () {
+
+function init() {
 	if (require.main !== module) {
 		throw Error('server/index.js must be run as main module');
 	}
@@ -27,14 +27,14 @@ process.nextTick(function () {
 		process.env[name] = value;
 	});
 
-	if (cluster.isMaster) {
-		new Master(options);
+	if (options.production) {
+		new (require(__dirname+path.sep+'zerver'))(options);
+	} else if (cluster.isMaster) {
+		new (require(__dirname+path.sep+'master'))(options);
 	} else {
-		new Slave(options);
+		new (require(__dirname+path.sep+'slave'))(options);
 	}
-});
-
-
+}
 
 function processOptions() {
 	var commands = new commander.Command('zerver');
@@ -49,6 +49,7 @@ function processOptions() {
 		.option('--env <assign>'            , 'set environment variables (name="value")', function(v,m){m.push(v);return m}, [])
 		.option('--cache <paths>'           , 'set specific cache life for resources')
 		.option('-M, --missing <paths>'     , 'set a custom 404 page')
+		.option('--s3-deploy <path>'        , 'dump generated static output to S3')
 		.option('--ignore-manifest <paths>' , 'disable processing for a particular HTML5 appCache manifest file')
 		.option('--no-manifest'             , 'disable processing for ALL HTML5 appCache manifest files')
 		.option('--no-gzip'                 , 'disable gzip compression in production mode')
@@ -66,6 +67,9 @@ function processOptions() {
 		.option('-j, --json'                , 'requests get logged as json')
 		.option('-s, --stats'               , 'periodically print memory usage and other stats')
 		.parse(getCLIArgs());
+	if (commands.s3Deploy) {
+		commands.production = true;
+	}
 	if (commands.production) {
 		commands.refresh = false;
 		commands.cli     = false;
