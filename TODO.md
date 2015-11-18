@@ -12,9 +12,9 @@
     - --no-api
     - --quiet
     - https support?
+    - full express integration
 * cleanup
     - cleanup api handling protocol
     - remove custom http requests (redo it maybe?)
     - remove custom cors
-    - remove rest client
 * release version 1.0.0
