@@ -68,12 +68,6 @@ zerver --port=8000 website-dir
 -V, --verbose
 # Verbose logging of requests, including host,
 # protocol, referrer, ip address and user agent
-
--H, --headers
-# Include request headers in logging
-
--j, --json
-# Print request logs as JSON (easy to consume by log parsers)
 ```
 
 ### Default options

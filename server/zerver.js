@@ -73,9 +73,7 @@ Zerver.prototype._start = function (callback) {
 		if (self._options.cli) {
 			console.log('- cli: true');
 		}
-		if (self._options.stats) {
-			console.log('- stats: true');
-		}
+		//TODO: all options
 		console.log('');
 
 		if (callback) {

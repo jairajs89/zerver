@@ -62,10 +62,8 @@ function processOptions() {
 		.option('--no-jade'                 , 'disable compilation of Jade to HTML')
 		.option('--babel'                   , 'enable Babel compilation for JS/JSX')
 		.option('--babel-exclude <paths>'   , 'exclude paths from Babel compilation')
+		.option('-q, --quiet'               , 'turn off request logging')
 		.option('-V, --verbose'             , 'verbose request logging')
-		.option('-H, --headers'             , 'show headers in logs')
-		.option('-j, --json'                , 'requests get logged as json')
-		.option('-s, --stats'               , 'periodically print memory usage and other stats')
 		.parse(getCLIArgs());
 	if (commands.s3Deploy) {
 		commands.production = true;
