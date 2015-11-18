@@ -77,16 +77,6 @@ You can specify default options in an environment variable, to avoid having to t
 export ZERVER_FLAGS='-rc'
 ```
 
-## Refresh mode (`-r, --refresh`)
-
-```sh
-zerver -r website-dir
-```
-
-When you are developing a webpage in the browser the `-r` flag causes the page to automatically refresh whenever you edit your code. This is a convenient utility that allows for frictionless rapid iteration.
-
-Note: this feature requires that you have included a zerver script somewhere on the webpage and that the browser supports websockets.
-
 ## Production mode (`-p, --production`)
 
 ```sh

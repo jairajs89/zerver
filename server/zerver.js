@@ -67,9 +67,6 @@ Zerver.prototype._start = function (callback) {
 		if (self._options.production) {
 			console.log('- production: true');
 		}
-		if (self._options.refresh) {
-			console.log('- refresh: true');
-		}
 		//TODO: all options
 		console.log('');
 

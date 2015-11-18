@@ -32,7 +32,9 @@ function init() {
 	} else if (cluster.isMaster) {
 		new (require(__dirname+path.sep+'master'))(options);
 	} else {
-		new (require(__dirname+path.sep+'slave'))(options);
+		new (require(__dirname+path.sep+'zerver'))(options, function () {
+			process.send({ started: true });
+		});
 	}
 }
 
@@ -43,7 +45,6 @@ function processOptions() {
 		.usage('[options] [dir]')
 		.option('-P, --port <n>'            , 'set server port to listen on', parseInt)
 		.option('-h, --hostname <addr>'     , 'set server hostname to listen to', undefined)
-		.option('-r, --refresh'             , 'auto-refresh browsers on file changes')
 		.option('-p, --production'          , 'enable production mode (caching, concat, minfiy, gzip, etc)')
 		.option('--env <assign>'            , 'set environment variables (name="value")', function(v,m){m.push(v);return m}, [])
 		.option('--cache <paths>'           , 'set specific cache life for resources')
@@ -67,9 +68,7 @@ function processOptions() {
 	if (commands.s3Deploy) {
 		commands.production = true;
 	}
-	if (commands.production) {
-		commands.refresh = false;
-	} else {
+	if ( !commands.production ) {
 		commands.gzip    = false;
 		commands.concat  = false;
 		commands.compile = false;

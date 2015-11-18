@@ -1,6 +1,4 @@
 (function (window, zerver) {
-	window.ZERVER_REFRESH_ENABLED = {{__API_REFRESH__}};
-
 	var apiDir       = {{__API_DIR__}},
 		apiName      = {{__API_NAME__}},
 		apiObj       = {{__API_OBJ__}},
