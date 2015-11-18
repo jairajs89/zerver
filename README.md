@@ -414,36 +414,6 @@ zerver.get('otherdata.json', function (response) {
 
 
 
-# ExpressJS integration
-
-Zerver can be integrated with Express and other NodeJS servers to provide zerver APIs.
-
-Here is an example Express app:
-
-```
-website-dir/app.js
-website-dir/src/index.html
-website-dir/zerver/MyAPI.js
-```
-
-```js
-/* app.js */
-
-var express = require('express');
-var zerver  = require('zerver');
-
-var app = express();
-app.use( zerver.middleware(__dirname) );
-app.use( express.static(__dirname + '/src') );
-app.listen(3000);
-```
-
-Along with the rest of the Express app, zerver scripts will be accessible for importing into the client-side code.
-
-
-
 # Example apps
 
 [Basic app](https://github.com/jairajs89/zerver/tree/master/examples/basic-app)
-
-[Express app](https://github.com/jairajs89/zerver/tree/master/examples/express-app)

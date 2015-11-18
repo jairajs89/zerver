@@ -161,23 +161,3 @@ Zerver.prototype._prepareRequest = function (req, res) {
 		self._logger.endRequest(req, res);
 	};
 };
-
-Zerver.middleware = function (rootDir) {
-	var apis = new APICalls({
-		dir        : path.resolve(process.cwd(), rootDir),
-		production : true,
-		apis       : Zerver.API_PATH,
-	});
-
-	return function (req, res, next) {
-		apis.get(req.url.split('?')[0], req, function (status, headers, body) {
-			if (typeof status === 'undefined') {
-				next();
-			} else {
-				res.writeHeader(status, headers);
-				res.write(body, 'binary');
-				res.end();
-			}
-		});
-	};
-};
