@@ -12,7 +12,6 @@ APICalls.CLIENT_REQUIRE   = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'
 APICalls.CLIENT_DEBUG     = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'debug.js';
 APICalls.CLIENT_POLYFILL  = path.resolve(require.resolve('babel-core'), '..'+path.sep+'browser-polyfill.js');
 APICalls.INSERT_REFRESH   = '{{__API_REFRESH__}}';
-APICalls.INSERT_LOGGING   = '{{__API_LOGGING__}}';
 APICalls.INSERT_DIR       = '{{__API_DIR__}}';
 APICalls.INSERT_NAME      = '{{__API_NAME__}}';
 APICalls.INSERT_APIS      = '{{__API_APIS__}}';
@@ -76,7 +75,6 @@ function APICalls(options) {
 		file = file.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
 		file = file.replace(APICalls.INSERT_APIS     , JSON.stringify(null)         );
 		file = file.replace(APICalls.INSERT_REFRESH  , JSON.stringify(self._options.refresh));
-		file = file.replace(APICalls.INSERT_LOGGING  , JSON.stringify(self._options.logging));
 
 		if (self._options.production) {
 			file = uglifyJs(file);
@@ -94,7 +92,6 @@ function APICalls(options) {
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(null)          );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_APIS     , JSON.stringify(templateData)  );
 	this._requireScript = this._requireScript.replace(APICalls.INSERT_REFRESH  , JSON.stringify(this._options.refresh));
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_LOGGING  , JSON.stringify(this._options.logging));
 	if (this._options.production) {
 		this._requireScript = uglifyJs(this._requireScript);
 	} else {

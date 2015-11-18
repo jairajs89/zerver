@@ -19,5 +19,4 @@
     - remove require syntax
     - remove rest client
     - remove --refresh?
-    - remove --cli?
 * release version 1.0.0

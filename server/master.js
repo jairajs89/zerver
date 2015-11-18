@@ -17,7 +17,6 @@ function Master(options) {
 	self.death    = false;
 	self.retries  = [];
 	self.child    = null;
-	self.hadStart = false;
 
 	setInterval(function () {
 		self.pruneRetries();
@@ -25,9 +24,6 @@ function Master(options) {
 
 	self.createChild();
 	self.setupWatcher();
-	if (self.options.cli) {
-		self.setupCLI();
-	}
 
 	process.on('SIGUSR2', killMaster);
 	process.on('SIGINT' , killMaster);
@@ -53,23 +49,6 @@ Master.prototype.createChild = function () {
 		try {
 			if (data.started) {
 				started = Date.now();
-				if (!self.hadStart && self.cli) {
-					console.log('(press <tab> to access remote command line)');
-					console.log('');
-				}
-				self.hadStart = true;
-			} else if (data.prompt && self.cli) {
-				self.cli.prompt();
-			} else if (data.log) {
-				if (self.cli && self.cli.isEnabled) {
-					self.cli.setPrompt('');
-					self.cli.prompt();
-				}
-				console.log(data.log);
-				if (self.cli && self.cli.isEnabled) {
-					self.cli.setPrompt('>>> ');
-					self.cli.prompt();
-				}
 			}
 		} catch (err) {}
 	});
@@ -149,48 +128,4 @@ Master.prototype.setupWatcher = function () {
 	setTimeout(function () {
 		lastChange = new Date();
 	}, 500);
-};
-
-Master.prototype.setupCLI = function () {
-	var self     = this,
-		readline = require('readline');
-
-	self.cli = readline.createInterface(process.stdin, process.stdout);
-	self.cli.isEnabled = false;
-	self.cli.setPrompt('');
-
-	process.stdin.on('keypress', function (s, key) {
-		if (key) {
-			if (self.cli.isEnabled && key.name === 'escape') {
-				self.cli.isEnabled = false;
-				self.cli.setPrompt('');
-				self.cli.prompt();
-			} else if (!self.cli.isEnabled && key.name === 'tab') {
-				self.cli.isEnabled = true;
-				self.cli.setPrompt('>>> ');
-				self.cli.prompt();
-			}
-		}
-	});
-
-	self.cli.on('line', function (line) {
-		if (self.cli.isEnabled) {
-			if (line) {
-				if (self.child) {
-					try {
-						self.child.send({ cli: line });
-					} catch (err) {}
-				}
-			} else {
-				self.cli.prompt();
-			}
-		}
-	});
-
-	self.cli.on('close', function () {
-		if (self.cli.isEnabled) {
-			console.log('');
-		}
-		process.exit();
-	});
 };

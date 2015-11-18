@@ -1,10 +1,10 @@
-(function (window, refreshEnabled, loggingEnabled) {
+(function (window, refreshEnabled) {
 	var WebSocket      = (window['MozWebSocket'] || window.WebSocket),
 		match          = /\bAndroid (\d+(\.\d+)?)/.exec(window.navigator.userAgent),
 		isAndroid      = !!match,
 		androidVersion = match ? window.parseFloat(match[1]) : null;
 	if (!WebSocket || (isAndroid && androidVersion < 4.4)) {
-		if (refreshEnabled || loggingEnabled) {
+		if (refreshEnabled) {
 			console.error('zerver debug mode requires websockets');
 		}
 		return;
@@ -13,12 +13,6 @@
 	var stream = createStream();
 	if (refreshEnabled) {
 		setupRefresh();
-	}
-	setupCLI();
-	if (loggingEnabled) {
-		// dont want to hijack logs unless necessary
-		// stack traces get all shitty
-		setupLogging();
 	}
 
 
@@ -153,136 +147,6 @@
 
 
 
-	/* Piped logging */
-
-	function setupLogging() {
-		var console = window.console;
-		if (typeof console !== 'object') {
-			console = {};
-		}
-
-		console.log   = interceptLogs(console.log  , 'log'  );
-		console.warn  = interceptLogs(console.warn , 'warn' );
-		console.error = interceptLogs(console.error, 'error');
-		interceptExceptions();
-
-		window.console = console;
-	}
-
-	function interceptLogs(logger, level) {
-		switch (typeof logger) {
-			case 'undefined':
-				logger = function () {};
-			case 'function':
-				break;
-			default:
-				return logger;
-		}
-
-		return function () {
-			var message = Array.prototype.map.call(
-				arguments,
-				function (log) {
-					return log + '';
-				}
-			).join(' ');
-
-			logMessage(level, message);
-			logger.apply(this, arguments);
-		};
-	}
-
-	function interceptExceptions() {
-		if ( !window.addEventListener ) {
-			return;
-		}
-
-		window.addEventListener('error', function (msg, fileName, lineNum) {
-			var evt;
-			if (msg && msg.message) {
-				evt      = msg;
-				msg      = evt.message;
-				fileName = evt.fileName;
-				lineNum  = evt.lineno;
-			}
-
-			var err = msg + '';
-			if (fileName) {
-				err += ' (' + fileName;
-				if (lineNum) {
-					err += ':' + lineNum;
-				}
-				err += ')';
-			}
-
-			logMessage('exception', err);
-		}, false);
-	}
-
-	function logMessage(level, message) {
-		if (logMessage.lock) {
-			return;
-		}
-		logMessage.lock = true;
-
-		stream.send({
-			type    : 'log'   ,
-			level   : level   ,
-			message : message
-		});
-
-		logMessage.lock = false;
-	}
-
-
-
-	/* Remote CLI */
-
-	function setupCLI() {
-		stream.onMessage(function (data) {
-			if (data.type !== 'eval') {
-				return;
-			}
-
-			var success, val, error;
-			try {
-				val     = new Function('return ' + data.line)();
-				success = true;
-				error   = undefined;
-			} catch (err) {
-				val     = undefined;
-				success = false;
-				error   = err + '';
-			}
-
-			var type, jsonVal;
-			if (success) {
-				if ( isObject(val) ) {
-					try {
-						jsonVal = JSON.stringify(val);
-						if (typeof jsonVal === 'string') {
-							type = 'json';
-						}
-					} catch (err) {}
-				}
-				if ( !type ) {
-					jsonVal = val + '';
-					type    = 'string';
-				}
-			}
-
-			stream.send({
-				type      : 'eval'  ,
-				requestID : data.requestID ,
-				error     : error   ,
-				output    : jsonVal ,
-				dataType  : type
-			});
-		});
-	}
-
-
-
 	/* Utils */
 
 	function afterReady(func) {
@@ -298,4 +162,4 @@
 	function isObject(obj) {
 		return ((typeof obj === 'object') && (obj !== null));
 	}
-})(window, window.ZERVER_REFRESH_ENABLED, window.ZERVER_LOGGING_ENABLED);
+})(window, window.ZERVER_REFRESH_ENABLED);

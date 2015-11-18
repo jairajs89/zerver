@@ -87,35 +87,6 @@ When you are developing a webpage in the browser the `-r` flag causes the page t
 
 Note: this feature requires that you have included a zerver script somewhere on the webpage and that the browser supports websockets.
 
-## Command line interface (`-c, --cli`)
-
-```sh
-zerver -c website-dir
-```
-
-Enable command line JavaScript access to the browser that your webpage is currently running on. This is extremely usefull when running on a mobile device where it is difficult to debug and access logs. Right from your terminal you'll be able to run commands remotely and see their result as well as see a constant stream of logs from your client.
-
-For example:
-
-```sh
-> zerver --cli website-dir
-
-# Press <tab> to access remote command line
->>>
-# The following line logs all the functions that are available in 'MyAPI'
->>> Object.keys(MyAPI)
-["function1", "function2"]
-
-# Logs are automatically streamed here as well
->>> console.log( Object.keys(MyAPI) )
-log: ["function1", "function2"]
-undefined
-# Notice that the log occurred, as well as
-# the 'undefined' return value from the command
-```
-
-Note: this feature requires that you have included a zerver script somewhere on the webpage and that the browser supports websockets.
-
 ## Production mode (`-p, --production`)
 
 ```sh

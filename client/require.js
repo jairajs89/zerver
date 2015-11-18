@@ -1,6 +1,5 @@
 (function (window, zerver) {
 	window.ZERVER_REFRESH_ENABLED = {{__API_REFRESH__}};
-	window.ZERVER_LOGGING_ENABLED = {{__API_LOGGING__}};
 
 	var apiDir       = {{__API_DIR__}},
 		apiName      = {{__API_NAME__}},

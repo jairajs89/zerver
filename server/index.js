@@ -44,7 +44,6 @@ function processOptions() {
 		.option('-P, --port <n>'            , 'set server port to listen on', parseInt)
 		.option('-h, --hostname <addr>'     , 'set server hostname to listen to', undefined)
 		.option('-r, --refresh'             , 'auto-refresh browsers on file changes')
-		.option('-c, --cli'                 , 'js shell for connect remote clients')
 		.option('-p, --production'          , 'enable production mode (caching, concat, minfiy, gzip, etc)')
 		.option('--env <assign>'            , 'set environment variables (name="value")', function(v,m){m.push(v);return m}, [])
 		.option('--cache <paths>'           , 'set specific cache life for resources')
@@ -70,14 +69,12 @@ function processOptions() {
 	}
 	if (commands.production) {
 		commands.refresh = false;
-		commands.cli     = false;
 	} else {
 		commands.gzip    = false;
 		commands.concat  = false;
 		commands.compile = false;
 		commands.inline  = false;
 	}
-	commands.logging = commands.cli;
 	commands.dir = path.resolve(process.cwd(), commands.args[0] || '.');
 	if ( !commands.port ) {
 		commands.port = parseInt(process.env.PORT) || 5000;

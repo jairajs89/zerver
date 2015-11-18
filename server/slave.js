@@ -11,25 +11,14 @@ function Slave(options) {
 	var self = this;
 	self.options = extend({}, options || {});
 
-	var needsStream = options.cli || options.refresh;
-
-	if (needsStream) {
+	if (options.refresh) {
 		self.streams = new EventEmitter();
 		self.streams.list = [];
-		self.streams.on('connection', function (stream) {
-			stream.on('_message', function (data) {
-				if (data.type === 'log') {
-					try {
-						process.send({ log: (data.level+': '+data.message) });
-					} catch (err) {}
-				}
-			});
-		});
 	}
 
 	var zerver = new (require(__dirname+path.sep+'zerver'))(self.options, function () {
 		process.send({ started: true });
-		if (needsStream) {
+		if (options.refresh) {
 			process.nextTick(function () {
 				try {
 					new (getWebsocketServer())({ httpServer: zerver._app })
@@ -44,82 +33,14 @@ function Slave(options) {
 		}
 	});
 
-	if (needsStream) {
-		process.on('message', function (data) {
-			if (data) {
-				if (data.debugRefresh) {
-					self.refresh();
-				} else if (data.cli) {
-					self.cliRequest(data.cli);
-				}
-			}
-		});
-	}
+	process.on('message', function (data) {
+		if (data && data.debugRefresh) {
+			self.streams.list.forEach(function (stream) {
+				stream._send({ type: 'refresh' });
+			});
+		}
+	});
 }
-
-Slave.prototype.refresh = function () {
-	this.streams.list.forEach(function (stream) {
-		stream._send({ type: 'refresh' });
-	});
-};
-
-Slave.prototype.cliRequest = function (line) {
-	var done   = false,
-		stream = this.streams.list[0];
-	if ( !stream ) {
-		console.warn('(no browsers available)');
-		finish();
-		return;
-	}
-
-	var requestID = 'x'+Math.random();
-	stream._send({
-		type      : 'eval'    ,
-		line      : line      ,
-		requestID : requestID ,
-	});
-
-	stream.on('_message', handleMessage);
-
-	var timeout = setTimeout(function () {
-		stream.removeListener('message', handleMessage);
-		console.warn('(cli timeout)');
-		finish();
-	}, 10 * 1000);
-
-	function handleMessage(data) {
-		if ((data.type !== 'eval') || (data.requestID !== requestID)) {
-			return;
-		}
-
-		stream.removeListener('message', handleMessage);
-		clearTimeout(timeout);
-
-		if (data.dataType === 'string') {
-			console.log(data.output);
-		} else if (data.dataType === 'json') {
-			try {
-				console.log( JSON.parse(data.output) );
-			} catch (err) {
-				console.error('(zerver cli error)');
-			}
-		} else {
-			console.error(data.error);
-		}
-
-		finish();
-	}
-
-	function finish() {
-		if (done) {
-			return;
-		}
-		done = true;
-		try {
-			process.send({ prompt: true });
-		} catch (err) {}
-	}
-};
 
 Slave.prototype.handleRequest = function (stream) {
 	var self = this;
