@@ -7,12 +7,10 @@ var extend  = require('util')._extend,
 
 module.exports = APICalls;
 
-APICalls.CLIENT_API       = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'api.js';
-APICalls.CLIENT_REQUIRE   = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'require.js';
+APICalls.CLIENT_API       = __dirname+path.sep+'..'+path.sep+'client'+path.sep+'index.js';
 APICalls.CLIENT_POLYFILL  = path.resolve(require.resolve('babel-core'), '..'+path.sep+'browser-polyfill.js');
 APICalls.INSERT_DIR       = '{{__API_DIR__}}';
 APICalls.INSERT_NAME      = '{{__API_NAME__}}';
-APICalls.INSERT_APIS      = '{{__API_APIS__}}';
 APICalls.INSERT_API       = '{{__API_OBJ__}}';
 APICalls.INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
 
@@ -28,8 +26,7 @@ function APICalls(options) {
 
 	var self           = this,
 		templateData   = {},
-		scriptAPI      = fs.readFileSync(APICalls.CLIENT_API).toString(),
-		scriptRequire  = scriptAPI+fs.readFileSync(APICalls.CLIENT_REQUIRE).toString(),
+		scriptRequire  = fs.readFileSync(APICalls.CLIENT_API).toString(),
 		scriptPolyfill = fs.readFileSync(APICalls.CLIENT_POLYFILL).toString(),
 		apiNames;
 
@@ -71,7 +68,6 @@ function APICalls(options) {
 		file = file.replace(APICalls.INSERT_NAME     , JSON.stringify(apiName)      );
 		file = file.replace(APICalls.INSERT_API      , JSON.stringify(apiObj)       );
 		file = file.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
-		file = file.replace(APICalls.INSERT_APIS     , JSON.stringify(null)         );
 
 		if (self._options.production) {
 			file = uglifyJs(file);
@@ -79,16 +75,6 @@ function APICalls(options) {
 
 		self._apiScripts[apiName] = file;
 	});
-
-	this._requireScript = scriptRequire;
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_DIR      , JSON.stringify(this._rootPath));
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_NAME     , JSON.stringify(null)          );
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_API      , JSON.stringify(null)          );
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(null)          );
-	this._requireScript = this._requireScript.replace(APICalls.INSERT_APIS     , JSON.stringify(templateData)  );
-	if (this._options.production) {
-		this._requireScript = uglifyJs(this._requireScript);
-	}
 
 	this._polyfillScript = scriptPolyfill;
 	if (this._options.production) {
@@ -141,8 +127,6 @@ APICalls.prototype._apiScript = function (apiName, callback) {
 	var script;
 	if (apiName === 'polyfill') {
 		script = this._polyfillScript;
-	} else if (apiName === 'require') {
-		script = this._requireScript;
 	} else {
 		script = this._apiScripts[apiName];
 	}

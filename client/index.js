@@ -1,36 +1,15 @@
-(function (window, zerver) {
+(function (window) {
+	var TIMEOUT = 30 * 1000;
+
 	var apiDir       = {{__API_DIR__}},
 		apiName      = {{__API_NAME__}},
 		apiObj       = {{__API_OBJ__}},
 		apiFunctions = {{__API_FUNCTIONS__}},
-		apiData      = {{__API_APIS__}},
 		apis         = {};
 
-	zerver.prefix = apiDir+'/';
-	if (apiData) {
-		setupRequire();
-	} else if (apiObj) {
-		setupSingleAPI();
-	}
+	window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiName ]);
 
 
-
-	function setupRequire() {
-		for (var apiName in apiData) {
-			apis[apiName] = setupFunctions(apiData[apiName][0], apiData[apiName][1], [ apiName ]);
-		}
-		zerver.require = function (apiName) {
-			if (apiName in apis) {
-				return apis[apiName];
-			} else {
-				throw TypeError(apiName + ' is not a known Zerver API');
-			}
-		};
-	}
-
-	function setupSingleAPI() {
-		window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiName ]);
-	}
 
 	function setupFunctions(obj, functions, tree) {
 		var value;
@@ -109,13 +88,11 @@
 	}
 
 	function apiCall(tree, args, callback) {
-		var url  = apiDir,
-			data = JSON.stringify(args);
+		var url = apiDir;
 		for (var i=0, l=tree.length; i<l; i++) {
 			url += '/'+encodeURIComponent(tree[i]);
 		}
-
-		zerver.post(url, data, function (json, raw, status) {
+		makePostCall(url, args, function (json, raw, status) {
 			if (status === 200) {
 				if (json) {
 					if (json.error) {
@@ -131,4 +108,47 @@
 			}
 		});
 	}
-})(window, zerver);
+
+	function makePostCall(resource, data, callback) {
+		var xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = function () {
+			if (xhr.readyState === 4) {
+				xhrComplete();
+			}
+		};
+		xhr.onload = function () {
+			xhrComplete();
+		};
+		xhr.onerror = function () {
+			xhrComplete();
+		};
+		xhr.timeout = parseInt(window['ZERVER_TIMEOUT']) || TIMEOUT;
+		xhr.ontimeout = function () {
+			xhrComplete();
+		};
+		setTimeout(function () {
+			if ( !done ) {
+				xhr.abort();
+				xhrComplete();
+			}
+		}, TIMEOUT);
+
+		xhr.open('POST', resource, true);
+		xhr.setRequestHeader('Content-Type', 'application/json');
+		xhr.send( JSON.stringify(data) );
+
+		function xhrComplete() {
+			if ( !callback ) {
+				return;
+			}
+
+			var response;
+			try {
+				response = JSON.parse(xhr.responseText);
+			} catch (err) {}
+
+			callback(response, xhr.responseText, xhr.status || 0);
+			callback = null;
+		}
+	}
+})(window);

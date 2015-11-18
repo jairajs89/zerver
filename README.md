@@ -285,19 +285,6 @@ exports._cors = '*';
 
 # Client side
 
-### Require syntax
-
-```html
-<!-- in website-dir/index.html -->
-<script src="/zerver/require.js"></script>
-<script>
-    var MyAPI = zerver.require('MyAPI');
-    MyAPI.logStuff('hi from client', function (str) {
-        console.log(str); // "hi from server"
-    });
-</script>
-```
-
 ### Error handling
 
 ```html

@@ -16,7 +16,5 @@
     - cleanup api handling protocol
     - remove custom http requests (redo it maybe?)
     - remove custom cors
-    - remove require syntax
     - remove rest client
-    - remove --refresh?
 * release version 1.0.0
