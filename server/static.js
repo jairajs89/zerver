@@ -1,15 +1,15 @@
 var crypto     = require('crypto'),
-		fs         = require('fs'),
-		path       = require('path'),
-		qs         = require('querystring'),
-		urllib     = require('url'),
-		extend     = require('util')._extend,
-		zlib       = require('zlib'),
-		mime       = require('mime'),
-		async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
-		babelModuleInner = require(__dirname+path.sep+'lib'+path.sep+'babel-module-inner'),
-		babelModuleOuter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-outer'),
-		less;
+	fs         = require('fs'),
+	path       = require('path'),
+	qs         = require('querystring'),
+	urllib     = require('url'),
+	extend     = require('util')._extend,
+	zlib       = require('zlib'),
+	mime       = require('mime'),
+	async      = require(__dirname+path.sep+'lib'+path.sep+'async'),
+	babelModuleInner = require(__dirname+path.sep+'lib'+path.sep+'babel-module-inner'),
+	babelModuleOuter = require(__dirname+path.sep+'lib'+path.sep+'babel-module-outer'),
+	less;
 
 mime.define({
 	'text/jsx'          : ['jsx'   ],
@@ -22,7 +22,6 @@ module.exports = StaticFiles;
 
 StaticFiles.INDEX_FILES         = ['index.html', 'index.jade'];
 StaticFiles.CSS_IMAGE           = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
-StaticFiles.DEBUG_LINES         = /\s*\;\;\;.*/g;
 StaticFiles.MANIFEST_CONCAT     = /\s*\#\s*zerver\:(\S+)\s*/g;
 StaticFiles.MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
 StaticFiles.SCRIPT_MATCH        = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g;
@@ -834,7 +833,7 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
 			break;
 
 		case 'application/javascript':
-			body = body.toString().replace(StaticFiles.DEBUG_LINES, '');
+			body = body.toString();
 			var uglify = require('uglify-js');
 			try {
 				var ast = uglify.parser.parse(body);

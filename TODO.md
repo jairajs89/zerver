@@ -17,4 +17,6 @@
     - cleanup api handling protocol
     - remove custom http requests (redo it maybe?)
     - remove custom cors
+    - get rid of regex parsing of html
+    - eslint
 * release version 1.0.0
