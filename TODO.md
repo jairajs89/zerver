@@ -17,6 +17,5 @@
     - cleanup api handling protocol
     - remove custom http requests (redo it maybe?)
     - remove custom cors
-    - get rid of regex parsing of html
-    - eslint
+    - ZERVER_FLAGS
 * release version 1.0.0
