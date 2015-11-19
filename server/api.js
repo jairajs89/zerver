@@ -24,14 +24,10 @@ function APICalls(options) {
 	this._apiScripts = {};
 	this._cors       = {};
 
-	var self           = this,
-		templateData   = {},
-		scriptRequire  = fs.readFileSync(APICalls.CLIENT_API).toString(),
-		scriptPolyfill = fs.readFileSync(APICalls.CLIENT_POLYFILL).toString(),
+	var scriptApi = fs.readFileSync(APICalls.CLIENT_API).toString(),
 		apiNames;
-
 	try {
-		apiNames = fs.readdirSync(self._root+self._rootPath);
+		apiNames = fs.readdirSync(this._root+this._rootPath);
 	} catch (err) {
 		apiNames = [];
 	}
@@ -39,7 +35,7 @@ function APICalls(options) {
 	if ( hasCoffeeScript(apiNames) ) {
 		require('coffee-script/register');
 	}
-	global.ZERVER_DEBUG = !self._options.production;
+	global.ZERVER_DEBUG = !this._options.production;
 
 	apiNames.forEach(function (fileName) {
 		var apiName = getApiName(fileName);
@@ -47,36 +43,31 @@ function APICalls(options) {
 			return;
 		}
 
-		var fullName = path.join(self._root+self._rootPath, apiName);
-
-		var api = require(fullName);
-		self._apis[apiName] = api;
-
-		var apiObj       = {},
-			apiFunctions = {},
-			file         = scriptRequire;
+		var fullName = path.join(this._root+this._rootPath, apiName),
+			api      = require(fullName);
+		this._apis[apiName] = api;
 
 		if (typeof api._crossOrigin === 'string') {
-			self._cors[apiName] = api._crossOrigin;
+			this._cors[apiName] = api._crossOrigin;
 			delete api._crossOrigin;
 		}
 
+		var apiObj       = {},
+			apiFunctions = {};
 		setupAPIObj(api, apiObj, apiFunctions);
-		templateData[apiName] = [apiObj, apiFunctions];
 
-		file = file.replace(APICalls.INSERT_DIR      , JSON.stringify(self._rootPath));
+		var file = scriptApi;
+		file = file.replace(APICalls.INSERT_DIR      , JSON.stringify(this._rootPath));
 		file = file.replace(APICalls.INSERT_NAME     , JSON.stringify(apiName)      );
 		file = file.replace(APICalls.INSERT_API      , JSON.stringify(apiObj)       );
 		file = file.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(apiFunctions) );
-
-		if (self._options.production) {
+		if (this._options.production) {
 			file = uglifyJs(file);
 		}
+		this._apiScripts[apiName] = file;
+	}, this);
 
-		self._apiScripts[apiName] = file;
-	});
-
-	this._polyfillScript = scriptPolyfill;
+	this._polyfillScript = fs.readFileSync(APICalls.CLIENT_POLYFILL).toString();
 	if (this._options.production) {
 		this._polyfillScript = uglifyJs(this._polyfillScript);
 	}
