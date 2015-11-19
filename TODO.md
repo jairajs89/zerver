@@ -8,6 +8,7 @@
     - implementation docs/readme
     - test suite
 * features
+    - config file (vs ZERVER_FLAGS)
     - build to dir
     - --no-api
     - --quiet
@@ -17,5 +18,4 @@
     - cleanup api handling protocol
     - remove custom http requests (redo it maybe?)
     - remove custom cors
-    - ZERVER_FLAGS
 * release version 1.0.0
