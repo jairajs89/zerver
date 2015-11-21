@@ -50,6 +50,7 @@ function processOptions() {
         .option('--cache <paths>', 'set specific cache life for resources')
         .option('-M, --missing <paths>', 'set a custom 404 page')
         .option('--s3-deploy <path>', 'dump generated static output to S3')
+        .option('--build <path>', 'build static output to a directory')
         .option('--ignore-manifest <paths>', 'disable processing for a particular HTML5 appCache manifest file')
         .option('--no-manifest', 'disable processing for ALL HTML5 appCache manifest files')
         .option('--no-gzip', 'disable gzip compression in production mode')
@@ -65,7 +66,7 @@ function processOptions() {
         .option('-q, --quiet', 'turn off request logging')
         .option('-V, --verbose', 'verbose request logging')
         .parse(getCLIArgs());
-    if (commands.s3Deploy) {
+    if (commands.s3Deploy || commands.build) {
         commands.production = true;
     }
     if (!commands.production) {

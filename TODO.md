@@ -14,10 +14,10 @@
     - implementation docs/readme
     - test suite
 * features
-    - build to dir
     - --quiet
     - https support?
     - full express + zerver integration
 * cleanup
     - custom api origin
+    - kill git-style arg processing
 * release version 1.0.0

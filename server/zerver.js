@@ -4,6 +4,7 @@ var extend   = require('util')._extend;
 var APICalls = require(__dirname + path.sep + 'api');
 var Logger   = require(__dirname + path.sep + 'log');
 var s3deploy = require(__dirname + path.sep + 's3deploy');
+var buildToDirectory = require(__dirname + path.sep + 'build');
 
 module.exports = Zerver;
 
@@ -27,7 +28,9 @@ function Zerver(options, callback) {
     var StaticFiles = require(__dirname + path.sep + 'static');
     self._static = new StaticFiles(self._options, function () {
         if (self._options.s3Deploy) {
-            s3deploy(self._options, self._static, self._apis, callback);
+            s3deploy(self._options.s3Deploy, self._getFiles(), callback);
+        } else if (self._options.build) {
+            buildToDirectory(self._options.build, self._getFiles(), callback);
         } else {
             self._start(callback);
         }
@@ -153,4 +156,27 @@ Zerver.prototype._prepareRequest = function (req, res) {
         res.end.apply(this, arguments);
         self._logger.endRequest(req, res);
     };
+};
+
+Zerver.prototype._getFiles = function () {
+    var files = this._static._cache;
+    var polyfillPathname = this._apis._rootPath + '/polyfill.js';
+    if (this._options.babel) {
+        this._apis.get(
+            this._apis._rootPath + '/polyfill.js',
+            null,
+            function (statusCode, headers, body) {
+                files[polyfillPathname] = {
+                    headers: headers,
+                    body   : body,
+                };
+            }
+        );
+    }
+    Object.keys(files).forEach(function (pathname) {
+        if (!pathname || pathname[pathname.length - 1] === '/') {
+            delete files[pathname];
+        }
+    });
+    return files;
 };
