@@ -39,6 +39,12 @@ function init() {
 }
 
 function processOptions() {
+    var cliArgs = getCLIArgs();
+    var dir = process.cwd();
+    if (cliArgs.length > 2 && cliArgs[cliArgs.length-1][0] !== '-') {
+        dir = path.resolve(dir, cliArgs.pop());
+    }
+
     var commands = new commander.Command('zerver');
     commands
         .version(getZerverVersion(), '-v, --version')
@@ -65,7 +71,8 @@ function processOptions() {
         .option('--babel-exclude <paths>', 'exclude paths from Babel compilation')
         .option('-q, --quiet', 'turn off request logging')
         .option('-V, --verbose', 'verbose request logging')
-        .parse(getCLIArgs());
+        .parse(cliArgs);
+    commands.dir = dir;
     if (commands.s3Deploy || commands.build) {
         commands.production = true;
     }
@@ -75,7 +82,6 @@ function processOptions() {
         commands.compile = false;
         commands.inline = false;
     }
-    commands.dir = path.resolve(process.cwd(), commands.args[0] || '.');
     if (!commands.port) {
         commands.port = parseInt(process.env.PORT) || 5000;
     }

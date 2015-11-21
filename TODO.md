@@ -18,5 +18,4 @@
     - full express + zerver integration
 * cleanup
     - custom api origin
-    - kill git-style arg processing
 * release version 1.0.0
