@@ -2,6 +2,7 @@ var extend = require('util')._extend;
 var fs = require('fs');
 var path = require('path');
 var qs = require('querystring');
+var zlib = require('zlib');
 var urllib = require('url');
 var Cookies = require(__dirname + path.sep + 'lib' + path.sep + 'cookies');
 
@@ -134,12 +135,14 @@ APICalls.prototype._apiScript = function (apiName, callback) {
 };
 
 APICalls.prototype._apiCall = function (apiName, req, func, callback) {
+    var self = this;
+
     var cors;
-    if (apiName in this._cors) {
-        if (typeof this._cors[apiName] === 'string') {
-            cors = this._cors[apiName];
+    if (apiName in self._cors) {
+        if (typeof self._cors[apiName] === 'string') {
+            cors = self._cors[apiName];
         } else {
-            cors = this._cors[apiName].join(', ');
+            cors = self._cors[apiName].join(', ');
         }
     }
 
@@ -169,7 +172,7 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
     req.referrer = req.headers.referrer || req.headers.referer;
     req.userAgent = req.headers['user-agent'];
     req.cookies = new Cookies(req);
-    this._zerverApiCall(req, func, finish);
+    self._zerverApiCall(req, func, finish);
 
     function finish(status, headers, body) {
         req.cookies.setHeaders(headers);
@@ -177,7 +180,18 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
             headers['Access-Control-Allow-Headers'] = 'Content-Type';
             headers['Access-Control-Allow-Origin'] = cors;
         }
-        callback(status, headers, body);
+        if (self._options.gzip && body) {
+            zlib.gzip(body, function (err, gzipped) {
+                if (err || body.length < gzipped.toString('utf8').length) {
+                    callback(status, headers, body);
+                } else {
+                    headers['Content-Encoding'] = 'gzip';
+                    callback(status, headers, gzipped);
+                }
+            });
+        } else {
+            callback(status, headers, body);
+        }
     }
 };
 

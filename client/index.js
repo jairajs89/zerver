@@ -92,14 +92,8 @@
         }
         makePostCall(url, args, function (json, raw, status) {
             if (status === 200) {
-                if (json) {
-                    if (Object.prototype.toString.call(json) === '[object Array]') {
-                        callback(null, json);
-                    } else if (json.error) {
-                        callback(json.error);
-                    } else {
-                        callback(null, json.data);
-                    }
+                if (json && (Object.prototype.toString.call(json) === '[object Array]')) {
+                    callback(null, json);
                 } else {
                     callback('zerver failed to parse response');
                 }
