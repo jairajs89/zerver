@@ -27,6 +27,7 @@ function Zerver(options, callback) {
     self._options._apiModule = self._apis;
     var StaticFiles = require(__dirname + path.sep + 'static');
     self._static = new StaticFiles(self._options, function () {
+        self._static = this;
         if (self._options.s3Deploy) {
             s3deploy(self._options.s3Deploy, self._getFiles(), callback);
         } else if (self._options.build) {
