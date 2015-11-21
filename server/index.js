@@ -56,6 +56,8 @@ function processOptions() {
         .option('--env <assign>', 'set environment variables (name="value")', function (v, m) { m.push(v); return m; }, [])
         .option('--cache <paths>', 'set specific cache life for resources')
         .option('-M, --missing <paths>', 'set a custom 404 page')
+        .option('--ssl-key <path>', 'SSL key for HTTPS handling')
+        .option('--ssl-cert <path>', 'SSL certificate for HTTPS handling')
         .option('--s3-deploy <path>', 'dump generated static output to S3')
         .option('--build <path>', 'build static output to a directory')
         .option('--ignore-manifest <paths>', 'disable processing for a particular HTML5 appCache manifest file')
@@ -85,6 +87,14 @@ function processOptions() {
     }
     if (!commands.port) {
         commands.port = parseInt(process.env.PORT) || 5000;
+    }
+    if (commands.sslKey !== commands.sslCert) {
+        if (commands.sslKey) {
+            console.error('--ssl-cert missing');
+        } else {
+            console.error('--ssl-key missing');
+        }
+        process.exit(1);
     }
 
     var jsonCommands = {};

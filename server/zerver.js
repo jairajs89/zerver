@@ -1,4 +1,4 @@
-var http     = require('http');
+var fs       = require('fs');
 var path     = require('path');
 var extend   = require('util')._extend;
 var APICalls = require(__dirname + path.sep + 'api');
@@ -49,11 +49,24 @@ Zerver.prototype._start = function (callback) {
         }
     }
 
+    var isSsl = self._options.sslKey && self._options.sslCert;
+    var http;
+    if (isSsl) {
+        http = require('https');
+    } else {
+        http = require('http');
+    }
+
     http.globalAgent.maxSockets = 50;
 
-    self._app = http.createServer(function (req, res) {
-        self._handleRequest(req, res);
-    });
+    if (isSsl) {
+        self._app = http.createServer({
+            key : fs.readFileSync(self._options.sslKey),
+            cert: fs.readFileSync(self._options.sslCert),
+        }, self._handleRequest.bind(self));
+    } else {
+        self._app = http.createServer(self._handleRequest.bind(self));
+    }
 
     self._app.listen(self._options.port, function () {
         if (!self._options.quiet) {

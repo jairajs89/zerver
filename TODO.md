@@ -1,9 +1,9 @@
 * product spec
-    - feature list
-        - //TODO
     - update docs/readme
+        - install
+        - feature list
         - deployment styles
-            - barebones
+            - barebones (https)
             - heroku (+ cloudfront)
             - s3 (+ cloudfront)
             - build
@@ -14,6 +14,5 @@
     - implementation docs/readme
     - test suite
 * features
-    - https support?
     - full express + zerver integration
 * release version 1.0.0
