@@ -5,6 +5,7 @@
     var apiName      = {{__API_NAME__}};
     var apiObj       = {{__API_OBJ__}};
     var apiFunctions = {{__API_FUNCTIONS__}};
+    var apiOrigin    = {{__API_ORIGIN__}};
     var apis         = {};
 
     window[apiName] = setupFunctions(apiObj, apiFunctions, [ apiName ]);
@@ -134,7 +135,7 @@
             }
         }, TIMEOUT);
 
-        xhr.open('POST', resource, true);
+        xhr.open('POST', apiOrigin+resource, true);
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.send( JSON.stringify(data) );
 

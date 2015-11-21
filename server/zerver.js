@@ -55,7 +55,7 @@ Zerver.prototype._start = function (callback) {
         self._handleRequest(req, res);
     });
 
-    self._app.listen(self._options.port, self._options.hostname, function () {
+    self._app.listen(self._options.port, function () {
         if (!self._options.quiet) {
             console.log('zerver running:');
             console.log('- path: ' + self._options.dir);

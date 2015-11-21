@@ -16,6 +16,4 @@
 * features
     - https support?
     - full express + zerver integration
-* cleanup
-    - custom api origin
 * release version 1.0.0

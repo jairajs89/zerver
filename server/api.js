@@ -13,6 +13,7 @@ APICalls.INSERT_DIR = '{{__API_DIR__}}';
 APICalls.INSERT_NAME = '{{__API_NAME__}}';
 APICalls.INSERT_API = '{{__API_OBJ__}}';
 APICalls.INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
+APICalls.INSERT_ORIGIN = '{{__API_ORIGIN__}}';
 
 
 
@@ -61,6 +62,7 @@ function APICalls(options) {
         file = file.replace(APICalls.INSERT_NAME, JSON.stringify(apiName));
         file = file.replace(APICalls.INSERT_API, JSON.stringify(apiObj));
         file = file.replace(APICalls.INSERT_FUNCTIONS, JSON.stringify(apiFunctions));
+        file = file.replace(APICalls.INSERT_ORIGIN, JSON.stringify(this._options.origin));
         if (this._options.production) {
             file = uglifyJs(file);
         }

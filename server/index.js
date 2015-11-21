@@ -3,6 +3,7 @@
 var cluster   = require('cluster');
 var path      = require('path');
 var fs        = require('fs');
+var urllib    = require('url');
 var commander = require('commander');
 
 var PACKAGE = __dirname + path.sep + '..' + path.sep + 'package.json';
@@ -50,7 +51,7 @@ function processOptions() {
         .version(getZerverVersion(), '-v, --version')
         .usage('[options] [dir]')
         .option('-P, --port <n>', 'set server port to listen on', parseInt)
-        .option('-h, --hostname <addr>', 'set server hostname to listen to', undefined)
+        .option('--origin <origin>', 'set api origin', parseOrigin, '')
         .option('-p, --production', 'enable production mode (caching, concat, minfiy, gzip, etc)')
         .option('--env <assign>', 'set environment variables (name="value")', function (v, m) { m.push(v); return m; }, [])
         .option('--cache <paths>', 'set specific cache life for resources')
@@ -110,6 +111,23 @@ function getCLIArgs() {
         defaultArgs = [];
     }
     return process.argv.slice(0, 2).concat(defaultArgs).concat(process.argv.slice(2));
+}
+
+function parseOrigin(origin, defaultValue) {
+    if (!origin) {
+        return defaultValue;
+    }
+
+    var parsed = urllib.parse(origin);
+    if (!parsed.protocol) {
+        console.error('Protocol is required for --origin, got ' + origin);
+        process.exit(1);
+    } else if (!parsed.host) {
+        console.error('Host is required for --origin, got ' + origin);
+        process.exit(1);
+    }
+
+    return origin;
 }
 
 function getZerverVersion() {
