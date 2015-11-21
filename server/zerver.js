@@ -56,23 +56,20 @@ Zerver.prototype._start = function (callback) {
     });
 
     self._app.listen(self._options.port, self._options.hostname, function () {
-        console.log('zerver running:');
-        console.log('- path: ' + self._options.dir);
-        console.log('- port: ' + self._options.port);
-        console.log('- host: ' + (self._options.hostname || '0.0.0.0'));
-        var apiNames = self._apis.getNames();
-        if (apiNames.length) {
-            console.log('- apis: ' + apiNames.join(', '));
+        if (!self._options.quiet) {
+            console.log('zerver running:');
+            console.log('- path: ' + self._options.dir);
+            console.log('- port: ' + self._options.port);
+            var apiNames = self._apis.getNames();
+            if (apiNames.length) {
+                console.log('- apis: ' + apiNames.join(', '));
+            }
+            var manifestList = self._static.getManifestNames();
+            if (manifestList.length) {
+                console.log('- manifests: ' + manifestList.join(', '));
+            }
+            console.log('');
         }
-        var manifestList = self._static.getManifestNames();
-        if (manifestList.length) {
-            console.log('- manifests: ' + manifestList.join(', '));
-        }
-        if (self._options.production) {
-            console.log('- production: true');
-        }
-        // TODO: all options
-        console.log('');
 
         if (callback) {
             callback();

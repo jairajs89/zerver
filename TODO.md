@@ -14,7 +14,6 @@
     - implementation docs/readme
     - test suite
 * features
-    - --quiet
     - https support?
     - full express + zerver integration
 * cleanup

@@ -99,7 +99,6 @@ function processOptions() {
 function getCLIArgs() {
     var defaultArgs;
     if (process.env.ZERVER_FLAGS) {
-        console.log('[env="' + process.env.ZERVER_FLAGS + '"]');
         defaultArgs = parseShell(process.env.ZERVER_FLAGS);
     } else {
         defaultArgs = [];
