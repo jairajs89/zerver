@@ -27,7 +27,6 @@
     function setupFunction(obj, key, tree) {
         return function () {
             var deferred = createDeferred(),
-                data     = {},
                 args     = Array.prototype.slice.call(arguments),
                 numArgs  = args.length,
                 callback = args[numArgs-1];
@@ -35,12 +34,10 @@
             if (typeof callback === 'function') {
                 args.pop();
             } else {
-                data.noResponse = true;
                 callback = function () {};
             }
-            data.args = args;
 
-            apiCall(tree.concat(key), data, function (error, response) {
+            apiCall(tree.concat(key), args, function (error, response) {
                 if (error) {
                     var errorHandlers = deferred.getErrors();
                     if (errorHandlers.length) {
@@ -95,7 +92,9 @@
         makePostCall(url, args, function (json, raw, status) {
             if (status === 200) {
                 if (json) {
-                    if (json.error) {
+                    if (Object.prototype.toString.call(json) === '[object Array]') {
+                        callback(null, json);
+                    } else if (json.error) {
                         callback(json.error);
                     } else {
                         callback(null, json.data);
@@ -103,6 +102,8 @@
                 } else {
                     callback('zerver failed to parse response');
                 }
+            } else if (status === 500 && raw) {
+                callback(raw);
             } else {
                 callback('zerver http error, '+status);
             }

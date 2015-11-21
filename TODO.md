@@ -2,20 +2,22 @@
     - feature list
         - //TODO
     - update docs/readme
+        - deployment styles
+            - barebones
+            - heroku (+ cloudfront)
+            - s3 (+ cloudfront)
+            - build
+        - //TODO
     - changelog
 * contributions guide
     - product spec
     - implementation docs/readme
     - test suite
 * features
-    - config file (vs ZERVER_FLAGS)
     - build to dir
-    - --no-api
     - --quiet
     - https support?
-    - full express integration
+    - full express + zerver integration
 * cleanup
-    - cleanup api handling protocol
-    - remove custom http requests (redo it maybe?)
-    - remove custom cors
+    - custom api origin
 * release version 1.0.0

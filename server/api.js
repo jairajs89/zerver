@@ -132,22 +132,6 @@ APICalls.prototype._apiScript = function (apiName, callback) {
 };
 
 APICalls.prototype._apiCall = function (apiName, req, func, callback) {
-    var customAPI = false;
-
-    if (typeof func.type === 'string') {
-        customAPI = [func.type];
-    } else if (Array.isArray(func.type)) {
-        customAPI = func.type.slice();
-    }
-    if (customAPI) {
-        customAPI = customAPI.filter(function (type) {
-            return typeof type === 'string';
-        }).map(function (type) {
-            return type.toUpperCase();
-        });
-    }
-
-    var maxAge = 60 * 60 * 6;
     var cors;
     if (apiName in this._cors) {
         if (typeof this._cors[apiName] === 'string') {
@@ -156,18 +140,20 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
             cors = this._cors[apiName].join(', ');
         }
     }
-    if (req.method === 'OPTIONS' && cors) {
+
+    var maxAge = 60 * 60 * 6;
+    if (cors && req.method === 'OPTIONS') {
         callback(200, {
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Allow-Origin' : cors,
-            'Access-Control-Allow-Methods': customAPI ? customAPI.join(', ') : 'POST',
+            'Access-Control-Allow-Methods': 'POST',
             'Access-Control-Max-Age'      : maxAge,
             'Cache-Control'               : 'public, max-age=' + maxAge,
         }, '');
         return;
     }
 
-    if ((customAPI || ['POST']).indexOf(req.method) === -1) {
+    if (req.method !== 'POST') {
         callback(415, { 'Cache-Control': 'text/plain' }, '415');
         return;
     }
@@ -181,12 +167,7 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
     req.referrer = req.headers.referrer || req.headers.referer;
     req.userAgent = req.headers['user-agent'];
     req.cookies = new Cookies(req);
-
-    if (customAPI) {
-        this._customApiCall(req, func, finish);
-    } else {
-        this._zerverApiCall(req, func, finish);
-    }
+    this._zerverApiCall(req, func, finish);
 
     function finish(status, headers, body) {
         req.cookies.setHeaders(headers);
@@ -200,186 +181,79 @@ APICalls.prototype._apiCall = function (apiName, req, func, callback) {
 
 APICalls.prototype._zerverApiCall = function (req, func, finish) {
     var called = false;
+    var oldApiStyle = false;
 
     getRequestBody(req, function (body) {
-        var data;
         var args;
         try {
-            data = JSON.parse(body);
-            args = data.args;
+            args = JSON.parse(body);
         } catch (err) {
             // no-op
+        }
+        if (args && typeof args === 'object' && args.args) {
+            oldApiStyle = true;
+            args = args.args;
         }
         if (!Array.isArray(args)) {
             finish(400, { 'Cache-Control': 'text/plain' }, '400');
             return;
         }
-
-        if (!data.noResponse) {
-            args.push(successCallback);
-        }
+        args.push(successCallback);
 
         var val;
         try {
             val = func.apply(req, args);
         } catch (err) {
-            console.error(err && (err.stack || err.message));
             errorCallback(err);
             return;
         }
 
-        if (data.noResponse) {
-            successCallback();
-        } else if (typeof val !== 'undefined') {
+        if (typeof val !== 'undefined') {
             successCallback(val);
         }
     });
 
     function successCallback() {
-        respond({ data: Array.prototype.slice.call(arguments) });
+        respond(Array.prototype.slice.call(arguments));
     }
 
     function errorCallback(error) {
-        respond({ error: String(error) });
+        respond(new Error(String(error)));
     }
 
-    function respond(response) {
+    function respond(data) {
         if (called) {
             return;
         }
         called = true;
 
-        var stringResponse;
-        try {
-            stringResponse = JSON.stringify(response);
-        } catch (err) {
-            console.error(err);
-            finish(500, { 'Cache-Control': 'text/plain' }, '500');
-            return;
-        }
-
-        finish(200, {
-            'Content-Type' : 'application/json',
-            'Cache-Control': 'no-cache',
-        }, stringResponse);
-    }
-};
-
-APICalls.prototype._customApiCall = function (req, func, finish) {
-    var called = false;
-
-    if (['POST', 'PUT'].indexOf(req.method) >= 0) {
-        getRequestBody(req, callAPI);
-    } else {
-        callAPI('');
-    }
-
-    function callAPI(body) {
-        req.body = body;
-        try {
-            req.jsonBody = JSON.parse(body);
-            extend(req.params, req.jsonBody);
-        } catch (err) {
-            // no-op
-        }
-        if (typeof req.jsonBody !== 'object' || req.jsonBody === null) {
-            req.jsonBody = {};
-        }
-        if (req.headers['content-type'] === 'application/x-www-form-urlencoded') {
-            req.formBody = qs.parse(req.body);
-            extend(req.params, req.formBody);
-        }
-
-        var val;
-        try {
-            val = func.call(req, req.params, respond);
-        } catch (err) {
-            console.error(err && (err.stack || err.message));
-            respondError();
-            return;
-        }
-
-        if (typeof val !== 'undefined') {
-            respond(val);
-        }
-    }
-
-    function respond(status, headers, body) {
-        if (called) {
-            return;
-        }
-        called = true;
-
-        switch (arguments.length) {
-            case 0:
-                body = '';
-                headers = {};
-                status = 200;
-                break;
-            case 1:
-                body = arguments[0];
-                headers = {};
-                status = 200;
-                break;
-            case 2:
-                body = arguments[1];
-                if (typeof arguments[0] === 'number') {
-                    status = arguments[0];
-                    headers = {};
+        var body;
+        var err;
+        if ( !(data instanceof Error) ) {
+            try {
+                if (oldApiStyle) {
+                    body = JSON.stringify({ data: data });
                 } else {
-                    headers = arguments[0];
-                    status = 200;
+                    body = JSON.stringify(data);
                 }
-                break;
+            } catch (e) {
+                err = e;
+            }
+        } else {
+            err = data;
         }
 
-        if (typeof status !== 'number') {
-            console.error('response status must be a number, got ' + status);
-            respondError();
-            return;
+        if (err) {
+            console.error(err.stack || err.message || '');
+            finish(500, {
+                'Cache-Control': 'text/plain',
+            }, err.stack || err.message || '');
+        } else {
+            finish(200, {
+                'Content-Type' : 'application/json',
+                'Cache-Control': 'no-cache',
+            }, body);
         }
-        if (typeof headers !== 'object' || headers === null) {
-            console.error('response headers must be an object, got ' + headers);
-            respondError();
-            return;
-        }
-        if (!body) {
-            body = '';
-        }
-        var index;
-        switch (typeof body) {
-            case 'object':
-                if (!Buffer.isBuffer(body)) {
-                    try {
-                        body = JSON.stringify(body);
-                    } catch (err) {
-                        console.error('response body was not valid JSON');
-                        console.error(err && (err.stack || err.message));
-                        respondError();
-                        return;
-                    }
-                    index = Object.keys(headers).map(function (key) {
-                        return key.toLowerCase();
-                    }).indexOf('content-type');
-                    if (index === -1) {
-                        headers['Content-Type'] = 'application/json';
-                    }
-                }
-                break;
-            case 'string':
-                break;
-            default:
-                console.error('response body must be a string or JSON object, got ' + body);
-                respondError();
-                return;
-        }
-
-        finish(status, headers, body);
-    }
-
-    function respondError() {
-        called = true;
-        finish(500, { 'Content-Type': 'text/plain' }, '500');
     }
 };
 
@@ -408,7 +282,7 @@ function setupAPIObj(api, obj, functions) {
                 break;
 
             case 'object':
-                if (Array.isArray(value)) {
+                if (!value || Array.isArray(value)) {
                     obj[key] = value;
                 } else {
                     obj[key] = {};
