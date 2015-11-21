@@ -1,7 +1,6 @@
 var extend = require('util')._extend;
 var fs = require('fs');
 var path = require('path');
-var qs = require('querystring');
 var zlib = require('zlib');
 var urllib = require('url');
 var Cookies = require(__dirname + path.sep + 'lib' + path.sep + 'cookies');
@@ -245,7 +244,9 @@ APICalls.prototype._zerverApiCall = function (req, func, finish) {
 
         var body;
         var err;
-        if ( !(data instanceof Error) ) {
+        if (data instanceof Error) {
+            err = data;
+        } else {
             try {
                 if (oldApiStyle) {
                     body = JSON.stringify({ data: data });
@@ -255,8 +256,6 @@ APICalls.prototype._zerverApiCall = function (req, func, finish) {
             } catch (e) {
                 err = e;
             }
-        } else {
-            err = data;
         }
 
         if (err) {

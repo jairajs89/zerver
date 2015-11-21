@@ -42,7 +42,7 @@ function init() {
 function processOptions() {
     var cliArgs = getCLIArgs();
     var dir = process.cwd();
-    if (cliArgs.length > 2 && cliArgs[cliArgs.length-1][0] !== '-') {
+    if (cliArgs.length > 2 && cliArgs[cliArgs.length - 1][0] !== '-') {
         dir = path.resolve(dir, cliArgs.pop());
     }
 

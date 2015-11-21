@@ -70,15 +70,17 @@ Zerver.prototype._start = function (callback) {
     }
 
     self._app.listen(self._options.port, function () {
+        var apiNames;
+        var manifestList;
         if (!self._options.quiet) {
             console.log('zerver running:');
             console.log('- path: ' + self._options.dir);
             console.log('- port: ' + self._options.port);
-            var apiNames = self._apis.getNames();
+            apiNames = self._apis.getNames();
             if (apiNames.length) {
                 console.log('- apis: ' + apiNames.join(', '));
             }
-            var manifestList = self._static.getManifestNames();
+            manifestList = self._static.getManifestNames();
             if (manifestList.length) {
                 console.log('- manifests: ' + manifestList.join(', '));
             }

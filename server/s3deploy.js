@@ -58,25 +58,6 @@ function parseS3Url(url) {
     };
 }
 
-function getUploads(options, static, apis) {
-    var uploads = static._cache;
-    var polyfillPathname = apis._rootPath + '/polyfill.js';
-    if (options.babel) {
-        apis.get(apis._rootPath + '/polyfill.js', null, function (statusCode, headers, body) {
-            uploads[polyfillPathname] = {
-                headers: headers,
-                body   : body,
-            };
-        });
-    }
-    Object.keys(uploads).forEach(function (pathname) {
-        if (!pathname || pathname[pathname.length - 1] === '/') {
-            delete uploads[pathname];
-        }
-    });
-    return uploads;
-}
-
 function uploadFile(s3, params, pathname, headers, body, callback) {
     var s3params = {
         Bucket: params.bucket,
