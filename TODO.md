@@ -13,6 +13,4 @@
     - product spec
     - implementation docs/readme
     - test suite
-* features
-    - full express + zerver integration
 * release version 1.0.0
