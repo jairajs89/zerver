@@ -99,7 +99,7 @@ APICalls.prototype.get = function (pathname, req, callback) {
     var i;
     try {
         for (i = 1; i < apiParts.length; i++) {
-            func = func[apiParts[i]];
+            func = func[decodeURIComponent(apiParts[i])];
         }
     } catch (err) {
         func = null;

@@ -123,7 +123,7 @@
             xhrComplete();
         };
         setTimeout(function () {
-            if ( !done ) {
+            if (callback) {
                 xhr.abort();
                 xhrComplete();
             }

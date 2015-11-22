@@ -1,8 +1,17 @@
 # New Readme
 * intro
+    - why
+        - how
     - install
     - static sell
+        - compile languages
+        - performance optimisations
+        - appcache
+        - //TODO
     - api sell
+        - simple
+        - integrated
+        - //TODO
     - deploy sell
 * static
     - compile
