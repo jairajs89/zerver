@@ -38,7 +38,7 @@ zerver src # <- dir with your frontend code
 Now that you have a running server, iterate on your code with the features below.
 
 
-# Table of contents
+# Contents
 
 * [**Upgrade your frontend tools**](#upgrade-your-frontend-tools)
     - [*Babel*](#babel)
@@ -48,7 +48,7 @@ Now that you have a running server, iterate on your code with the features below
     - [*Zerver APIs*](#zerver-apis)
 * [**Always be shipping**](#always-be-shipping)
     - [*Heroku*](#heroku)
-    - [*S3*](#s3)
+    - [*Amazon S3*](#amazon-s3)
     - [*Static builds*](#static-builds)
     - [*Barebones*](#barebones)
 * [**Get the best performance**](#get-the-best-performance)
@@ -78,7 +78,7 @@ Now that you have a running server, iterate on your code with the features below
 //TODO: intro
 
 * //TODO: Heroku
-* //TODO: S3
+* //TODO: Amazon S3
 * //TODO: Static builds
 * //TODO: Barebones
     - HTTPS
