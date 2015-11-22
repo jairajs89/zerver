@@ -1,3 +1,6 @@
+Zerver - A modern webapp developer's best friend
+================================================
+
 # The modern webapp developer's best friend
 
 * Why did I build Zerver?
@@ -15,22 +18,49 @@
 
 # Get started
 
-* npm (install, package.json)
-* Starter kits (regular, React)
+* Get Zerver
+    - npm (install, package.json)
+    - Starter kits (regular, React)
+* Basic debug server usage
+* Check out features below
 
 
-# Use the best tools
+# Table of contents
+
+* [Use the best tools](TODO)
+    - [Babel](TODO)
+    - [CoffeeScript](TODO)
+    - [LESS](TODO)
+    - [Jade](TODO)
+    - [HTML5 AppCache](TODO)
+    - [Zerver APIs](TODO)
+* [Trivial deployment](TODO)
+    - [Heroku](TODO)
+    - [S3](TODO)
+    - [Static builds](TODO)
+    - [Static Barebones](TODO)
+* [Get the best performance](TODO)
+    - [Bundle assets](TODO)
+    - [Inline assets](TODO)
+    - [Version assets](TODO)
+    - [gzip](TODO)
+* [Other](TODO)
+    - [CLI optins](TODO)
+    - [Node.js usage](TODO)
+
+
+## Use the best tools
 
 * Babel
-* Coffee script
-* Less
+* CoffeeScript
+* LESS
 * Jade
 * HTML5 AppCache
 * Zerver APIs
     - Error handling
 
 
-# Trivial deployment
+## Trivial deployment
 
 * Heroku
 * S3
@@ -41,7 +71,7 @@
     - CORS
 
 
-# Get the best performance
+## Get the best performance
 
 * Bundle assets
 * Inline assets
@@ -49,7 +79,7 @@
 * gzip
 
 
-# Other
+## Other
 
 * CLI options
     - Environment variable
