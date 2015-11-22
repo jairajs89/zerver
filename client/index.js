@@ -40,7 +40,7 @@
 
             apiCall(tree.concat(key), args, function (error, response) {
                 if (error) {
-                    var errorHandlers = deferred.getErrors();
+                    var errorHandlers = deferred.getErrorHandlers();
                     if (errorHandlers.length) {
                         for (var i=0, l=errorHandlers.length; i<l; i++) {
                             try {
@@ -67,7 +67,7 @@
         var errorHandlers = [],
             deferred      = {
                 error     : handleError,
-                getErrors : getErrors
+                getErrorHandlers : getErrorHandlers
             };
 
         function handleError(handler) {
@@ -78,7 +78,7 @@
             return deferred;
         }
 
-        function getErrors() {
+        function getErrorHandlers() {
             return errorHandlers.slice();
         }
 
