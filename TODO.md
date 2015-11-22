@@ -1,3 +1,4 @@
 # TODO
 - fix call stack explosion bug
-- readme
+- finish readme
+- readme -> github pages
