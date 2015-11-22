@@ -16,8 +16,8 @@ Zerver is not a frontend framework -- your existing HTML5 app is already good to
 
 Clone one of our starter kits or add Zerver to your Node.js project:
 
-* [Starter kit](http://github.com/jairajs89/starter-kit)
-* [React starter kit](http://github.com/jairajs89/starter-kit-react)
+* [Starter kit](http://github.com/jairajs89/zerver-starter-kit)
+* [React starter kit](http://github.com/jairajs89/zerver-starter-kit-react)
 * Add to Node.js project: `npm install zerver --save`
 
 If you're using a starter kit:
@@ -47,9 +47,9 @@ Now that you have a running server, iterate on your code with the features below
     - [*Jade markup*](#jade-markup)
     - [*Zerver APIs*](#zerver-apis)
 * [**Always be shipping**](#always-be-shipping)
-    - [*Using Heroku*](#heroku)
-    - [*Using Amazon S3*](#amazon-s3)
-    - [*Using static builds*](#static-builds)
+    - [*Using Heroku*](#using-heroku)
+    - [*Using Amazon S3*](#using-amazon-s3)
+    - [*Using static builds*](#using-static-builds)
     - [*Other environments*](#other-environments)
 * [**Get better performance**](#get-better-performance)
     - [*Bundle assets*](#bundle-assets)
