@@ -41,21 +41,21 @@ Now that you have a running server, iterate on your code with the features below
 # Contents
 
 * [**Upgrade your frontend tools**](#upgrade-your-frontend-tools)
-    - [*Babel*](#babel)
+    - [*ECMAScript 6*](#ecmascript-6)
     - [*CoffeeScript*](#coffeescript)
-    - [*LESS*](#less)
-    - [*Jade*](#jade)
+    - [*LESS stylesheets*](#less-stylesheets)
+    - [*Jade markup*](#jade-markup)
     - [*Zerver APIs*](#zerver-apis)
 * [**Always be shipping**](#always-be-shipping)
-    - [*Heroku*](#heroku)
-    - [*Amazon S3*](#amazon-s3)
-    - [*Static builds*](#static-builds)
-    - [*Barebones*](#barebones)
+    - [*Using Heroku*](#heroku)
+    - [*Using Amazon S3*](#amazon-s3)
+    - [*Using static builds*](#static-builds)
+    - [*Other environments*](#other-environments)
 * [**Get better performance**](#get-better-performance)
     - [*Bundle assets*](#bundle-assets)
     - [*Inline assets*](#inline-assets)
     - [*Version assets*](#version-assets)
-    - [*HTML5 AppCache, Caching*](#html5-appcache-caching)
+    - [*Caching*](#caching)
 * [**Other**](#other)
     - [*CLI options*](#cli-options)
     - [*Node.js usage*](#nodejs-usage)
@@ -65,39 +65,82 @@ Now that you have a running server, iterate on your code with the features below
 
 //TODO: intro
 
-* //TODO: Babel
-* //TODO: CoffeeScript
-* //TODO: LESS
-* //TODO: Jade
-* //TODO: Zerver APIs
-    - Error handling
+### ECMAScript 6
+
+//TODO
+
+### CoffeeScript
+
+//TODO
+
+### LESS stylesheets
+
+//TODO
+
+### Jade markup
+
+//TODO
+
+### Zerver APIs
+
+//TODO
+//TODO: error handling
 
 
 ## Always be shipping
 
 //TODO: intro
 
-* //TODO: Heroku
-* //TODO: Amazon S3
-* //TODO: Static builds
-* //TODO: Barebones
-    - HTTPS
-    - Custom origins
-    - CORS
+### Using Heroku
+
+//TODO
+
+### Using Amazon S3
+
+//TODO
+
+### Using static builds
+
+//TODO
+
+### Other environments
+
+//TODO
+//TODO: HTTPS
+//TODO: Custom origins
+//TODO: CORS
 
 
 ## Get better performance
 
 Zerver does as many optimizations under-the-hood for you, but it also has simple tools to let you build the most performant user-experience.
 
-* //TODO: Bundle assets
-* //TODO: Inline assets
-* //TODO: Version assets
-* //TODO: HTML5 AppCache, Caching
+### Bundle assets
+
+//TODO
+
+### Inline assets
+
+//TODO
+
+### Version assets
+
+//TODO
+
+### Caching
+
+//TODO: appcache
+//TODO: cache control
+
 
 
 ## Other
 
-* //TODO: CLI options
-    - Environment variable
-* //TODO: Node.js usage
+### CLI options
+
+//TODO
+//TODO: environment variable
+
+### Node.js usage
+
+//TODO
