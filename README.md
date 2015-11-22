@@ -51,7 +51,7 @@ Now that you have a running server, iterate on your code with the features below
     - [*Amazon S3*](#amazon-s3)
     - [*Static builds*](#static-builds)
     - [*Barebones*](#barebones)
-* [**Get the best performance**](#get-the-best-performance)
+* [**Get better performance**](#get-better-performance)
     - [*Bundle assets*](#bundle-assets)
     - [*Inline assets*](#inline-assets)
     - [*Version assets*](#version-assets)
@@ -86,7 +86,7 @@ Now that you have a running server, iterate on your code with the features below
     - CORS
 
 
-## Get the best performance
+## Get better performance
 
 Zerver does as many optimizations under-the-hood for you, but it also has simple tools to let you build the most performant user-experience.
 
