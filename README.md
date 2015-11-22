@@ -40,23 +40,23 @@ Now that you have a running server, iterate on your code with the features below
 
 # Table of contents
 
-* [Upgrade your frontend tools](#upgrade-your-frontend-tools)
+* [**Upgrade your frontend tools**](#upgrade-your-frontend-tools)
     - [Babel](#babel)
     - [CoffeeScript](#coffeescript)
     - [LESS](#less)
     - [Jade](#jade)
     - [Zerver APIs](#zerver-apis)
-* [Always be shipping](#always-be-shipping)
+* [**Always be shipping**](#always-be-shipping)
     - [Heroku](#heroku)
     - [S3](#s3)
     - [Static builds](#static-builds)
     - [Barebones](#barebones)
-* [Get the best performance](#get-the-best-performance)
+* [**Get the best performance**](#get-the-best-performance)
     - [Bundle assets](#bundle-assets)
     - [Inline assets](#inline-assets)
     - [Version assets](#version-assets)
     - [HTML5 AppCache, Caching](#html5-appcache-caching)
-* [Other](#other)
+* [**Other**](#other)
     - [CLI options](#cli-options)
     - [Node.js usage](#nodejs-usage)
 
