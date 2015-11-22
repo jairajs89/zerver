@@ -17,6 +17,13 @@ exports.runTest = runTest;
 require(__dirname + '/static');
 require(__dirname + '/api');
 
+// Preload dependencies
+require('babel-core');
+require('cheerio');
+require('clean-css');
+require('html-minifier');
+require('uglify-js');
+
 
 
 function queueTask(task) {

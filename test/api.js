@@ -15,7 +15,6 @@ function testObj() {
             apis: '/zerver',
         });
         apis.test = testRequest;
-        apis.customTest = customRequest;
         callback(apis);
     };
 }
@@ -59,95 +58,15 @@ function testRequest(func, args, callback) {
     });
 }
 
-function customRequest(method, func, body, callback, isForm) {
-    this.get('/zerver/' + func.split('?')[0], {
-        url    : '/zerver/' + func,
-        method : method.toUpperCase(),
-        headers: {
-            'content-length': body.length,
-            'content-type'  : isForm ? 'application/x-www-form-urlencoded' : 'application/json',
-            connection      : 'keep-alive',
-            accept          : '*/*',
-        },
-        connection: {
-            remoteAddress: '127.0.0.1',
-        },
-        on: function (type, handler) {
-            var data;
-            switch (type) {
-                case 'data':
-                    data = body;
-                    break;
-                case 'end':
-                    break;
-                default:
-                    return;
-            }
-            process.nextTick(function () {
-                handler(data);
-            });
-        },
-    }, function (status, headers, body) {
-        process.nextTick(function () {
-            callback(status, headers, body);
-        });
-    });
-}
-
 
 
 test.runTest(testObj(), {
     zerver: {
-        'test.js': 'exports.foo=function(x,c){c(x+2)}',
+        'test.js': 'exports.foo=function(x,y,c){c(x+y)}',
     },
 }, function (apis, files, callback) {
-    apis.test('test/foo', [1], function (y) {
+    apis.test('test/foo', [1,2], function (y) {
         assert.equal(y, 3);
-        callback();
-    });
-});
-
-test.runTest(testObj(), {
-    zerver: {
-        'test.js': 'exports.foo=function(x,c){c("x")};exports.foo.type="GET"',
-    },
-}, function (apis, files, callback) {
-    apis.customTest('GET', 'test/foo?foo=bar', '', function (status, headers, body) {
-        assert.equal(status, 200);
-        assert.equal(body, 'x');
-        callback();
-    });
-});
-
-test.runTest(testObj(), {
-    zerver: {
-        'test.js': 'exports.foo=function(p,c){c(p)};exports.foo.type="GET"',
-    },
-}, function (apis, files, callback) {
-    apis.customTest('GET', 'test/foo?foo=bar', '', function (status, headers, body) {
-        assert.equal(status, 200);
-        assert.equal(headers['Content-Type'], 'application/json');
-        assert.equal(body, '{"foo":"bar"}');
-        callback();
-    });
-});
-
-test.runTest(testObj(), {
-    zerver: {
-        'test.js': 'exports.foo=function(p,c){c(p)};exports.foo.type="GET"',
-    },
-}, function (apis, files, callback) {
-    apis.customTest('GET', 'test.js', '', function (status, headers, body) {
-        assert.equal(status, 200);
-        assert.equal(headers['Content-Type'], 'application/javascript');
-        callback();
-    });
-});
-
-test.runTest(testObj(), {}, function (apis, files, callback) {
-    apis.customTest('GET', 'require.js', '', function (status, headers, body) {
-        assert.equal(status, 200);
-        assert.equal(headers['Content-Type'], 'application/javascript');
         callback();
     });
 });
