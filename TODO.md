@@ -1,4 +1,5 @@
 # TODO
+- upgrade dependencies
 - no plugins by default?
 - finish readme
 - starter kit
