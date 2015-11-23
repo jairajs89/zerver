@@ -1,5 +1,4 @@
 # TODO
-- server-side babel
 - finish readme
 - starter kit
 - starter kit react

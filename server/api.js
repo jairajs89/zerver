@@ -36,6 +36,9 @@ function APICalls(options) {
     if (this._options.coffee && hasCoffeeScript(apiNames)) {
         require('coffee-script/register');
     }
+    if (this._options.babel && hasJavaScript(apiNames)) {
+        require('babel-core/register');
+    }
     global.ZERVER_DEBUG = !this._options.production;
 
     apiNames.forEach(function (fileName) {
@@ -362,6 +365,20 @@ function hasCoffeeScript(apiNames) {
         parts = apiNames[i].split('/').pop().split('.');
         ext = parts.length > 1 ? parts.pop() : null;
         if (ext === 'coffee') {
+            return true;
+        }
+    }
+    return false;
+}
+
+function hasJavaScript(apiNames) {
+    var i;
+    var parts;
+    var ext;
+    for (i = 0; i < apiNames.length; i++) {
+        parts = apiNames[i].split('/').pop().split('.');
+        ext = parts.length > 1 ? parts.pop() : null;
+        if (ext === 'js') {
             return true;
         }
     }

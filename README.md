@@ -90,6 +90,7 @@ Now that you have a running server, iterate on your code with the features below
 ### More plugins
 
 //TODO
+//TODO: making plugins
 
 
 ## Always be shipping
