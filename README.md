@@ -5,7 +5,7 @@ Quickly iterate & serve your webapp using modern tools.
 
 ### What is Zerver?
 
-The frontend web development community is already adopting the mantra of building static code that only uses RESTful APIs to fetch data from web services. In that frontend/backend split exists the need for a tool that specifically empowers frontend developers to quickly iterate on their products.
+The frontend web development community is already adopting the mantra of building static code that uses RESTful APIs to fetch data from web services. In that frontend/backend split exists the need for a tool that specifically empowers frontend developers to quickly iterate on their products.
 
 Zerver is a web server built specifically for frontend developers, making it easy to use modern tools, ship code and get great performance.
 

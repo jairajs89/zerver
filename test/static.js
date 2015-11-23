@@ -25,6 +25,9 @@ function testObj(options) {
 }
 
 
+//TODO: make cache.get async
+
+
 
 test.runTest(testObj({
     manifest: false,

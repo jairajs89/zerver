@@ -45,6 +45,7 @@ Zerver.prototype._start = function (callback) {
         if (self._options.missing[0] !== '/') {
             self._options.missing = '/' + self._options.missing;
         }
+        //TODO: make async
         if (self._static.get(self._options.missing)) {
             self._missing = self._options.missing;
         }
@@ -113,6 +114,7 @@ Zerver.prototype._handleRequest = function (req, res) {
             return;
         }
 
+        //TODO: make async
         var data = self._static.get(pathname);
         if (!data && self._missing) {
             data = self._static.get(self._missing);

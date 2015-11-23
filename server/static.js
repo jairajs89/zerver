@@ -86,8 +86,19 @@ function StaticFiles(options, callback) {
         self._ignores = [];
     }
 
+    //TODO: should instead be done on-the-fly, else wont work in debug mode
     if (self._options.manifest) {
-        self._manifests = detectManifests(self._root, self._ignores);
+        getDetectedManifests(self._root, self._ignores, function (manifests) {
+            self._manifests = manifests;
+            next();
+        });
+    } else {
+        self._manifests = {};
+        next();
+    }
+
+    function next() {
+        //TODO: should instead be done on-the-fly, else wont work in debug mode
         if (self._options.ignoreManifest) {
             self._options.ignoreManifest.split(',').forEach(function (pathname) {
                 pathname = relativePath('/', pathname);
@@ -98,18 +109,18 @@ function StaticFiles(options, callback) {
                 }
             });
         }
-    } else {
-        self._manifests = {};
-    }
 
-    if (self._cache) {
-        self._loadCache(finish);
-    } else {
-        finish();
-    }
+        if (self._cache) {
+            self._loadCache(finish);
+        } else {
+            finish();
+        }
 
-    function finish() {
-        callback.call(self);
+        function finish() {
+            if (callback) {
+                callback.call(self);
+            }
+        }
     }
 }
 
@@ -288,12 +299,14 @@ StaticFiles.prototype._cacheConcatFile = function (pathname, callback) {
                 if (cached) {
                     finish();
                 } else {
-                    self._cacheFile(partPath, function (headers, body) {
-                        cached = {
-                            headers: headers,
-                            body   : body,
-                        };
-                        finish();
+                    setImmediate(function () {
+                        self._cacheFile(partPath, function (headers, body) {
+                            cached = {
+                                headers: headers,
+                                body   : body,
+                            };
+                            finish();
+                        });
                     });
                 }
                 function finish() {
@@ -968,6 +981,7 @@ StaticFiles.prototype._isBabelExcluded = function (pathname) {
 
 /* Access cache */
 
+//TODO: make async
 StaticFiles.prototype.get = function (pathname) {
     var response;
     if (this._cache) {
@@ -1045,6 +1059,7 @@ StaticFiles.prototype._rawGet = function (pathname) {
     this._compileLanguages(pathname, headers, file, function (_, f) {
         file = f;
     });
+    //TODO: why doesnt this use _prepareManifest? not async?
     if (isManifestFilename(pathname) && isManifestFile(file.toString())) {
         file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
     }
@@ -1075,6 +1090,7 @@ function relativePath(path1, path2) {
     }
 }
 
+//TODO: call stack issues, make async
 function walkDirectory(root, ignores, handler, callback, pathname) {
     if (!pathname) {
         pathname = '/';
@@ -1111,10 +1127,9 @@ function walkDirectory(root, ignores, handler, callback, pathname) {
     }
 }
 
-function detectManifests(root, ignores) {
+function getDetectedManifests(root, ignores, callback) {
     var manifests = {};
-
-    walkDirectory(root, ignores, function (pathname, callback) {
+    walkDirectory(root, ignores, function (pathname, next) {
         var filePath;
         var file;
         if (isManifestFilename(pathname)) {
@@ -1124,10 +1139,10 @@ function detectManifests(root, ignores) {
                 manifests[pathname] = true;
             }
         }
-        callback();
-    }, function () {});
-
-    return manifests;
+        next();
+    }, function () {
+        callback(manifests);
+    });
 }
 
 function isManifestFilename(pathname) {
@@ -1139,16 +1154,17 @@ function isManifestFile(file) {
     return file.trim().substr(0, 14) === 'CACHE MANIFEST';
 }
 
+//TODO: dont depend on walkDirectory or make async
 function getLastModifiedTimestamp(root, ignores) {
     var latest = new Date(0);
 
-    walkDirectory(root, ignores, function (pathname, callback) {
+    walkDirectory(root, ignores, function (pathname, next) {
         var filePath = path.join(root, pathname);
         var stats = fs.statSync(filePath);
         if (latest < stats.mtime) {
             latest = stats.mtime;
         }
-        callback();
+        next();
     }, function () {});
 
     return latest;
