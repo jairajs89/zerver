@@ -787,11 +787,11 @@ StaticFiles.prototype._applyPlugins = function (pathname, headers, body, callbac
                     self._applyPlugins(
                         pathname, { 'Content-Type': type }, code,
                         function (newHeaders, newBody) {
-                            if (code !== newBody) {
+                            if (code === newBody) {
+                                next(false);
+                            } else {
                                 $script.attr('type', newHeaders['Content-Type']).html(newBody);
                                 next(true);
-                            } else {
-                                next(false);
                             }
                         }
                     );
@@ -810,30 +810,26 @@ StaticFiles.prototype._applyPlugins = function (pathname, headers, body, callbac
                     self._applyPlugins(
                         pathname, { 'Content-Type': type }, code,
                         function (newHeaders, newBody) {
-                            if (code !== newBody) {
+                            if (code === newBody) {
+                                next(false);
+                            } else {
                                 $style.attr('type', newHeaders['Content-Type']).html(newBody);
                                 next(true);
-                            } else {
-                                next(false);
                             }
                         }
                     );
                 });
             }
         });
-        if (jobs) {
-            async.join(jobs, function (results) {
-                var hadCompilation = results.reduce(function (a, b) {
-                    return a || b;
-                });
-                if (hadCompilation) {
-                    body = $.html();
-                }
-                callback(headers, body);
-            });
-        } else {
+        async.join(jobs, function (results) {
+            var hadCompilation = results.reduce(function (a, b) {
+                return a || b;
+            }, false);
+            if (hadCompilation) {
+                body = $.html();
+            }
             callback(headers, body);
-        }
+        });
     } else {
         callback(headers, body);
     }
@@ -941,7 +937,6 @@ StaticFiles.prototype.get = function (pathname, callback) {
         finish(this._cache[pathname]);
     } else {
         this._rawGet(pathname, finish);
-
     }
 
     function finish(response) {
@@ -1136,6 +1131,7 @@ function walkDirectory(root, ignores, handler, callback, pathname) {
                 return child[0] !== '.';
             });
 
+
             nextChild();
             function nextChild() {
                 var child = children.shift();
@@ -1186,18 +1182,12 @@ function findMatchingPlugin(plugins, pathname, headers, body) {
         matchers = plugins[i].matcher;
         for (j = 0; j < matchers.length; j++) {
             matcher = matchers[j];
-            if (typeof matcher === 'string') {
-                if (matcher === headers['Content-Type']) {
-                    return plugins[i];
-                }
-            } else if (typeof matcher === 'function') {
-                if (matcher(headers['Content-Type'], pathname, headers, body)) {
-                    return plugins[i];
-                }
-            } else {
-                if (matcher.test(headers['Content-Type'])) {
-                    return plugins[i];
-                }
+            if (typeof matcher === 'string' && matcher === headers['Content-Type']) {
+                return plugins[i];
+            } else if (typeof matcher === 'function' && matcher(headers['Content-Type'], pathname, headers, body)) {
+                return plugins[i];
+            } else if (Object.prototype.toString.call(matcher) === '[object RegExp]' && matcher.test(headers['Content-Type'])) {
+                return plugins[i];
             }
         }
     }

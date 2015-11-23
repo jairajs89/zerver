@@ -20,7 +20,7 @@ function testObj() {
 }
 
 function testRequest(func, args, callback) {
-    var body = '{"args":' + JSON.stringify(args) + '}';
+    var body = JSON.stringify(args);
     this.get('/zerver/' + func.split('?')[0], {
         url    : '/zerver/' + func,
         method : 'POST',
@@ -53,7 +53,7 @@ function testRequest(func, args, callback) {
             assert.equal(status, 200);
             assert.equal(headers['Content-Type'], 'application/json');
             assert.equal(headers['Cache-Control'], 'no-cache');
-            callback(JSON.parse(body).data);
+            callback(JSON.parse(body));
         });
     });
 }
@@ -65,7 +65,7 @@ test.runTest(testObj(), {
         'test.js': 'exports.foo=function(x,y,c){c(x+y)}',
     },
 }, function (apis, files, callback) {
-    apis.test('test/foo', [1,2], function (y) {
+    apis.test('test/foo', [1, 2], function (y) {
         assert.equal(y, 3);
         callback();
     });

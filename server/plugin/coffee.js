@@ -1,5 +1,3 @@
-var path = require('path');
-
 exports.matcher = ['text/coffeescript'];
 exports.processor = function (pathname, headers, body, callback, options) {
     if (!options.coffee) {

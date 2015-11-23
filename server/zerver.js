@@ -66,7 +66,6 @@ Zerver.prototype._start = function (callback) {
 
     self._app.listen(self._options.port, function () {
         var apiNames;
-        var manifestList;
         if (!self._options.quiet) {
             console.log('zerver running:');
             console.log('- path: ' + self._options.dir);

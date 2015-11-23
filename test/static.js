@@ -106,7 +106,7 @@ test.runTest(testObj({
             });
         },
         function (next) {
-            cache.get('/alt2.js',function (data) {
+            cache.get('/alt2.js', function (data) {
                 assert.deepEqual(data.body, files['alt.js'] + ';\n' + files['alt.js']);
                 next();
             });

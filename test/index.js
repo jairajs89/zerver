@@ -5,39 +5,48 @@ var Module = require('module');
 var projectRoot = path.resolve(__dirname + '/../');
 var time        = new Date();
 var queue       = [];
-var fsDir       = fs.readdirSync;
-var fsRead      = fs.readFileSync;
-var fsStat      = fs.statSync;
-var fsLstat     = fs.lstatSync;
+var fsDirSync   = fs.readdirSync;
+var fsReadSync  = fs.readFileSync;
+var fsStatSync  = fs.statSync;
+var fsLstatSync = fs.lstatSync;
 var moduleFind  = Module._findPath;
+var queueRunning = false;
 
 exports.time = time;
 exports.runTest = runTest;
 
-require(__dirname + '/static');
-require(__dirname + '/api');
-
 // Preload dependencies
+require(__dirname + '/../server/plugin/babel');
+require(__dirname + '/../server/plugin/coffee');
+require(__dirname + '/../server/plugin/less');
+require(__dirname + '/../server/plugin/jade');
 require('babel-core');
 require('cheerio');
 require('clean-css');
 require('html-minifier');
 require('uglify-js');
 
+require(__dirname + '/static');
+require(__dirname + '/api');
+
 
 
 function queueTask(task) {
     queue.push(task);
-    if (queue.length === 1) {
+    if (!queueRunning) {
         process.nextTick(runTask);
     }
 }
 
 function runTask() {
-    var task = queue[0];
+    if (queueRunning) {
+        return;
+    }
+    var task = queue.shift();
     if (task) {
+        queueRunning = true;
         task(function () {
-            queue.shift();
+            queueRunning = false;
             process.nextTick(runTask);
         });
     }
@@ -69,7 +78,7 @@ function runTest(testObj, files, callback) {
     queueTask(function (dequeue) {
         fs.readdirSync = function (filename) {
             if (filename.substr(0, projectRoot.length) === projectRoot) {
-                return fsDir.call(fs, filename);
+                return fsDirSync.call(fs, filename);
             }
             var file = findFile(filename);
             if (isFile(file)) {
@@ -77,10 +86,17 @@ function runTest(testObj, files, callback) {
             }
             return Object.keys(file);
         };
+        fs.readdir = function (filename, cb) {
+            try {
+                cb(null, fs.readdirSync(filename));
+            } catch (err) {
+                cb(err);
+            }
+        };
 
         fs.readFileSync = function (filename) {
             if (filename.substr(0, projectRoot.length) === projectRoot) {
-                return fsRead.call(fs, filename);
+                return fsReadSync.call(fs, filename);
             }
             var file = findFile(filename);
             if (!isFile(file)) {
@@ -88,20 +104,41 @@ function runTest(testObj, files, callback) {
             }
             return file;
         };
+        fs.readFile = function (filename, cb) {
+            try {
+                cb(null, fs.readFileSync(filename));
+            } catch (err) {
+                cb(err);
+            }
+        };
 
         fs.statSync = function (filename) {
             if (filename.substr(0, projectRoot.length) === projectRoot) {
-                return fsStat.call(fs, filename);
+                return fsStatSync.call(fs, filename);
             } else {
                 return statFile(filename);
+            }
+        };
+        fs.stat = function (filename, cb) {
+            try {
+                cb(null, fs.statSync(filename));
+            } catch (err) {
+                cb(err);
             }
         };
 
         fs.lstatSync = function (filename) {
             if (filename.substr(0, projectRoot.length) === projectRoot) {
-                return fsLstat.call(fs, filename);
+                return fsLstatSync.call(fs, filename);
             } else {
                 return statFile(filename);
+            }
+        };
+        fs.lstat = function (filename, cb) {
+            try {
+                cb(null, fs.lstatSync(filename));
+            } catch (err) {
+                cb(err);
             }
         };
 

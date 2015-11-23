@@ -12,7 +12,7 @@ function asyncJoin(funcs, callback, self) {
 
     var num = funcs.length;
     if (!num) {
-        callback();
+        callback([]);
         return;
     }
 
