@@ -1,4 +1,5 @@
-exports.matcher = ['text/coffeescript'];
+exports.mime = 'text/coffeescript';
+exports.fileExtension = 'coffee';
 exports.processor = function (pathname, headers, body, callback, options) {
     if (!options.coffee) {
         callback(headers, body);

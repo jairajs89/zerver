@@ -2,7 +2,7 @@ var path = require('path');
 var babelModuleInner = require(path.join(__dirname, 'babel-modules', 'babel-module-inner'));
 var babelModuleOuter = require(path.join(__dirname, 'babel-modules', 'babel-module-outer'));
 
-exports.matcher = ['text/jsx', 'application/javascript'];
+exports.mime = ['text/jsx', 'application/javascript'];
 exports.processor = function (pathname, headers, body, callback, options) {
     if (!options.babel || isBabelExcluded(pathname, options)) {
         callback(headers, body);

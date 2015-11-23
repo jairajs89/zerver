@@ -1,6 +1,6 @@
 var path = require('path');
 
-exports.matcher = ['text/jade'];
+exports.mime = 'text/jade';
 exports.processor = function (pathname, headers, body, callback, options) {
     if (!options.jade) {
         callback(headers, body);

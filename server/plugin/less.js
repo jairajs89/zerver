@@ -2,7 +2,7 @@ var fs = require('fs');
 var path = require('path');
 var less;
 
-exports.matcher = ['text/less'];
+exports.mime = 'text/less';
 exports.processor = function (pathname, headers, body, callback, options) {
     if (!options.less) {
         callback(headers, body);

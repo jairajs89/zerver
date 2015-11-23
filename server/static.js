@@ -8,17 +8,10 @@ var zlib = require('zlib');
 var mime = require('mime');
 var async = require(path.join(__dirname, 'lib', 'async'));
 
-mime.define({
-    'text/jsx'         : ['jsx'],
-    'text/coffeescript': ['coffee'],
-    'text/less'        : ['less'],
-    'text/jade'        : ['jade'],
-});
-
 module.exports = StaticFiles;
 
 StaticFiles.PLUGIN_DIR = path.join(__dirname, 'plugin');
-StaticFiles.INDEX_FILES = ['index.html', 'index.jade'];
+StaticFiles.INDEX_FILES = ['index.html'];
 StaticFiles.CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
 StaticFiles.MANIFEST_CONCAT = /\s*\#\s*zerver\:(\S+)\s*/g;
 StaticFiles.MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
@@ -93,6 +86,8 @@ function StaticFiles(options, callback) {
     }
 
     function finish() {
+        self._getPlugins();
+
         if (callback) {
             callback.call(self);
         }
@@ -101,37 +96,70 @@ function StaticFiles(options, callback) {
 
 StaticFiles.prototype._getPlugins = function () {
     var self = this;
+    var pluginPaths;
     if (!self._plugins) {
+        pluginPaths = [];
         if (self._options.plugins) {
-            self._plugins = self._options.plugins.split(',').map(function (pluginName) {
-                var pluginPath = pluginName;
+            self._options.plugins.split(',').forEach(function (pluginPath) {
                 if (pluginPath[0] === '.') {
                     pluginPath = path.resolve(process.cwd(), pluginPath);
                 }
-                var plugin = require(pluginPath);
-                if (!Array.isArray(plugin.matcher)) {
-                    plugin.matcher = [plugin.matcher];
-                }
-                plugin.matcher.forEach(function (matcher) {
-                    if (typeof matcher !== 'string' && typeof matcher !== 'function' && Object.prototype.toString(matcher) !== '[object RegExp]') {
-                        throw TypeError(pluginName + ' does not export a valid matcher');
-                    }
-                    if (typeof plugin.processor !== 'function') {
-                        throw TypeError(pluginName + ' does not export a valid processor');
-                    }
-                });
-                return plugin;
+                pluginPaths.push(pluginPath);
             });
-        } else {
-            self._plugins = [];
         }
-        fs.readdirSync(StaticFiles.PLUGIN_DIR).forEach(function (pluginFile) {
-            if (path.extname(pluginFile) !== '.js') {
-                return;
+        fs.readdirSync(StaticFiles.PLUGIN_DIR).forEach(function (pluginPath) {
+            if (path.extname(pluginPath) === '.js') {
+                pluginPaths.push(path.join(StaticFiles.PLUGIN_DIR, pluginPath));
             }
-            self._plugins.push(
-                require(path.join(StaticFiles.PLUGIN_DIR, pluginFile))
-            );
+        });
+        self._plugins = pluginPaths.map(function (pluginPath) {
+            var plugin = require(pluginPath);
+
+            var mimes = [];
+            var fileExtensions = [];
+            if (!plugin.mime) {
+                throw TypeError(pluginPath + ' must export a mime');
+            }
+            if (!Array.isArray(plugin.mime)) {
+                plugin.mime = [plugin.mime];
+            }
+            plugin.mime.forEach(function (matcher) {
+                if (typeof matcher === 'string') {
+                    mimes.push(matcher);
+                    if (matcher.substr(0, 5) === 'text/') {
+                        fileExtensions.push(matcher.substr(5));
+                    }
+                } else if (typeof matcher !== 'function' && Object.prototype.toString(matcher) !== '[object RegExp]') {
+                    throw TypeError(pluginPath + ' exported valid mime=' + matcher);
+                }
+            });
+            if (plugin.fileExtension) {
+                if (!Array.isArray(plugin.fileExtension)) {
+                    plugin.fileExtension = [plugin.fileExtension];
+                }
+                plugin.fileExtension.forEach(function (fileExtension) {
+                    if (!fileExtension || typeof fileExtension !== 'string') {
+                        throw TypeError(pluginPath + ' got an invalid fileExtension=' + fileExtension);
+                    }
+                    fileExtensions.push(fileExtension);
+                });
+            }
+            if (typeof plugin.processor !== 'function') {
+                throw TypeError(pluginPath + ' does not export a valid processor');
+            }
+
+            var mimeDeclarations = {};
+            if (mimes.length && fileExtensions.length) {
+                mimes.forEach(function (mime) {
+                    mimeDeclarations[mime] = fileExtensions;
+                });
+                mime.define(mimeDeclarations);
+                fileExtensions.forEach(function (fileExtension) {
+                    StaticFiles.INDEX_FILES.push('index.' + fileExtension);
+                });
+            }
+
+            return plugin;
         });
     }
     return self._plugins.slice();
@@ -762,7 +790,7 @@ StaticFiles.prototype._applyPlugins = function (pathname, headers, body, callbac
     var jobs;
     var $;
     var originalContentType = headers['Content-Type'];
-    var plugin = findMatchingPlugin(plugins, pathname, headers, body);
+    var plugin = findMatchingPlugin(plugins, headers);
     if (plugin) {
         plugin.processor(pathname, headers, body, function (headers, body) {
             if (headers['Content-Type'] === originalContentType) {
@@ -1173,18 +1201,18 @@ function getFileVersion(url, body) {
     return parsed.format();
 }
 
-function findMatchingPlugin(plugins, pathname, headers, body) {
+function findMatchingPlugin(plugins, headers) {
     var i;
     var j;
     var matchers;
     var matcher;
     for (i = 0; i < plugins.length; i++) {
-        matchers = plugins[i].matcher;
+        matchers = plugins[i].mime;
         for (j = 0; j < matchers.length; j++) {
             matcher = matchers[j];
             if (typeof matcher === 'string' && matcher === headers['Content-Type']) {
                 return plugins[i];
-            } else if (typeof matcher === 'function' && matcher(headers['Content-Type'], pathname, headers, body)) {
+            } else if (typeof matcher === 'function' && matcher(headers['Content-Type'])) {
                 return plugins[i];
             } else if (Object.prototype.toString.call(matcher) === '[object RegExp]' && matcher.test(headers['Content-Type'])) {
                 return plugins[i];
