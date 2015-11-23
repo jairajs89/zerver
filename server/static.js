@@ -86,30 +86,17 @@ function StaticFiles(options, callback) {
         self._ignores = [];
     }
 
-    //TODO: should instead be done on-the-fly, else wont work in debug mode
-    if (self._options.manifest) {
-        getDetectedManifests(self._root, self._ignores, function (manifests) {
-            self._manifests = manifests;
+    if (self._options.manifest && self._cache) {
+        self._getDetectedManifests(function (manifests) {
+            self._manifestNames = manifests;
             next();
         });
     } else {
-        self._manifests = {};
+        self._manifestNames = [];
         next();
     }
 
     function next() {
-        //TODO: should instead be done on-the-fly, else wont work in debug mode
-        if (self._options.ignoreManifest) {
-            self._options.ignoreManifest.split(',').forEach(function (pathname) {
-                pathname = relativePath('/', pathname);
-                if (self._manifests[pathname]) {
-                    delete self._manifests[pathname];
-                } else {
-                    throw Error(pathname + ' is not a manifest file, cannot ignore');
-                }
-            });
-        }
-
         if (self._cache) {
             self._loadCache(finish);
         } else {
@@ -372,17 +359,19 @@ StaticFiles.prototype._getCacheControl = function (pathname) {
 };
 
 StaticFiles.prototype._prepareManifest = function (pathname, headers, body, callback) {
-    if (!this._manifests[pathname]) {
+    if (!this._isManifest(pathname)) {
         callback(headers, body);
         return;
     }
 
-    body = body.toString() + '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
-    callback(headers, body);
+    getLastModifiedTimestamp(this._root, this._ignores, function (timestamp) {
+        body = body.toString() + '\n# Zerver timestamp: ' + timestamp;
+        callback(headers, body);
+    });
 };
 
 StaticFiles.prototype._inlineManifestFiles = function (pathname, headers, body, callback) {
-    if (!this._options.inline || !this._manifests[pathname]) {
+    if (!this._options.inline || !this._isManifest(pathname)) {
         callback(headers, body);
         return;
     }
@@ -407,7 +396,7 @@ StaticFiles.prototype._inlineManifestFiles = function (pathname, headers, body, 
 };
 
 StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers, body, callback) {
-    if (!this._concats || !this._manifests[pathname]) {
+    if (!this._concats || !this._isManifest(pathname)) {
         callback(headers, body);
         return;
     }
@@ -981,50 +970,66 @@ StaticFiles.prototype._isBabelExcluded = function (pathname) {
 
 /* Access cache */
 
-//TODO: make async
-StaticFiles.prototype.get = function (pathname) {
-    var response;
+StaticFiles.prototype.get = function (pathname, callback) {
     if (this._cache) {
-        response = this._cache[pathname];
+        finish(this._cache[pathname]);
     } else {
-        response = this._rawGet(pathname);
+        this._rawGet(pathname, finish);
+
     }
 
-    if (response) {
-        return {
-            status : response.status || 200,
-            headers: extend({}, response.headers),
-            body   : response.body,
-        };
+    function finish(response) {
+        if (response) {
+            callback({
+                status : response.status || 200,
+                headers: extend({}, response.headers),
+                body   : response.body,
+            });
+        } else {
+            callback();
+        }
     }
 };
 
-StaticFiles.prototype._rawGet = function (pathname) {
+StaticFiles.prototype._rawGet = function (pathname, callback) {
+    var self = this;
     var filePath = path.join(this._root, pathname);
     var parts = pathname.split('/');
 
     var i;
     for (i = 0; i < parts.length; i++) {
         if (parts[i][0] === '.') {
+            callback();
             return;
         }
     }
 
     for (i = 0; i < this._ignores.length; i++) {
         if (pathname.substr(0, this._ignores[i].length) === this._ignores[i]) {
+            callback();
             return;
         }
     }
 
     var isDirRoot = pathname[pathname.length - 1] === '/';
-    var response;
     if (isDirRoot) {
-        for (i = 0; i < StaticFiles.INDEX_FILES.length; i++) {
-            response = this._rawGet(pathname + '/' + StaticFiles.INDEX_FILES[i]);
-            if (typeof response !== 'undefined') {
-                return response;
+        async.forEach(StaticFiles.INDEX_FILES, function (indexFile, next) {
+            if (callback) {
+                self._rawGet(pathname + '/' + indexFile, function (data) {
+                    if (data && callback) {
+                        callback(data);
+                        callback = null;
+                    }
+                    next();
+                });
+            } else {
+                next();
             }
-        }
+        }, function () {
+            if (callback) {
+                callback();
+            }
+        });
         return;
     }
 
@@ -1032,22 +1037,25 @@ StaticFiles.prototype._rawGet = function (pathname) {
     try {
         stat = fs.statSync(filePath);
     } catch (err) {
+        callback();
         return;
     }
     if (stat.isDirectory() && !isDirRoot) {
-        return {
+        callback({
             status : 301,
             body   : '',
             headers: {
                 Location: pathname + '/',
             },
-        };
+        });
+        return;
     }
 
     var file;
     try {
         file = fs.readFileSync(filePath);
     } catch (err) {
+        callback();
         return;
     }
 
@@ -1059,19 +1067,65 @@ StaticFiles.prototype._rawGet = function (pathname) {
     this._compileLanguages(pathname, headers, file, function (_, f) {
         file = f;
     });
-    //TODO: why doesnt this use _prepareManifest? not async?
-    if (isManifestFilename(pathname) && isManifestFile(file.toString())) {
-        file += '\n# Zerver timestamp: ' + getLastModifiedTimestamp(this._root, this._ignores);
-    }
 
-    return {
-        body   : file,
-        headers: headers,
-    };
+    if (this._isManifest(pathname, file)) {
+        getLastModifiedTimestamp(this._root, this._ignores, function (timestamp) {
+            file += '\n# Zerver timestamp: ' + timestamp;
+            callback({
+                body   : file,
+                headers: headers,
+            });
+        });
+    } else {
+        callback({
+            body   : file,
+            headers: headers,
+        });
+    }
 };
 
 StaticFiles.prototype.getManifestNames = function () {
-    return Object.keys(this._manifests);
+    return this._manifestNames;
+};
+
+StaticFiles.prototype._getDetectedManifests = function (callback) {
+    var self = this;
+    var manifests = [];
+    walkDirectory(self._root, self._ignores, function (pathname, next) {
+        if (self._isManifest(pathname)) {
+            manifests.push(pathname);
+        }
+        next();
+    }, function () {
+        callback(manifests);
+    });
+};
+
+StaticFiles.prototype._isManifest = function (pathname, body) {
+    if (!this._options.manifest) {
+        return false;
+    }
+
+    var paths;
+    var i;
+    if (this._options.ignoreManifest) {
+        paths = this._options.ignoreManifest.split(',');
+        for (i = 0; i < paths.length; i++) {
+            if (relativePath('/', paths[i]) === pathname) {
+                return false;
+            }
+        }
+    }
+
+    var ext = path.extname(pathname).toLowerCase();
+    if (ext !== '.appcache' && ext !== '.manifest') {
+        return false;
+    }
+
+    if (typeof body === 'undefined') {
+        body = fs.readFileSync(path.join(this._root, pathname), 'utf8');
+    }
+    return body.toString('utf8').trim().substr(0, 14) === 'CACHE MANIFEST';
 };
 
 
@@ -1090,7 +1144,6 @@ function relativePath(path1, path2) {
     }
 }
 
-//TODO: call stack issues, make async
 function walkDirectory(root, ignores, handler, callback, pathname) {
     if (!pathname) {
         pathname = '/';
@@ -1105,59 +1158,42 @@ function walkDirectory(root, ignores, handler, callback, pathname) {
     }
 
     var filePath = path.join(root, pathname);
-    var stats = fs.statSync(filePath);
-
-    if (!stats.isDirectory()) {
-        handler(pathname, callback);
-        return;
-    }
-
-    var children = fs.readdirSync(filePath).filter(function (child) {
-        return child[0] !== '.';
-    });
-
-    nextChild();
-    function nextChild() {
-        var child = children.shift();
-        if (child) {
-            walkDirectory(root, ignores, handler, nextChild, path.join(pathname, child));
-        } else {
-            callback();
+    fs.stat(filePath, function (err, stats) {
+        if (err) {
+            throw err;
         }
-    }
-}
 
-function getDetectedManifests(root, ignores, callback) {
-    var manifests = {};
-    walkDirectory(root, ignores, function (pathname, next) {
-        var filePath;
-        var file;
-        if (isManifestFilename(pathname)) {
-            filePath = path.join(root, pathname);
-            file = fs.readFileSync(filePath, 'utf8').toString();
-            if (isManifestFile(file)) {
-                manifests[pathname] = true;
+        if (!stats.isDirectory()) {
+            handler(pathname, callback);
+            return;
+        }
+
+        fs.readdir(filePath, function (err, children) {
+            if (err) {
+                throw err;
             }
-        }
-        next();
-    }, function () {
-        callback(manifests);
+
+            children = children.filter(function (child) {
+                return child[0] !== '.';
+            });
+
+            nextChild();
+            function nextChild() {
+                var child = children.shift();
+                if (child) {
+                    setImmediate(function () {
+                        walkDirectory(root, ignores, handler, nextChild, path.join(pathname, child));
+                    });
+                } else {
+                    callback();
+                }
+            }
+        });
     });
 }
 
-function isManifestFilename(pathname) {
-    var ext = path.extname(pathname).toLowerCase();
-    return ext === '.appcache' || ext === '.manifest';
-}
-
-function isManifestFile(file) {
-    return file.trim().substr(0, 14) === 'CACHE MANIFEST';
-}
-
-//TODO: dont depend on walkDirectory or make async
-function getLastModifiedTimestamp(root, ignores) {
+function getLastModifiedTimestamp(root, ignores, callback) {
     var latest = new Date(0);
-
     walkDirectory(root, ignores, function (pathname, next) {
         var filePath = path.join(root, pathname);
         var stats = fs.statSync(filePath);
@@ -1165,9 +1201,9 @@ function getLastModifiedTimestamp(root, ignores) {
             latest = stats.mtime;
         }
         next();
-    }, function () {});
-
-    return latest;
+    }, function () {
+        callback(latest);
+    });
 }
 
 function isDirectoryRootFile(pathname) {

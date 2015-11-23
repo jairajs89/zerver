@@ -1,6 +1,4 @@
 # TODO
-- TODOs listed in codebase
-- fix call stack explosion bug
 - plugins
     - production/debug-only attachments
     - apply before/after zerver plugins

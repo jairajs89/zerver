@@ -41,14 +41,8 @@ function Zerver(options, callback) {
 Zerver.prototype._start = function (callback) {
     var self = this;
 
-    if (self._options.missing) {
-        if (self._options.missing[0] !== '/') {
-            self._options.missing = '/' + self._options.missing;
-        }
-        //TODO: make async
-        if (self._static.get(self._options.missing)) {
-            self._missing = self._options.missing;
-        }
+    if (self._options.missing && self._options.missing[0] !== '/') {
+        self._options.missing = '/' + self._options.missing;
     }
 
     var isSsl = self._options.sslKey && self._options.sslCert;
@@ -114,20 +108,21 @@ Zerver.prototype._handleRequest = function (req, res) {
             return;
         }
 
-        //TODO: make async
-        var data = self._static.get(pathname);
-        if (!data && self._missing) {
-            data = self._static.get(self._missing);
-        }
-        if (!data) {
-            data = {
-                status : 404,
-                headers: { 'Content-Type': 'text/plain' },
-                body   : '404',
-            };
-        }
+        self._static.get(pathname, function (data) {
+            if (!data && self._options.missing) {
+                self._static.get(self._options.missing, handleStaticFetch);
+            } else {
+                handleStaticFetch(data);
+            }
 
-        finish(data.status, data.headers, data.body);
+            function handleStaticFetch(data) {
+                if (data) {
+                    finish(data.status, data.headers, data.body);
+                } else {
+                    finish(404, { 'Content-Type': 'text/plain' }, '404');
+                }
+            }
+        });
     });
 
     function finish(status, headers, body) {
