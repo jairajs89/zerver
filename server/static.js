@@ -6,10 +6,7 @@ var urllib = require('url');
 var extend = require('util')._extend;
 var zlib = require('zlib');
 var mime = require('mime');
-var async = require(__dirname + path.sep + 'lib' + path.sep + 'async');
-var babelModuleInner = require(__dirname + path.sep + 'lib' + path.sep + 'babel-module-inner');
-var babelModuleOuter = require(__dirname + path.sep + 'lib' + path.sep + 'babel-module-outer');
-var less;
+var async = require(path.join(__dirname, 'lib', 'async'));
 
 mime.define({
     'text/jsx'         : ['jsx'],
@@ -20,6 +17,7 @@ mime.define({
 
 module.exports = StaticFiles;
 
+StaticFiles.PLUGIN_DIR = path.join(__dirname, 'plugin');
 StaticFiles.INDEX_FILES = ['index.html', 'index.jade'];
 StaticFiles.CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
 StaticFiles.MANIFEST_CONCAT = /\s*\#\s*zerver\:(\S+)\s*/g;
@@ -45,6 +43,8 @@ function StaticFiles(options, callback) {
         ignores: null,
     }, options);
     self._root = self._options.dir;
+
+    global.ZERVER_DEBUG = !this._options.production;
 
     if (self._options.concat) {
         self._concats = {};
@@ -86,30 +86,56 @@ function StaticFiles(options, callback) {
         self._ignores = [];
     }
 
-    if (self._options.manifest && self._cache) {
-        self._getDetectedManifests(function (manifests) {
-            self._manifestNames = manifests;
-            next();
-        });
+    if (self._cache) {
+        self._loadCache(finish);
     } else {
-        self._manifestNames = [];
-        next();
+        finish();
     }
 
-    function next() {
-        if (self._cache) {
-            self._loadCache(finish);
-        } else {
-            finish();
-        }
-
-        function finish() {
-            if (callback) {
-                callback.call(self);
-            }
+    function finish() {
+        if (callback) {
+            callback.call(self);
         }
     }
 }
+
+StaticFiles.prototype._getPlugins = function () {
+    var self = this;
+    if (!self._plugins) {
+        if (self._options.plugins) {
+            self._plugins = self._options.plugins.split(',').map(function (pluginName) {
+                var pluginPath = pluginName;
+                if (pluginPath[0] === '.') {
+                    pluginPath = path.resolve(process.cwd(), pluginPath);
+                }
+                var plugin = require(pluginPath);
+                if (!Array.isArray(plugin.matcher)) {
+                    plugin.matcher = [plugin.matcher];
+                }
+                plugin.matcher.forEach(function (matcher) {
+                    if (typeof matcher !== 'string' && typeof matcher !== 'function' && Object.prototype.toString(matcher) !== '[object RegExp]') {
+                        throw TypeError(pluginName + ' does not export a valid matcher');
+                    }
+                    if (typeof plugin.processor !== 'function') {
+                        throw TypeError(pluginName + ' does not export a valid processor');
+                    }
+                });
+                return plugin;
+            });
+        } else {
+            self._plugins = [];
+        }
+        fs.readdirSync(StaticFiles.PLUGIN_DIR).forEach(function (pluginFile) {
+            if (path.extname(pluginFile) !== '.js') {
+                return;
+            }
+            self._plugins.push(
+                require(path.join(StaticFiles.PLUGIN_DIR, pluginFile))
+            );
+        });
+    }
+    return self._plugins.slice();
+};
 
 
 
@@ -183,7 +209,7 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
     };
 
     async.forEach([
-        self._compileLanguages,
+        self._applyPlugins,
         self._prepareManifest,
         self._inlineManifestFiles,
         self._prepareManifestConcatFiles,
@@ -727,14 +753,27 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
     });
 };
 
-StaticFiles.prototype._compileLanguages = function (pathname, headers, body, callback) {
+StaticFiles.prototype._applyPlugins = function (pathname, headers, body, callback, plugins) {
     var self = this;
-    var originalContentType = headers['Content-Type'];
-    var hadCompilation;
+    if (!plugins) {
+        plugins = self._getPlugins();
+    }
+
+    var jobs;
     var $;
-    var LessParser;
-    if (headers['Content-Type'] === 'text/html') {
-        hadCompilation = false;
+    var originalContentType = headers['Content-Type'];
+    var plugin = findMatchingPlugin(plugins, pathname, headers, body);
+    if (plugin) {
+        plugin.processor(pathname, headers, body, function (headers, body) {
+            if (headers['Content-Type'] === originalContentType) {
+                plugins.splice(plugins.indexOf(plugin), 1);
+            } else {
+                plugins = null;
+            }
+            self._applyPlugins(pathname, headers, body, callback, plugins);
+        }, self._options);
+    } else if (headers['Content-Type'] === 'text/html') {
+        jobs = [];
         $ = require('cheerio').load(body.toString());
         $('script').each(function () {
             var $script = $(this);
@@ -743,14 +782,19 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
             if (['', 'text/javascript', 'text/jsx'].indexOf(type) >= 0) {
                 type = 'application/javascript';
             }
-            if (!StaticFiles.WHITESPACE_MATCH.test(code) && ['application/javascript', 'text/coffeescript'].indexOf(type) >= 0) {
-                self._compileLanguages(pathname, {
-                    'Content-Type': type,
-                }, code, function (newHeaders, newBody) {
-                    if (code !== newBody) {
-                        hadCompilation = true;
-                        $script.attr('type', newHeaders['Content-Type']).html(newBody);
-                    }
+            if (!StaticFiles.WHITESPACE_MATCH.test(code)) {
+                jobs.push(function (next) {
+                    self._applyPlugins(
+                        pathname, { 'Content-Type': type }, code,
+                        function (newHeaders, newBody) {
+                            if (code !== newBody) {
+                                $script.attr('type', newHeaders['Content-Type']).html(newBody);
+                                next(true);
+                            } else {
+                                next(false);
+                            }
+                        }
+                    );
                 });
             }
         });
@@ -758,78 +802,40 @@ StaticFiles.prototype._compileLanguages = function (pathname, headers, body, cal
             var $style = $(this);
             var code = $style.html();
             var type = ($style.attr('type') || '').trim();
-            if (!StaticFiles.WHITESPACE_MATCH.test(code) && type === 'text/less') {
-                self._compileLanguages(pathname, {
-                    'Content-Type': type,
-                }, code, function (newHeaders, newBody) {
-                    if (code !== newBody) {
-                        hadCompilation = true;
-                        $style.attr('type', newHeaders['Content-Type']).html(newBody);
-                    }
+            if (!type) {
+                type = 'text/css';
+            }
+            if (!StaticFiles.WHITESPACE_MATCH.test(code)) {
+                jobs.push(function (next) {
+                    self._applyPlugins(
+                        pathname, { 'Content-Type': type }, code,
+                        function (newHeaders, newBody) {
+                            if (code !== newBody) {
+                                $style.attr('type', newHeaders['Content-Type']).html(newBody);
+                                next(true);
+                            } else {
+                                next(false);
+                            }
+                        }
+                    );
                 });
             }
         });
-        if (hadCompilation) {
-            body = $.html();
-        }
-    } else if (this._options.babel && !this._isBabelExcluded(pathname) && (headers['Content-Type'] === 'text/jsx' || headers['Content-Type'] === 'application/javascript')) {
-        try {
-            body = this._babelCompile(pathname, body.toString());
-            headers['Content-Type'] = 'application/javascript';
-        } catch (err) {
-            console.error('failed to compile JSX file, ' + pathname);
-            console.error(err.toString());
-            if (this._options.production) {
-                process.exit(1);
-            }
-        }
-    } else if (this._options.coffee && headers['Content-Type'] === 'text/coffeescript') {
-        try {
-            body = require('coffee-script').compile(body.toString());
-            headers['Content-Type'] = 'application/javascript';
-        } catch (err) {
-            console.error('failed to compile CoffeeScript file, ' + pathname);
-            console.error(err.toString());
-            if (this._options.production) {
-                process.exit(1);
-            }
-        }
-    } else if (this._options.less && headers['Content-Type'] === 'text/less') {
-        try {
-            LessParser = getLess().Parser;
-            new LessParser({
-                filename: path.join(this._root, pathname),
-            }).parse(body.toString(), function (e, r) {
-                body = r.toCSS();
+        if (jobs) {
+            async.join(jobs, function (results) {
+                var hadCompilation = results.reduce(function (a, b) {
+                    return a || b;
+                });
+                if (hadCompilation) {
+                    body = $.html();
+                }
+                callback(headers, body);
             });
-            headers['Content-Type'] = 'text/css';
-        } catch (err) {
-            console.error('failed to compile LESS file, ' + pathname);
-            console.error(err.toString());
-            if (this._options.production) {
-                process.exit(1);
-            }
+        } else {
+            callback(headers, body);
         }
-    } else if (this._options.jade && headers['Content-Type'] === 'text/jade') {
-        try {
-            body = require('jade').render(body.toString(), {
-                filename    : path.join(this._root, pathname),
-                pretty      : !this._options.production,
-                compileDebug: !this._options.production,
-            });
-            headers['Content-Type'] = 'text/html';
-        } catch (err) {
-            console.error('failed to compile Jade file, ' + pathname);
-            console.error(err.toString());
-            if (this._options.production) {
-                process.exit(1);
-            }
-        }
-    }
-    if (originalContentType === headers['Content-Type']) {
-        callback(headers, body);
     } else {
-        this._compileLanguages(pathname, headers, body, callback);
+        callback(headers, body);
     }
 };
 
@@ -926,46 +932,6 @@ StaticFiles.prototype._gzipOutput = function (pathname, headers, body, callback)
     });
 };
 
-StaticFiles.prototype._babelCompile = function (pathname, body) {
-    return require('babel-core').transform(body, {
-        blacklist       : ['strict'],
-        modules         : 'ignore',
-        moduleIds       : true,
-        filename        : path.join(this._root, pathname),
-        filenameRelative: pathname,
-        compact         : false,
-        ast             : false,
-        comments        : false,
-        loose           : 'all',
-        plugins         : [
-            {
-                transformer: babelModuleInner,
-                position   : 'before',
-            },
-            {
-                transformer: babelModuleOuter,
-                position   : 'after',
-            },
-        ],
-    }).code;
-};
-
-StaticFiles.prototype._isBabelExcluded = function (pathname) {
-    var paths;
-    var excludePath;
-    var i;
-    if (this._options.babelExclude) {
-        paths = this._options.babelExclude.split(',');
-        for (i = 0; i < paths.length; i++) {
-            excludePath = relativePath('/', paths[i]);
-            if (pathname.substr(0, excludePath.length) === excludePath) {
-                return true;
-            }
-        }
-    }
-    return false;
-};
-
 
 
 /* Access cache */
@@ -1015,7 +981,7 @@ StaticFiles.prototype._rawGet = function (pathname, callback) {
     if (isDirRoot) {
         async.forEach(StaticFiles.INDEX_FILES, function (indexFile, next) {
             if (callback) {
-                self._rawGet(pathname + '/' + indexFile, function (data) {
+                self._rawGet(pathname + indexFile, function (data) {
                     if (data && callback) {
                         callback(data);
                         callback = null;
@@ -1063,32 +1029,25 @@ StaticFiles.prototype._rawGet = function (pathname, callback) {
         'Content-Type' : mime.lookup(filePath),
         'Cache-Control': this._getCacheControl(pathname),
     };
-    // synchronous
-    this._compileLanguages(pathname, headers, file, function (_, f) {
-        file = f;
-    });
-
-    if (this._isManifest(pathname, file)) {
-        getLastModifiedTimestamp(this._root, this._ignores, function (timestamp) {
-            file += '\n# Zerver timestamp: ' + timestamp;
+    this._applyPlugins(pathname, headers, file, function (headers, file) {
+        if (self._isManifest(pathname, file)) {
+            getLastModifiedTimestamp(self._root, self._ignores, function (timestamp) {
+                file += '\n# Zerver timestamp: ' + timestamp;
+                callback({
+                    body   : file,
+                    headers: headers,
+                });
+            });
+        } else {
             callback({
                 body   : file,
                 headers: headers,
             });
-        });
-    } else {
-        callback({
-            body   : file,
-            headers: headers,
-        });
-    }
+        }
+    });
 };
 
-StaticFiles.prototype.getManifestNames = function () {
-    return this._manifestNames;
-};
-
-StaticFiles.prototype._getDetectedManifests = function (callback) {
+StaticFiles.prototype.getManifests = function (callback) {
     var self = this;
     var manifests = [];
     walkDirectory(self._root, self._ignores, function (pathname, next) {
@@ -1218,29 +1177,28 @@ function getFileVersion(url, body) {
     return parsed.format();
 }
 
-function getLess() {
-    if (!less) {
-        less = require('less');
-        less.Parser.importer = function (file, paths, callback) {
-            var pathname = path.join(paths.entryPath, file);
-            try {
-                fs.statSync(pathname);
-            } catch (e) {
-                throw new Error('File ' + file + ' not found');
-            }
-
-            var data = fs.readFileSync(pathname, 'utf-8');
-            var LessParser = less.Parser;
-            new LessParser({
-                paths   : [path.dirname(pathname)].concat(paths),
-                filename: pathname,
-            }).parse(data, function (e, root) {
-                if (e) {
-                    less.writeError(e);
+function findMatchingPlugin(plugins, pathname, headers, body) {
+    var i;
+    var j;
+    var matchers;
+    var matcher;
+    for (i = 0; i < plugins.length; i++) {
+        matchers = plugins[i].matcher;
+        for (j = 0; j < matchers.length; j++) {
+            matcher = matchers[j];
+            if (typeof matcher === 'string') {
+                if (matcher === headers['Content-Type']) {
+                    return plugins[i];
                 }
-                callback(e, root);
-            });
-        };
+            } else if (typeof matcher === 'function') {
+                if (matcher(headers['Content-Type'], pathname, headers, body)) {
+                    return plugins[i];
+                }
+            } else {
+                if (matcher.test(headers['Content-Type'])) {
+                    return plugins[i];
+                }
+            }
+        }
     }
-    return less;
 }

@@ -75,14 +75,16 @@ Zerver.prototype._start = function (callback) {
             if (apiNames.length) {
                 console.log('- apis: ' + apiNames.join(', '));
             }
-            manifestList = self._static.getManifestNames();
-            if (manifestList.length) {
-                console.log('- manifests: ' + manifestList.join(', '));
-            }
-            console.log('');
-        }
-
-        if (callback) {
+            self._static.getManifests(function (manifestList) {
+                if (manifestList.length) {
+                    console.log('- manifests: ' + manifestList.join(', '));
+                }
+                console.log('');
+                if (callback) {
+                    callback();
+                }
+            });
+        } else if (callback) {
             callback();
         }
     });

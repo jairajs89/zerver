@@ -54,6 +54,7 @@ function processOptions() {
         .option('-p, --production', 'enable production mode (caching, concat, minfiy, gzip, etc)')
         .option('-M, --missing <paths>', 'set a custom 404 page')
         .option('--cache <cachepaths>', 'set specific cache life for resources')
+        .option('--plugins <paths>', 'turn on specific plugins (comma separated list)')
         .option('--babel', 'enable Babel compilation for JS/JSX')
         .option('--babel-exclude <paths>', 'exclude paths from Babel compilation')
         .option('-q, --quiet', 'turn off request logging')

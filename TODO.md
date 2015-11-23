@@ -1,11 +1,7 @@
 # TODO
-- plugins
-    - production/debug-only attachments
-    - apply before/after zerver plugins
-    - filter files regex/func
-    - transform file --> status, headers, body
+- server-side babel
+- finish readme
 - starter kit
 - starter kit react
 - starter kit service
-- finish readme
 - readme -> github pages

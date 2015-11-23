@@ -46,6 +46,7 @@ Now that you have a running server, iterate on your code with the features below
     - [*LESS stylesheets*](#less-stylesheets)
     - [*Jade markup*](#jade-markup)
     - [*Zerver APIs*](#zerver-apis)
+    - [*More plugins*](#more-plugins)
 * [**Always be shipping**](#always-be-shipping)
     - [*Using Heroku*](#using-heroku)
     - [*Using Amazon S3*](#using-amazon-s3)
@@ -85,6 +86,10 @@ Now that you have a running server, iterate on your code with the features below
 
 //TODO
 //TODO: error handling
+
+### More plugins
+
+//TODO
 
 
 ## Always be shipping

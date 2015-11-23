@@ -33,7 +33,7 @@ function APICalls(options) {
         apiNames = [];
     }
 
-    if (hasCoffeeScript(apiNames)) {
+    if (this._options.coffee && hasCoffeeScript(apiNames)) {
         require('coffee-script/register');
     }
     global.ZERVER_DEBUG = !this._options.production;
