@@ -52,6 +52,7 @@ function processOptions() {
         .usage('[options] [dir]')
         .option('-P, --port <n>', 'set server port to listen on', parseInt)
         .option('-p, --production', 'enable production mode (caching, concat, minfiy, gzip, etc)')
+        .option('-O, --auto-optimize', 'enable automatic optimizations')
         .option('-M, --missing <paths>', 'set a custom 404 page')
         .option('--cache <cachepaths>', 'set specific cache life for resources')
         .option('--plugins <paths>', 'turn on specific plugins (comma separated list)')
@@ -85,6 +86,7 @@ function processOptions() {
         commands.concat = false;
         commands.compile = false;
         commands.inline = false;
+        commands.autoOptimize = false;
     }
     if (!commands.port) {
         commands.port = parseInt(process.env.PORT) || 5000;

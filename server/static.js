@@ -10,6 +10,10 @@ var async = require(path.join(__dirname, 'lib', 'async'));
 
 module.exports = StaticFiles;
 
+StaticFiles.MAX_AUTO_HTML_FILE_SIZE = 500 * 1024;
+StaticFiles.MAX_AUTO_CSS_FILE_SIZE = 200 * 1024;
+StaticFiles.MAX_AUTO_JS_FILE_SIZE = 200 * 1024;
+StaticFiles.MAX_AUTO_IMG_FILE_SIZE = 16 * 1024;
 StaticFiles.PLUGIN_DIR = path.join(__dirname, 'plugin');
 StaticFiles.INDEX_FILES = ['index.html'];
 StaticFiles.CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
@@ -238,6 +242,8 @@ StaticFiles.prototype._cacheFile = function (pathname, callback) {
 
     async.forEach([
         self._applyPlugins,
+        self._prepareAutomaticCSSOptimisations,
+        self._prepareAutomaticHTMLOptimisations,
         self._prepareManifest,
         self._inlineManifestFiles,
         self._prepareManifestConcatFiles,
@@ -410,6 +416,194 @@ StaticFiles.prototype._getCacheControl = function (pathname) {
     } else {
         return 'public, max-age=' + seconds;
     }
+};
+
+StaticFiles.prototype._prepareAutomaticCSSOptimisations = function (pathname, headers, body, callback) {
+    if (!this._options.autoOptimize || headers['Content-Type'] !== 'text/css') {
+        callback(headers, body);
+        return;
+    }
+
+    var self = this;
+    var fileSize = body.toString().length;
+    async.replace(body.toString(), StaticFiles.CSS_IMAGE, function (imgPath, respond, matches) {
+        if (imgPath.substr(0, 5) === 'data:') {
+            respond();
+            return;
+        }
+        var parsed = urllib.parse(imgPath, true);
+        parsed.search = undefined;
+        if (parsed.host !== null || parsed.query.version || parsed.query.inline) {
+            respond();
+            return;
+        }
+
+        if (fileSize > StaticFiles.MAX_AUTO_CSS_FILE_SIZE) {
+            versionImg();
+        } else {
+            inlineImg();
+        }
+
+        function inlineImg() {
+            var fullPath = relativePath(pathname, imgPath.split('?')[0]);
+            self._cacheFileOrConcat(fullPath, function (headers, body) {
+                var newFileSize = fileSize - imgPath.length + body.toString().length;
+                if (newFileSize > StaticFiles.MAX_AUTO_CSS_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_IMG_FILE_SIZE) {
+                    versionImg();
+                } else {
+                    parsed.query.inline = 1;
+                    respond(matches[0].replace(matches[1], urllib.format(parsed)));
+                }
+            });
+        }
+
+        function versionImg() {
+            parsed.query.version = 1;
+            respond(matches[0].replace(matches[1], urllib.format(parsed)));
+        }
+    }, function (body) {
+        callback(headers, body);
+    });
+};
+
+StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, headers, body, callback) {
+    if (!this._options.autoOptimize || headers['Content-Type'] !== 'text/html') {
+        callback(headers, body);
+        return;
+    }
+
+    var self = this;
+    async.sequence(
+        function inlineOrVersionImages(next) {
+            var $ = require('cheerio').load(body.toString());
+            var changedHTML = false;
+            async.join(
+                $('style').map(function () {
+                    var $style = $(this);
+                    return function (done) {
+                        var type = ($style.attr('type') || '').trim();
+                        if (type && type !== 'text/css') {
+                            done();
+                            return;
+                        }
+                        var code = $style.html();
+                        self._prepareAutomaticCSSOptimisations(
+                            pathname, { 'Content-Type': 'text/css' }, code,
+                            function (_, newCode) {
+                                if (newCode !== code) {
+                                    $style.html(newCode);
+                                    changedHTML = true;
+                                }
+                                done();
+                            }
+                        );
+                    };
+                }),
+                function () {
+                    if (changedHTML) {
+                        body = $.html();
+                    }
+                    next();
+                }
+            );
+        },
+        function inlineOrVersionStylesheets(next) {
+            var fileSize = body.toString().length;
+            async.replace(body.toString(), StaticFiles.STYLES_MATCH, function (stylePath, done, matches) {
+                var parsed = urllib.parse(stylePath, true);
+                if (parsed.host !== null || parsed.query.version || parsed.query.inline) {
+                    done();
+                    return;
+                }
+
+                if (fileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE) {
+                    versionStylesheet();
+                } else {
+                    inlineStylesheet();
+                }
+
+                function inlineStylesheet() {
+                    var fullPath = relativePath(pathname, stylePath.split('?')[0]);
+                    self._cacheFileOrConcat(fullPath, function (headers, body) {
+                        var newFileSize = fileSize + body.toString().length;
+                        if (newFileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_CSS_FILE_SIZE) {
+                            versionStylesheet();
+                        } else {
+                            parsed.query.inline = 1;
+                            done(matches[0].replace(matches[1], urllib.format(parsed)));
+                        }
+                    });
+                }
+
+                function versionStylesheet() {
+                    parsed.query.version = 1;
+                    done(matches[0].replace(matches[1], urllib.format(parsed)));
+                }
+            }, function (newBody) {
+                body = newBody;
+                next();
+            });
+        },
+        function inlineOrVersionScripts(next) {
+            var fileSize = body.toString().length;
+            async.replace(body.toString(), StaticFiles.SCRIPT_MATCH, function (scriptPath, done, matches) {
+                var parsed = urllib.parse(scriptPath, true);
+                if (parsed.host !== null || parsed.query.version || parsed.query.inline) {
+                    done();
+                    return;
+                }
+                if (fileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE) {
+                    versionScript();
+                } else {
+                    inlineScript();
+                }
+
+                function inlineScript() {
+                    var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
+                    var prefix = self._options.apis + '/';
+                    var apiName;
+                    if (fullPath.substr(0, prefix.length) === prefix) {
+                        apiName = fullPath.substr(prefix.length).split('.')[0];
+                        self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+                            // This callback happens synchronously
+                            handleFile(headers, body);
+                        });
+                    } else {
+                        self._cacheFileOrConcat(fullPath, handleFile);
+                    }
+
+                    function handleFile(headers, body) {
+                        var newFileSize = fileSize + body.toString().length;
+                        if (newFileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_JS_FILE_SIZE) {
+                            versionScript();
+                        } else {
+                            parsed.query.inline = 1;
+                            done(matches[0].replace(matches[1], urllib.format(parsed)));
+                        }
+                    }
+                }
+
+                function versionScript() {
+                    parsed.query.version = 1;
+                    done(matches[0].replace(matches[1], urllib.format(parsed)));
+                }
+            }, function (newBody) {
+                body = newBody;
+                next();
+            });
+        },
+        function concatStylesheets(next) {
+            //TODO
+            next();
+        },
+        function concatScripts(next) {
+            //TODO
+            next();
+        },
+        function finish() {
+            callback(headers, body);
+        }
+    );
 };
 
 StaticFiles.prototype._prepareManifest = function (pathname, headers, body, callback) {
@@ -1197,7 +1391,7 @@ function isDirectoryRootFile(pathname) {
 function getFileVersion(url, body) {
     var parsed = urllib.parse(url, true);
     parsed.query.version = crypto.createHash('md5').update(body).digest('hex');
-    parsed.search = '?' + qs.stringify(parsed.query);
+    parsed.search = undefined;
     return parsed.format();
 }
 
