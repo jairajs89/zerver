@@ -593,12 +593,70 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
             });
         },
         function concatStylesheets(next) {
-            //TODO
-            next();
+            //TODO: not in the middle of another concat
+            body = body.toString().replace(
+                new RegExp('(' + StaticFiles.STYLES_MATCH.source + '\\s*)+', 'g'),
+                function (original) {
+                    var concatted = '';
+                    var inConcat = false;
+                    original.replace(StaticFiles.STYLES_MATCH, function (stylesheetTag, stylePath) {
+                        var parsed = urllib.parse(stylePath, true);
+                        var localUrl = parsed.host === null && !parsed.query.inline;
+                        var fullPath;
+                        var hash;
+                        if (inConcat && !localUrl) {
+                            inConcat = false;
+                            concatted += '\n<!-- /zerver -->';
+                        } else if (!inConcat && localUrl) {
+                            inConcat = true;
+                            fullPath = relativePath(pathname, stylePath.split('?')[0]);
+                            hash = crypto.createHash('md5').update(
+                                pathname + '\n' + fullPath
+                            ).digest('hex');
+                            concatted += '\n<!-- zerver:/_zerver/concat-' + hash + '.css?version=1 -->';
+                        }
+                        concatted += '\n' + stylesheetTag;
+                    });
+                    if (inConcat) {
+                        concatted += '\n<!-- /zerver -->';
+                    }
+                    return concatted;
+                }
+            );
+            next(body);
         },
         function concatScripts(next) {
-            //TODO
-            next();
+            //TODO: not in the middle of another concat
+            body = body.toString().replace(
+                new RegExp('(' + StaticFiles.SCRIPT_MATCH.source + '\\s*)+', 'g'),
+                function (original) {
+                    var concatted = '';
+                    var inConcat = false;
+                    original.replace(StaticFiles.SCRIPT_MATCH, function (scriptTag, scriptPath) {
+                        var parsed = urllib.parse(scriptPath, true);
+                        var localUrl = parsed.host === null && !parsed.query.inline;
+                        var fullPath;
+                        var hash;
+                        if (inConcat && !localUrl) {
+                            inConcat = false;
+                            concatted += '\n<!-- /zerver -->';
+                        } else if (!inConcat && localUrl) {
+                            inConcat = true;
+                            fullPath = relativePath(pathname, scriptPath.split('?')[0]);
+                            hash = crypto.createHash('md5').update(
+                                pathname + '\n' + fullPath
+                            ).digest('hex');
+                            concatted += '\n<!-- zerver:/_zerver/concat-' + hash + '.js?version=1 -->';
+                        }
+                        concatted += '\n' + scriptTag;
+                    });
+                    if (inConcat) {
+                        concatted += '\n<!-- /zerver -->';
+                    }
+                    return concatted;
+                }
+            );
+            next(body);
         },
         function finish() {
             callback(headers, body);
