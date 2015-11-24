@@ -32,7 +32,7 @@ module.exports = function (buildDir, files, callback) {
 function removeDirectory(dirPath) {
     if (fs.existsSync(dirPath)) {
         fs.readdirSync(dirPath).forEach(function (file, index) {
-            var curPath = dirPath + path.sep + file;
+            var curPath = path.join(dirPath, file);
             if (fs.lstatSync(curPath).isDirectory()) {
                 removeDirectory(curPath);
             } else {

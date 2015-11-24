@@ -4,7 +4,7 @@ var path = require('path');
 
 module.exports = Master;
 
-Master.WATCHER = __dirname + path.sep + 'lib' + path.sep + 'watcher';
+Master.WATCHER = path.join(__dirname, 'lib', 'watcher');
 Master.CHANGE_TIMEOUT = 500;
 Master.MAX_AGE = 2000;
 Master.MAX_TRIES = 3;
@@ -103,7 +103,7 @@ Master.prototype.pruneRetries = function () {
 Master.prototype.setupWatcher = function () {
     var self = this;
     var watcher = require(Master.WATCHER);
-    var apiCheck = new RegExp('^' + path.join(this.options.dir, require(__dirname + path.sep + 'zerver').API_PATH));
+    var apiCheck = new RegExp('^' + path.join(this.options.dir, require(path.join(__dirname, 'zerver')).API_PATH));
     var lastChange = null;
 
     watcher.watch(this.options.dir, function (fileName) {

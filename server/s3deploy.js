@@ -1,7 +1,7 @@
 var path   = require('path');
 var mime   = require('mime');
 var urllib = require('url');
-var async  = require(__dirname + path.sep + 'lib' + path.sep + 'async');
+var async  = require(path.join(__dirname, 'lib', 'async'));
 
 module.exports = function (s3Url, uploads, callback) {
     var params = parseS3Url(s3Url);

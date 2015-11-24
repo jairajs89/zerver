@@ -6,7 +6,7 @@ var fs        = require('fs');
 var urllib    = require('url');
 var commander = require('commander');
 
-var PACKAGE = __dirname + path.sep + '..' + path.sep + 'package.json';
+var PACKAGE = path.join(__dirname, '..', 'package.json');
 
 init();
 
@@ -29,11 +29,11 @@ function init() {
     });
 
     if (options.production) {
-        new (require(__dirname + path.sep + 'zerver'))(options);
+        new (require(path.join(__dirname, 'zerver')))(options);
     } else if (cluster.isMaster) {
-        new (require(__dirname + path.sep + 'master'))(options);
+        new (require(path.join(__dirname, 'master')))(options);
     } else {
-        new (require(__dirname + path.sep + 'zerver'))(options, function () {
+        new (require(path.join(__dirname, 'zerver')))(options, function () {
             process.send({ started: true });
         });
     }
@@ -142,12 +142,8 @@ function parseOrigin(origin, defaultValue) {
 }
 
 function getZerverVersion() {
-    var packageFile;
-    var packageData;
     try {
-        packageFile = fs.readFileSync(PACKAGE);
-        packageData = JSON.parse(packageFile);
-        return packageData.version;
+        return JSON.parse(fs.readFileSync(PACKAGE)).version;
     } catch (err) {
         return '0.0.0';
     }

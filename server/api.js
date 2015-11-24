@@ -3,12 +3,12 @@ var fs = require('fs');
 var path = require('path');
 var zlib = require('zlib');
 var urllib = require('url');
-var Cookies = require(__dirname + path.sep + 'lib' + path.sep + 'cookies');
+var Cookies = require(path.join(__dirname, 'lib', 'cookies'));
 
 module.exports = APICalls;
 
-APICalls.CLIENT_API = __dirname + path.sep + '..' + path.sep + 'client' + path.sep + 'index.js';
-APICalls.CLIENT_POLYFILL = path.resolve(require.resolve('babel-core'), '..' + path.sep + 'browser-polyfill.js');
+APICalls.CLIENT_API = path.join(__dirname, '..', 'client', 'index.js');
+APICalls.CLIENT_POLYFILL = path.join(require.resolve('babel-core'), '..', 'browser-polyfill.js');
 APICalls.INSERT_DIR = '{{__API_DIR__}}';
 APICalls.INSERT_NAME = '{{__API_NAME__}}';
 APICalls.INSERT_API = '{{__API_OBJ__}}';
