@@ -10,9 +10,9 @@ var async = require(path.join(__dirname, 'lib', 'async'));
 
 module.exports = StaticFiles;
 
-StaticFiles.MAX_AUTO_HTML_FILE_SIZE = 500 * 1024;
-StaticFiles.MAX_AUTO_CSS_FILE_SIZE = 200 * 1024;
-StaticFiles.MAX_AUTO_JS_FILE_SIZE = 200 * 1024;
+StaticFiles.MAX_AUTO_HTML_FILE_SIZE = 300 * 1024;
+StaticFiles.MAX_AUTO_CSS_FILE_SIZE = 100 * 1024;
+StaticFiles.MAX_AUTO_JS_FILE_SIZE = 100 * 1024;
 StaticFiles.MAX_AUTO_IMG_FILE_SIZE = 16 * 1024;
 StaticFiles.PLUGIN_DIR = path.join(__dirname, 'plugin');
 StaticFiles.INDEX_FILES = ['index.html'];
@@ -593,70 +593,76 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
             });
         },
         function concatStylesheets(next) {
-            //TODO: not in the middle of another concat
-            body = body.toString().replace(
-                new RegExp('(' + StaticFiles.STYLES_MATCH.source + '\\s*)+', 'g'),
-                function (original) {
-                    var concatted = '';
-                    var inConcat = false;
-                    original.replace(StaticFiles.STYLES_MATCH, function (stylesheetTag, stylePath) {
-                        var parsed = urllib.parse(stylePath, true);
-                        var localUrl = parsed.host === null && !parsed.query.inline;
-                        var fullPath;
-                        var hash;
-                        if (inConcat && !localUrl) {
-                            inConcat = false;
+            body = forNonManifestSections(body, processSection);
+            next();
+
+            function processSection(section) {
+                return section.replace(
+                    new RegExp('(' + StaticFiles.STYLES_MATCH.source + '\\s*)+', 'g'),
+                    function (original) {
+                        var concatted = '';
+                        var inConcat = false;
+                        original.replace(StaticFiles.STYLES_MATCH, function (stylesheetTag, stylePath) {
+                            var parsed = urllib.parse(stylePath, true);
+                            var localUrl = parsed.host === null && !parsed.query.inline;
+                            var fullPath;
+                            var hash;
+                            if (inConcat && !localUrl) {
+                                inConcat = false;
+                                concatted += '\n<!-- /zerver -->';
+                            } else if (!inConcat && localUrl) {
+                                inConcat = true;
+                                fullPath = relativePath(pathname, stylePath.split('?')[0]);
+                                hash = crypto.createHash('md5').update(
+                                    pathname + '\n' + fullPath
+                                ).digest('hex');
+                                concatted += '\n<!-- zerver:/_zerver/concat-' + hash + '.css?version=1 -->';
+                            }
+                            concatted += '\n' + stylesheetTag;
+                        });
+                        if (inConcat) {
                             concatted += '\n<!-- /zerver -->';
-                        } else if (!inConcat && localUrl) {
-                            inConcat = true;
-                            fullPath = relativePath(pathname, stylePath.split('?')[0]);
-                            hash = crypto.createHash('md5').update(
-                                pathname + '\n' + fullPath
-                            ).digest('hex');
-                            concatted += '\n<!-- zerver:/_zerver/concat-' + hash + '.css?version=1 -->';
                         }
-                        concatted += '\n' + stylesheetTag;
-                    });
-                    if (inConcat) {
-                        concatted += '\n<!-- /zerver -->';
+                        return concatted;
                     }
-                    return concatted;
-                }
-            );
-            next(body);
+                );
+            }
         },
         function concatScripts(next) {
-            //TODO: not in the middle of another concat
-            body = body.toString().replace(
-                new RegExp('(' + StaticFiles.SCRIPT_MATCH.source + '\\s*)+', 'g'),
-                function (original) {
-                    var concatted = '';
-                    var inConcat = false;
-                    original.replace(StaticFiles.SCRIPT_MATCH, function (scriptTag, scriptPath) {
-                        var parsed = urllib.parse(scriptPath, true);
-                        var localUrl = parsed.host === null && !parsed.query.inline;
-                        var fullPath;
-                        var hash;
-                        if (inConcat && !localUrl) {
-                            inConcat = false;
+            body = forNonManifestSections(body, processSection);
+            next();
+
+            function processSection(section) {
+                return section.toString().replace(
+                    new RegExp('(' + StaticFiles.SCRIPT_MATCH.source + '\\s*)+', 'g'),
+                    function (original) {
+                        var concatted = '';
+                        var inConcat = false;
+                        original.replace(StaticFiles.SCRIPT_MATCH, function (scriptTag, scriptPath) {
+                            var parsed = urllib.parse(scriptPath, true);
+                            var localUrl = parsed.host === null && !parsed.query.inline;
+                            var fullPath;
+                            var hash;
+                            if (inConcat && !localUrl) {
+                                inConcat = false;
+                                concatted += '\n<!-- /zerver -->';
+                            } else if (!inConcat && localUrl) {
+                                inConcat = true;
+                                fullPath = relativePath(pathname, scriptPath.split('?')[0]);
+                                hash = crypto.createHash('md5').update(
+                                    pathname + '\n' + fullPath
+                                ).digest('hex');
+                                concatted += '\n<!-- zerver:/_zerver/concat-' + hash + '.js?version=1 -->';
+                            }
+                            concatted += '\n' + scriptTag;
+                        });
+                        if (inConcat) {
                             concatted += '\n<!-- /zerver -->';
-                        } else if (!inConcat && localUrl) {
-                            inConcat = true;
-                            fullPath = relativePath(pathname, scriptPath.split('?')[0]);
-                            hash = crypto.createHash('md5').update(
-                                pathname + '\n' + fullPath
-                            ).digest('hex');
-                            concatted += '\n<!-- zerver:/_zerver/concat-' + hash + '.js?version=1 -->';
                         }
-                        concatted += '\n' + scriptTag;
-                    });
-                    if (inConcat) {
-                        concatted += '\n<!-- /zerver -->';
+                        return concatted;
                     }
-                    return concatted;
-                }
-            );
-            next(body);
+                );
+            }
         },
         function finish() {
             callback(headers, body);
@@ -728,12 +734,12 @@ StaticFiles.prototype._prepareManifestConcatFiles = function (pathname, headers,
         } else if (StaticFiles.MANIFEST_CONCAT_END.test(lines[i])) {
             sectionLength = i - concatIndex + 1;
             concatList = lines.splice(concatIndex, sectionLength);
-            absPath = relativePath(pathname, concatFile);
+            absPath = relativePath(pathname, concatFile.split('?')[0]);
 
             concatList.shift();
             concatList.pop();
             concatList = concatList.map(function (fileName) {
-                return relativePath(pathname, fileName);
+                return relativePath(pathname, fileName.split('?')[0]);
             });
             i -= sectionLength;
             l -= sectionLength;
@@ -770,21 +776,21 @@ StaticFiles.prototype._prepareConcatFiles = function (pathname, headers, body, c
 
     body = body.toString().replace(StaticFiles.CONCAT_MATCH, function (original, concatPath, concatables) {
         var files = [];
-        var absPath = relativePath(pathname, concatPath).split('?')[0];
+        var absPath = relativePath(pathname, concatPath.split('?')[0]);
         var fileType;
         var match;
 
         if (!fileType) {
             while (match = StaticFiles.SCRIPT_MATCH.exec(concatables)) {
                 fileType = 'js';
-                files.push(relativePath(pathname, match[1]));
+                files.push(relativePath(pathname, match[1].split('?')[0]));
             }
         }
 
         if (!fileType) {
             while (match = StaticFiles.STYLES_MATCH.exec(concatables)) {
                 fileType = 'css';
-                files.push(relativePath(pathname, match[1]));
+                files.push(relativePath(pathname, match[1].split('?')[0]));
             }
         }
 
@@ -962,7 +968,7 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
                 finish();
             }
             function finish() {
-                next('<script>//<![CDATA[\n' + body.toString() + '\n//]]></script>');
+                next('<script>//<![CDATA[\n' + body.toString().trim() + '\n//]]></script>');
             }
         }
     }, function (body) {
@@ -997,7 +1003,7 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
                 finish();
             }
             function finish() {
-                next('<style>\n' + body.toString() + '\n</style>');
+                next('<style>\n' + body.toString().trim() + '\n</style>');
             }
         });
     }, function (body) {
@@ -1471,4 +1477,19 @@ function findMatchingPlugin(plugins, headers) {
             }
         }
     }
+}
+
+function forNonManifestSections(body, handler) {
+    body = body.toString('utf8');
+    var newBody = '';
+    var index = 0;
+    var matcher = new RegExp(StaticFiles.CONCAT_MATCH);
+    var m;
+    while ((m = matcher.exec(body))) {
+        newBody += handler(body.substr(index, m.index));
+        newBody += m[0];
+        index = m.index + m[0].length;
+    }
+    newBody += handler(body.substr(index));
+    return newBody;
 }
