@@ -53,6 +53,7 @@ Now that you have a running server, iterate on your code with the features below
     - [*Using static builds*](#using-static-builds)
     - [*Other environments*](#other-environments)
 * [**Get better performance**](#get-better-performance)
+    //TODO: auto
     - [*Bundle assets*](#bundle-assets)
     - [*Inline assets*](#inline-assets)
     - [*Version assets*](#version-assets)

@@ -16,6 +16,8 @@ StaticFiles.MAX_AUTO_JS_FILE_SIZE = 100 * 1024;
 StaticFiles.MAX_AUTO_IMG_FILE_SIZE = 16 * 1024;
 StaticFiles.PLUGIN_DIR = path.join(__dirname, 'plugin');
 StaticFiles.INDEX_FILES = ['index.html'];
+
+//TODO: use parsers
 StaticFiles.CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
 StaticFiles.MANIFEST_CONCAT = /\s*\#\s*zerver\:(\S+)\s*/g;
 StaticFiles.MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
@@ -23,6 +25,7 @@ StaticFiles.SCRIPT_MATCH = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"
 StaticFiles.STYLES_MATCH = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g;
 StaticFiles.CONCAT_MATCH = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g;
 StaticFiles.WHITESPACE_MATCH = /^[\s\n\t\r]*$/;
+
 StaticFiles.GZIPPABLE = {
     'application/json'      : true,
     'application/javascript': true,
@@ -829,44 +832,65 @@ StaticFiles.prototype._versionScripts = function (pathname, headers, body, callb
     }
 
     var self = this;
-    async.replace(body.toString(), StaticFiles.SCRIPT_MATCH, function (scriptPath, next, matches) {
-        if (!urllib.parse(scriptPath, true).query.version) {
-            next();
-            return;
-        }
-        var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
-        var prefix = self._options.apis + '/';
-        var apiName;
-        if (fullPath.substr(0, prefix.length) === prefix) {
-            apiName = fullPath.substr(prefix.length).split('.')[0];
-            self._options._apiModule._apiScript(apiName, function (status, headers, body) {
-                // This callback happens synchronously
-                handleFile(headers, body);
-            });
-        } else {
-            self._cacheFileOrConcat(fullPath, handleFile);
-        }
+    var $ = require('cheerio').load(body.toString());
+    var hadVersioning = false;
+    async.join(
+        $('script').map(function () {
+            var $script = $(this);
+            return function (next) {
+                var src = ($script.attr('src') || '').trim();
+                if ( !src ) {
+                    next();
+                    return;
+                }
+                var parsed = urllib.parse(src, true);
+                parsed.search = undefined;
+                if ( !parsed.query.version ) {
+                    next();
+                    return;
+                }
 
-        function handleFile(headers, body) {
-            if (headers['Content-Encoding'] === 'gzip') {
-                zlib.gunzip(body, function (err, newBody) {
-                    if (err) {
-                        next();
+                var fullPath = relativePath(pathname, src.split('?')[0]);
+                var prefix = self._options.apis + '/';
+                var apiName;
+                if (fullPath.substr(0, prefix.length) === prefix) {
+                    apiName = fullPath.substr(prefix.length).split('.')[0];
+                    self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+                        // This callback happens synchronously
+                        handleFile(headers, body);
+                    });
+                } else {
+                    self._cacheFileOrConcat(fullPath, handleFile);
+                }
+
+                function handleFile(headers, body) {
+                    if (headers['Content-Encoding'] === 'gzip') {
+                        zlib.gunzip(body, function (err, newBody) {
+                            if (err) {
+                                next();
+                            } else {
+                                finish(newBody);
+                            }
+                        });
                     } else {
-                        body = newBody;
-                        finish();
+                        finish(body);
                     }
-                });
-            } else {
-                finish();
+                }
+
+                function finish(body) {
+                    hadVersioning = true;
+                    $script.attr('src', getVersionedUrl(src, body));
+                    next();
+                }
+            };
+        }),
+        function () {
+            if (hadVersioning) {
+                body = $.html();
             }
-            function finish() {
-                next(matches[0].replace(matches[1], getFileVersion(scriptPath, body)));
-            }
+            callback(headers, body);
         }
-    }, function (body) {
-        callback(headers, body);
-    });
+    );
 };
 
 StaticFiles.prototype._versionStyles = function (pathname, headers, body, callback) {
@@ -896,7 +920,7 @@ StaticFiles.prototype._versionStyles = function (pathname, headers, body, callba
                 finish();
             }
             function finish() {
-                next(matches[0].replace(matches[1], getFileVersion(stylePath, body)));
+                next(matches[0].replace(matches[1], getVersionedUrl(stylePath, body)));
             }
         });
     }, function (body) {
@@ -922,7 +946,7 @@ StaticFiles.prototype._versionImages = function (pathname, headers, body, callba
         }
         var fullPath = relativePath(pathname, imgPath.split('?')[0]);
         self._cacheFileOrConcat(fullPath, function (headers, body) {
-            respond(matches[0].replace(matches[1], getFileVersion(imgPath, body)));
+            respond(matches[0].replace(matches[1], getVersionedUrl(imgPath, body)));
         });
     }, function (body) {
         callback(headers, body);
@@ -1452,7 +1476,7 @@ function isDirectoryRootFile(pathname) {
     return StaticFiles.INDEX_FILES.indexOf(fileName) !== -1;
 }
 
-function getFileVersion(url, body) {
+function getVersionedUrl(url, body) {
     var parsed = urllib.parse(url, true);
     parsed.query.version = crypto.createHash('md5').update(body).digest('hex');
     parsed.search = undefined;

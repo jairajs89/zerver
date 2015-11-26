@@ -17,7 +17,7 @@ function asyncJoin(funcs, callback, self) {
     }
 
     var responses = new Array(num);
-    funcs.forEach(function (func, index) {
+    Array.prototype.forEach.call(funcs, function (func, index) {
         var lock = false;
 
         func.call(self, function (data) {
