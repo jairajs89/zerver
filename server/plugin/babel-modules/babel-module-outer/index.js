@@ -16,48 +16,49 @@ module.exports = function (babel) {
     }
 
     function getObjectKey(node, keyName) {
-        return t.memberExpression(node, t.literal(keyName), true);
+        return t.memberExpression(node, t.stringLiteral(keyName), true);
     }
 
-    function initWithDefaultVlaue(node, defaultValue) {
+    function initWithDefaultValue(node, defaultValue) {
         return t.expressionStatement(
-            t.assignmentPattern(
+            t.assignmentExpression(
+                '=',
                 node,
-                t.binaryExpression('||', node, t.identifier(defaultValue))
+                t.logicalExpression('||', node, t.identifier(defaultValue))
             )
         );
     }
 
-    return new babel.Transformer("bable-module-outer", {
-        Program: {
-            exit: function (node, parent, scope, file) {
-                // Exit early if file is empty
-                if (node.body.length === 0) {
-                    return;
-                }
-
-                // Inject module declaration
-                if ( Object.keys(scope.references).length ) {
-                    var moduleName = getModuleName(file);
-                    if (moduleName) {
-                        var modulePath = getModulePath(moduleName);
-                        node.body = [
-                            initWithDefaultVlaue(modules, '{}'),
-                            initWithDefaultVlaue(modulePath, '{}'),
-                        ].concat(node.body);
+    return {
+        visitor: {
+            Program: {
+                exit: function (file, f) {
+                    // Exit early if file is empty
+                    if (file.node.body.length === 0) {
+                        return;
                     }
+
+                    // Inject module declaration
+                    if ( Object.keys(file.scope.references).length ) {
+                        var moduleName = getModuleName(f.file);
+                        if (moduleName) {
+                            var modulePath = getModulePath(moduleName);
+                            file.node.body.unshift(initWithDefaultValue(modulePath, '{}'));
+                            file.node.body.unshift(initWithDefaultValue(modules, '{}'));
+                        }
+                    }
+
+                    // Inject "use strict";
+                    file.node.body.unshift(
+                        t.expressionStatement(t.stringLiteral('use strict'))
+                    );
+
+                    // Function scope for module
+                    var functionWrap = t.parenthesizedExpression(t.functionExpression(null, [], t.blockStatement(file.node.body)));
+                    var calledWrap = t.callExpression(t.memberExpression(functionWrap,t.identifier('call')), [t.identifier('this')]);
+                    file.node.body = [t.expressionStatement(calledWrap)];
                 }
-
-                // Inject "use strict";
-                node.body.unshift(
-                    t.expressionStatement(t.literal('use strict'))
-                );
-
-                // Function scope for module
-                var functionWrap = t.parenthesizedExpression(t.functionDeclaration('',[],t.blockStatement(node.body)));
-                var calledWrap = t.callExpression(t.memberExpression(functionWrap,t.identifier('call')), [t.identifier('this')]);
-                node.body = [t.expressionStatement(calledWrap)];
-            }
+            },
         },
-    });
+    };
 };

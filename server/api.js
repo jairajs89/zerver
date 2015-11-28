@@ -8,7 +8,7 @@ var Cookies = require(path.join(__dirname, 'lib', 'cookies'));
 module.exports = APICalls;
 
 APICalls.CLIENT_API = path.join(__dirname, '..', 'client', 'index.js');
-APICalls.CLIENT_POLYFILL = path.join(require.resolve('babel-core'), '..', 'browser-polyfill.js');
+APICalls.CLIENT_POLYFILL = path.join(path.dirname(require.resolve('core-js')), 'client', 'core.min.js');
 APICalls.INSERT_DIR = '{{__API_DIR__}}';
 APICalls.INSERT_NAME = '{{__API_NAME__}}';
 APICalls.INSERT_API = '{{__API_OBJ__}}';
@@ -72,7 +72,8 @@ function APICalls(options) {
         this._apiScripts[apiName] = file;
     }, this);
 
-    this._polyfillScript = fs.readFileSync(APICalls.CLIENT_POLYFILL).toString();
+    this._polyfillScript = fs.readFileSync(APICalls.CLIENT_POLYFILL).toString('utf8');
+    this._polyfillScript = this._polyfillScript.replace('//# sourceMappingURL=core.min.js.map', '');
     if (this._options.production) {
         this._polyfillScript = uglifyJs(this._polyfillScript);
     }
@@ -121,7 +122,7 @@ APICalls.prototype.getNames = function () {
 
 APICalls.prototype._apiScript = function (apiName, callback) {
     var script;
-    if (apiName === 'polyfill') {
+    if (apiName === 'babel') {
         script = this._polyfillScript;
     } else {
         script = this._apiScripts[apiName];

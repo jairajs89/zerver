@@ -171,10 +171,10 @@ Zerver.prototype._prepareRequest = function (req, res) {
 
 Zerver.prototype._getFiles = function () {
     var files = this._static._cache;
-    var polyfillPathname = this._apis._rootPath + '/polyfill.js';
+    var polyfillPathname = this._apis._rootPath + '/babel.js';
     if (this._options.babel) {
         this._apis.get(
-            this._apis._rootPath + '/polyfill.js',
+            this._apis._rootPath + '/babel.js',
             null,
             function (statusCode, headers, body) {
                 files[polyfillPathname] = {

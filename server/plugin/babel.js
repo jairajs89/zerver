@@ -11,30 +11,30 @@ exports.processor = function (pathname, headers, body, callback, options) {
 
     try {
         body = require('babel-core').transform(body.toString(), {
-            blacklist       : ['strict'],
-            modules         : 'ignore',
-            moduleIds       : true,
             filename        : path.join(options.dir, pathname),
             filenameRelative: pathname,
             compact         : false,
             ast             : false,
             comments        : false,
-            loose           : 'all',
+            moduleIds       : true,
             plugins         : [
-                {
-                    transformer: babelModuleInner,
-                    position   : 'before',
-                },
-                {
-                    transformer: babelModuleOuter,
-                    position   : 'after',
-                },
-            ],
+                babelModuleInner,
+            ].concat(
+                require('babel-preset-es2015').plugins
+                    .filter(function (_, index, list) {
+                        // Super dirty hack to remove commonjs module formatter
+                        return index !== list.length - 2;
+                    })
+            ).concat(
+                require('babel-preset-react').plugins
+            ).concat([
+                babelModuleOuter,
+            ]),
         }).code;
         headers['Content-Type'] = 'application/javascript';
     } catch (err) {
         console.error('failed to compile JSX file, ' + pathname);
-        console.error(err.toString());
+        console.error(err.stack || err.message || err.toString());
         if (options.production) {
             process.exit(1);
         }
