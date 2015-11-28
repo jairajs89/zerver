@@ -133,6 +133,9 @@ StaticFiles.prototype._getPlugins = function () {
             plugin.mime.forEach(function (matcher) {
                 if (typeof matcher === 'string') {
                     mimes.push(matcher);
+                    if (mime.extension(matcher)) {
+                        fileExtensions.push(mime.extension(matcher));
+                    }
                     if (matcher.substr(0, 5) === 'text/') {
                         fileExtensions.push(matcher.substr(5));
                     }

@@ -33,10 +33,7 @@ function APICalls(options) {
         apiNames = [];
     }
 
-    if (this._options.coffee && hasCoffeeScript(apiNames)) {
-        require('coffee-script/register');
-    }
-    if (this._options.babel && hasJavaScript(apiNames)) {
+    if (this._options.babel && apiNames.length) {
         require('babel-core/register');
     }
     global.ZERVER_DEBUG = !this._options.production;
@@ -279,10 +276,8 @@ APICalls.prototype._zerverApiCall = function (req, func, finish) {
 
 
 function getApiName(pathname) {
-    var parts = pathname.split('/').pop().split('.');
-    var ext = parts.length > 1 ? parts.pop() : null;
-    if (['js', 'coffee'].indexOf(ext) >= 0) {
-        return parts.join('.');
+    if (path.extname(pathname) === 'js') {
+        return path.basename(pathname);
     } else {
         return null;
     }
@@ -356,32 +351,4 @@ function uglifyJs(code) {
     } catch (err) {
         return code;
     }
-}
-
-function hasCoffeeScript(apiNames) {
-    var i;
-    var parts;
-    var ext;
-    for (i = 0; i < apiNames.length; i++) {
-        parts = apiNames[i].split('/').pop().split('.');
-        ext = parts.length > 1 ? parts.pop() : null;
-        if (ext === 'coffee') {
-            return true;
-        }
-    }
-    return false;
-}
-
-function hasJavaScript(apiNames) {
-    var i;
-    var parts;
-    var ext;
-    for (i = 0; i < apiNames.length; i++) {
-        parts = apiNames[i].split('/').pop().split('.');
-        ext = parts.length > 1 ? parts.pop() : null;
-        if (ext === 'js') {
-            return true;
-        }
-    }
-    return false;
 }

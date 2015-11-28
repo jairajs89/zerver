@@ -17,7 +17,6 @@ exports.runTest = runTest;
 
 // Preload dependencies
 require(__dirname + '/../server/plugin/babel');
-require(__dirname + '/../server/plugin/coffee');
 require(__dirname + '/../server/plugin/less');
 require(__dirname + '/../server/plugin/jade');
 require('babel-core');

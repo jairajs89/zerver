@@ -15,7 +15,6 @@ module.exports = function (s3Url, uploads, callback) {
                 'text/html'             : 3,
                 'text/jade'             : 3,
                 'text/jsx'              : 2,
-                'text/coffeescript'     : 2,
                 'application/javascript': 2,
                 'text/css'              : 1,
                 'text/less'             : 1,

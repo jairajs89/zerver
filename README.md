@@ -12,6 +12,7 @@ Zerver is a web server built specifically for frontend developers, making it eas
 Zerver is not a frontend framework -- your existing HTML5 app is already good to go. While Zerver has great tools for backend API development, this is simply to supplement your frontend code -- if you're a backend engineer building a highly scalable REST API, this isn't the tool for you.
 
 
+
 # Getting started
 
 Clone one of our starter kits or add Zerver to your Node.js project:
@@ -38,11 +39,11 @@ zerver src # <- dir with your frontend code
 Now that you have a running server, iterate on your code with the features below.
 
 
+
 # Contents
 
 * [**Upgrade your frontend tools**](#upgrade-your-frontend-tools)
     - [*ECMAScript 6*](#ecmascript-6)
-    - [*CoffeeScript*](#coffeescript)
     - [*LESS stylesheets*](#less-stylesheets)
     - [*Jade markup*](#jade-markup)
     - [*Zerver APIs*](#zerver-apis)
@@ -53,10 +54,8 @@ Now that you have a running server, iterate on your code with the features below
     - [*Using static builds*](#using-static-builds)
     - [*Other environments*](#other-environments)
 * [**Get better performance**](#get-better-performance)
-    //TODO: auto
-    - [*Bundle assets*](#bundle-assets)
-    - [*Inline assets*](#inline-assets)
-    - [*Version assets*](#version-assets)
+    - [*Automatic optimization mode*](#automatic-optimization-mode)
+    - [*Manual optimizations*](#manual-optimizations)
     - [*Caching*](#caching)
 * [**Other**](#other)
     - [*CLI options*](#cli-options)
@@ -68,10 +67,6 @@ Now that you have a running server, iterate on your code with the features below
 //TODO: intro
 
 ### ECMAScript 6
-
-//TODO
-
-### CoffeeScript
 
 //TODO
 
@@ -91,6 +86,7 @@ Now that you have a running server, iterate on your code with the features below
 ### More plugins
 
 //TODO
+//TODO: CoffeeScript
 //TODO: making plugins
 
 
@@ -122,17 +118,16 @@ Now that you have a running server, iterate on your code with the features below
 
 Zerver does as many optimizations under-the-hood for you, but it also has simple tools to let you build the most performant user-experience.
 
-### Bundle assets
+### Automatic optimization mode
 
 //TODO
 
-### Inline assets
+### Manual optimizations
 
 //TODO
-
-### Version assets
-
-//TODO
+//TODO: Bundle assets
+//TODO: Inline assets
+//TODO: Version assets
 
 ### Caching
 
