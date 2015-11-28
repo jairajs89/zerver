@@ -9,19 +9,26 @@ exports.processor = function (pathname, headers, body, callback, options) {
         return;
     }
 
-    var LessParser;
     try {
-        LessParser = getLess().Parser;
-        new LessParser({
+        require('less').render(body.toString(), {
+            paths   : [options.dir, path.dirname(path.join(options.dir, pathname))],
             filename: path.join(options.dir, pathname),
-        }).parse(body.toString(), function (e, r) {
-            headers['Content-Type'] = 'text/css';
-            body = r.toCSS();
-            callback(headers, body);
+        }, function (err, output) {
+            if (err) {
+                handleError(err);
+            } else {
+                headers['Content-Type'] = 'text/css';
+                body = output.css;
+                callback(headers, body);
+            }
         });
     } catch (err) {
+        handleError(err);
+    }
+
+    function handleError(err) {
         console.error('Failed to compile LESS file, ' + pathname);
-        console.error(err.toString());
+        console.error(err.stack || err.message || err.toString());
         if (options.production) {
             process.exit(1);
         } else {
@@ -29,30 +36,3 @@ exports.processor = function (pathname, headers, body, callback, options) {
         }
     }
 };
-
-function getLess() {
-    if (!less) {
-        less = require('less');
-        less.Parser.importer = function (file, paths, callback) {
-            var pathname = path.join(paths.entryPath, file);
-            try {
-                fs.statSync(pathname);
-            } catch (e) {
-                throw new Error('File ' + file + ' not found');
-            }
-
-            var data = fs.readFileSync(pathname, 'utf-8');
-            var LessParser = less.Parser;
-            new LessParser({
-                paths   : [path.dirname(pathname)].concat(paths),
-                filename: pathname,
-            }).parse(data, function (e, root) {
-                if (e) {
-                    less.writeError(e);
-                }
-                callback(e, root);
-            });
-        };
-    }
-    return less;
-}
