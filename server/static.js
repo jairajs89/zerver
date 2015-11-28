@@ -454,6 +454,7 @@ StaticFiles.prototype._prepareAutomaticCSSOptimisations = function (pathname, he
                 if (newFileSize > StaticFiles.MAX_AUTO_CSS_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_IMG_FILE_SIZE) {
                     versionImg();
                 } else {
+                    fileSize = newFileSize;
                     parsed.query.inline = 1;
                     respond(matches[0].replace(matches[1], urllib.format(parsed)));
                 }
@@ -532,6 +533,7 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                         if (newFileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_CSS_FILE_SIZE) {
                             versionStylesheet();
                         } else {
+                            fileSize = newFileSize;
                             parsed.query.inline = 1;
                             done(matches[0].replace(matches[1], urllib.format(parsed)));
                         }
@@ -548,52 +550,72 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
             });
         },
         function inlineOrVersionScripts(next) {
+            var $ = require('cheerio').load(body.toString());
             var fileSize = body.toString().length;
-            async.replace(body.toString(), StaticFiles.SCRIPT_MATCH, function (scriptPath, done, matches) {
-                var parsed = urllib.parse(scriptPath, true);
-                if (parsed.host !== null || parsed.query.version || parsed.query.inline) {
-                    done();
-                    return;
-                }
-                if (fileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE) {
-                    versionScript();
-                } else {
-                    inlineScript();
-                }
-
-                function inlineScript() {
-                    var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
-                    var prefix = self._options.apis + '/';
-                    var apiName;
-                    if (fullPath.substr(0, prefix.length) === prefix) {
-                        apiName = fullPath.substr(prefix.length).split('.')[0];
-                        self._options._apiModule._apiScript(apiName, function (status, headers, body) {
-                            // This callback happens synchronously
-                            handleFile(headers, body);
-                        });
-                    } else {
-                        self._cacheFileOrConcat(fullPath, handleFile);
-                    }
-
-                    function handleFile(headers, body) {
-                        var newFileSize = fileSize + body.toString().length;
-                        if (newFileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_JS_FILE_SIZE) {
+            var changedHTML = false;
+            async.join(
+                $('script').map(function () {
+                    var $script = $(this);
+                    return function (done) {
+                        var scriptPath = ($script.attr('src') || '').trim();
+                        if ( !scriptPath ) {
+                            done();
+                            return;
+                        }
+                        var parsed = urllib.parse(scriptPath, true);
+                        if (parsed.host || parsed.query.version || parsed.query.inline) {
+                            done();
+                            return;
+                        }
+                        if (fileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE) {
                             versionScript();
                         } else {
-                            parsed.query.inline = 1;
-                            done(matches[0].replace(matches[1], urllib.format(parsed)));
+                            inlineScript();
                         }
-                    }
-                }
 
-                function versionScript() {
-                    parsed.query.version = 1;
-                    done(matches[0].replace(matches[1], urllib.format(parsed)));
+                        function inlineScript() {
+                            var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
+                            var prefix = self._options.apis + '/';
+                            var apiName;
+                            if (fullPath.substr(0, prefix.length) === prefix) {
+                                apiName = fullPath.substr(prefix.length).split('.')[0];
+                                self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+                                    // This callback happens synchronously
+                                    handleFile(headers, body);
+                                });
+                            } else {
+                                self._cacheFileOrConcat(fullPath, handleFile);
+                            }
+
+                            function handleFile(headers, body) {
+                                var newFileSize = fileSize + body.toString().length;
+                                if (newFileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_JS_FILE_SIZE) {
+                                    versionScript();
+                                } else {
+                                    fileSize = newFileSize;
+                                    changedHTML = true;
+                                    parsed.query.inline = 1;
+                                    $script.attr('src', urllib.format(parsed));
+                                    done();
+                                }
+                            }
+                        }
+
+                        function versionScript() {
+                            changedHTML = true;
+                            parsed.query.version = 1;
+                            $script.attr('src', urllib.format(parsed));
+                            done();
+                        }
+                    };
+                }),
+                function () {
+                    if (changedHTML) {
+                        body = $.html();
+                    }
+                    next();
                 }
-            }, function (newBody) {
-                body = newBody;
-                next();
-            });
+            );
         },
         function concatStylesheets(next) {
             body = forNonManifestSections(body, processSection);
@@ -960,44 +982,63 @@ StaticFiles.prototype._inlineScripts = function (pathname, headers, body, callba
     }
 
     var self = this;
-    async.replace(body.toString(), StaticFiles.SCRIPT_MATCH, function (scriptPath, next) {
-        if (!urllib.parse(scriptPath, true).query.inline) {
-            next();
-            return;
-        }
-        var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
-        var prefix = self._options.apis + '/';
-        var apiName;
-        if (fullPath.substr(0, prefix.length) === prefix) {
-            apiName = fullPath.substr(prefix.length).split('.')[0];
-            self._options._apiModule._apiScript(apiName, function (status, headers, body) {
-                // This callback happens synchronously
-                handleFile(headers, body);
-            });
-        } else {
-            self._cacheFile(fullPath, handleFile);
-        }
+    var $ = require('cheerio').load(body.toString());
+    var changedHTML = false;
+    async.join(
+        $('script').map(function () {
+            var $script = $(this);
+            return function (next) {
+                var scriptPath = ($script.attr('src') || '').trim();
+                if (!scriptPath) {
+                    next();
+                    return;
+                }
+                if (!urllib.parse(scriptPath, true).query.inline) {
+                    next();
+                    return;
+                }
+                var fullPath = relativePath(pathname, scriptPath.split('?')[0]);
+                var prefix = self._options.apis + '/';
+                var apiName;
+                if (fullPath.substr(0, prefix.length) === prefix) {
+                    apiName = fullPath.substr(prefix.length).split('.')[0];
+                    self._options._apiModule._apiScript(apiName, function (status, headers, body) {
+                        // This callback happens synchronously
+                        handleFile(headers, body);
+                    });
+                } else {
+                    self._cacheFile(fullPath, handleFile);
+                }
 
-        function handleFile(headers, body) {
-            if (headers['Content-Encoding'] === 'gzip') {
-                zlib.gunzip(body, function (err, newBody) {
-                    if (err) {
-                        next();
+                function handleFile(headers, body) {
+                    if (headers['Content-Encoding'] === 'gzip') {
+                        zlib.gunzip(body, function (err, newBody) {
+                            if (err) {
+                                next();
+                            } else {
+                                body = newBody;
+                                finish();
+                            }
+                        });
                     } else {
-                        body = newBody;
                         finish();
                     }
-                });
-            } else {
-                finish();
+                    function finish() {
+                        changedHTML = true;
+                        $script.removeAttr('src');
+                        $script.html('//<![CDATA[\n' + body.toString().trim() + '\n//]]>');
+                        next();
+                    }
+                }
+            };
+        }),
+        function () {
+            if (changedHTML) {
+                body = $.html();
             }
-            function finish() {
-                next('<script>//<![CDATA[\n' + body.toString().trim() + '\n//]]></script>');
-            }
+            callback(headers, body);
         }
-    }, function (body) {
-        callback(headers, body);
-    });
+    );
 };
 
 StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callback) {
