@@ -16,9 +16,9 @@ Zerver is not a frontend framework -- your existing HTML5 app is already good to
 
 Clone one of our starter kits or add Zerver to your Node.js project:
 
-* [Starter kit](http://github.com/jairajs89/zerver-starter-kit)
-* [React starter kit](http://github.com/jairajs89/zerver-starter-kit-react)
-* Add to Node.js project: `npm install zerver --save`
+* [ReactJS starter kit _(recommended)_](http://github.com/jairajs89/starter-kit-react)
+* [Barebones starter kit](http://github.com/jairajs89/starter-kit)
+* Add to existing Node.js project: `npm install zerver --save`
 
 If you're using a starter kit:
 
