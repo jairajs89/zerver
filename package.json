@@ -9,7 +9,7 @@
     "url": "git://github.com/jairajs89/zerver.git"
   },
   "engines": {
-    "node": ">=0.8"
+    "node": ">=0.10"
   },
   "dependencies": {
     "aws-sdk": "2.2.19",

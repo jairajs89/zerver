@@ -276,9 +276,8 @@ APICalls.prototype._zerverApiCall = function (req, func, finish) {
 
 
 function getApiName(pathname) {
-    var parsed = path.parse(pathname);
-    if (parsed.name && parsed.ext === '.js') {
-        return parsed.name;
+    if (path.extname(pathname) === '.js') {
+        return path.basename(pathname).split('.').slice(0, -1).join('.');
     } else {
         return null;
     }
