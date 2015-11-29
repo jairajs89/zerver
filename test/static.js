@@ -185,7 +185,7 @@ test.runTest(testObj({
 
 test.runTest(testObj({
     compile: true,
-    babel  : true,
+    es6    : true,
 }), {
     'test.js': 'export function sum(arr) { return arr.reduce(((v, t) => v+t), 0) }',
 }, function (cache, files, callback) {

@@ -4,7 +4,7 @@ var babelModuleOuter = require(path.join(__dirname, 'babel-modules', 'babel-modu
 
 exports.mime = ['text/jsx', 'application/javascript'];
 exports.processor = function (pathname, headers, body, callback, options) {
-    if (!options.babel || isBabelExcluded(pathname, options)) {
+    if (!options.es6 || isBabelExcluded(pathname, options)) {
         callback(headers, body);
         return;
     }
@@ -46,8 +46,8 @@ function isBabelExcluded(pathname, options) {
     var paths;
     var excludePath;
     var i;
-    if (options.babelExclude) {
-        paths = options.babelExclude.split(',');
+    if (options.es6Exclude) {
+        paths = options.es6Exclude.split(',');
         for (i = 0; i < paths.length; i++) {
             excludePath = path.resolve('/', paths[i]);
             if (pathname.substr(0, excludePath.length) === excludePath) {

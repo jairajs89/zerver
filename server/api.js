@@ -33,7 +33,7 @@ function APICalls(options) {
         apiNames = [];
     }
 
-    if (this._options.babel && apiNames.length) {
+    if (this._options.es6 && apiNames.length) {
         require('babel-core/register');
     }
     global.ZERVER_DEBUG = !this._options.production;
@@ -119,7 +119,7 @@ APICalls.prototype.getNames = function () {
 
 APICalls.prototype._apiScript = function (apiName, callback) {
     var script;
-    if (apiName === 'babel') {
+    if (apiName === 'es6') {
         script = this._polyfillScript;
     } else {
         script = this._apiScripts[apiName];
