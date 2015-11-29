@@ -1,6 +1,4 @@
-var fs = require('fs');
 var path = require('path');
-var less;
 
 exports.mime = 'text/less';
 exports.processor = function (pathname, headers, body, callback, options) {

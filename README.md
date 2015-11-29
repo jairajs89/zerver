@@ -1,6 +1,8 @@
 Zerver - The webapp developer's best friend
 ===========================================
 
+[![Build Status](https://travis-ci.org/jairajs89/zerver.png?branch=master)](https://travis-ci.org/jairajs89/zerver)
+
 Quickly iterate & serve your webapp using modern tools.
 
 ### What is Zerver?

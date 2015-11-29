@@ -2,7 +2,7 @@ var fs     = require('fs');
 var path   = require('path');
 var Module = require('module');
 
-var projectRoot = path.resolve(__dirname + '/../');
+var projectRoot = path.resolve(path.join(__dirname, '..'));
 var time        = new Date();
 var queue       = [];
 var fsDirSync   = fs.readdirSync;
@@ -16,10 +16,13 @@ exports.time = time;
 exports.runTest = runTest;
 
 // Preload dependencies
-require(__dirname + '/../server/plugin/babel');
-require(__dirname + '/../server/plugin/less');
-require(__dirname + '/../server/plugin/jade');
-require('babel-core');
+// TODO: Why do I have to do this?!
+require(path.join(__dirname, '..', 'server', 'plugin', 'babel'));
+require(path.join(__dirname, '..', 'server', 'plugin', 'less'));
+require(path.join(__dirname, '..', 'server', 'plugin', 'jade'));
+require('babel-core').transform('var sup = 10;', { presets: [require('babel-preset-es2015'), require('babel-preset-react')] });
+require('less');
+require('jade');
 require('cheerio');
 require('clean-css');
 require('html-minifier');

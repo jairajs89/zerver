@@ -56,7 +56,7 @@ test.runTest(testObj({
     async.join([
         function (next) {
             cache.get('/index.html', function (data) {
-                assert.deepEqual(data.body, '<script>//<![CDATA[\n' + files['main.js'] + '\n//]]></script>');
+                assert.deepEqual(data.body, '<script>//<!--[CDATA[\n' + files['main.js'] + '\n//]]--></script>');
                 next();
             });
         },
@@ -143,7 +143,7 @@ test.runTest(testObj({
         },
         function (next) {
             cache.get('/index.html', function (data) {
-                assert.deepEqual(data.body, '<script>//<![CDATA[\nconsole.log("hello, world")\n//]]></script>');
+                assert.deepEqual(data.body, '<script>//<!--[CDATA[\nconsole.log("hello, world")\n//]]--></script>');
                 next();
             });
         },

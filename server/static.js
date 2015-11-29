@@ -1,7 +1,6 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
-var qs = require('querystring');
 var urllib = require('url');
 var extend = require('util')._extend;
 var zlib = require('zlib');
@@ -561,7 +560,7 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                     var $script = $(this);
                     return function (done) {
                         var scriptPath = ($script.attr('src') || '').trim();
-                        if ( !scriptPath ) {
+                        if (!scriptPath) {
                             done();
                             return;
                         }
@@ -864,13 +863,13 @@ StaticFiles.prototype._versionScripts = function (pathname, headers, body, callb
             var $script = $(this);
             return function (next) {
                 var src = ($script.attr('src') || '').trim();
-                if ( !src ) {
+                if (!src) {
                     next();
                     return;
                 }
                 var parsed = urllib.parse(src, true);
                 parsed.search = undefined;
-                if ( !parsed.query.version ) {
+                if (!parsed.query.version) {
                     next();
                     return;
                 }
@@ -1553,7 +1552,7 @@ function forNonManifestSections(body, handler) {
     var index = 0;
     var matcher = new RegExp(StaticFiles.CONCAT_MATCH);
     var m;
-    while ((m = matcher.exec(body))) {
+    while (m = matcher.exec(body)) {
         newBody += handler(body.substr(index, m.index));
         newBody += m[0];
         index = m.index + m[0].length;
