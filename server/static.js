@@ -1231,8 +1231,8 @@ StaticFiles.prototype._compileOutput = function (pathname, headers, body, callba
             CleanCSS = require('clean-css');
             try {
                 code = new CleanCSS().minify(body);
-                if (code && code.length < body.length) {
-                    body = code;
+                if (!code.errors.length && code.styles && code.styles.length < body.length) {
+                    body = code.styles;
                 }
             } catch (err) {
                 // no-op
