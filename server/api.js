@@ -119,7 +119,7 @@ APICalls.prototype.getNames = function () {
 
 APICalls.prototype._apiScript = function (apiName, callback) {
     var script;
-    if (apiName === 'es6') {
+    if (this._options.es6 && apiName === 'es6') {
         script = this._polyfillScript;
     } else {
         script = this._apiScripts[apiName];

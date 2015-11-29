@@ -66,19 +66,99 @@ Now that you have a running server, iterate on your code with the features below
 
 ## Upgrade your frontend tools
 
-//TODO: intro
+Don't let the browser tell you which tools and languages you should use. Zerver comes with a bunch of built-in upgrades as well as a plugin system that let's you extend even further.
 
 ### ECMAScript 6
 
-//TODO
+Major updates to JavaScript are coming to browsers with [ECMAScript 6 (ES6)](https://github.com/lukehoban/es6features/blob/master/README.md). These updates [aren't fully available across major browsers](https://kangax.github.io/compat-table/es6/) yet, but ES6 is definitely the future of JavaScript as a language.
+
+[ES6 contains so many awesome features](https://github.com/lukehoban/es6features/blob/master/README.md) that other languages take for granted. You'll stop and think "wow, JavaScript is finally a real language" and you'll be right. Here is a short list:
+
+* Modules
+* Classes
+* Templated strings
+* Generator functions
+* Extended function parameter handling
+* Promises
+* [..and so much more goodness](https://github.com/lukehoban/es6features/blob/master/README.md)
+
+With the `--es6` command-line flag Zerver automatically compiles ES6 code down to browser-supported ES5 code. You must also include the `/zerver/es6.js` script which shims a bunch of features that aren't included in the automatic compilation.
+
+```html
+<script src="/zerver/es6.js"></script>
+<script>
+  // Module import/export
+  import { location } from 'window';
+
+  [1, 2, 3].forEach(v => {
+    // arrow functions
+  });
+
+  // Classes
+  class Animal {
+    talk() {
+      console.log('I\m a generic animal');
+    }
+  }
+  class Dog extends Animal {
+    talk() {
+      console.log('ruff');
+    }
+  }
+</script>
+```
 
 ### LESS stylesheets
 
-//TODO
+[LESS](http://lesscss.org/) is a superset of CSS that gives you many additional features, such as:
+
+* Variables
+* Mixins
+* Functions
+* Nested rules
+* Arithmetic in rules
+* [..and so much more](http://lesscss.org/features/)
+
+Any file with a `.less` extension will automatically get compiled to CSS by Zerver.
+
+```less
+.border-radius(@radius) {
+  -webkit-border-radius: @radius;
+     -moz-border-radius: @radius;
+       -o-border-radius: @radius;
+          border-radius: @radius;
+}
+
+.my-elem {
+  .border-radius(3px);
+}
+.my-other-elem {
+  .border-radius(12px 0 0 12px);
+}
+```
 
 ### Jade markup
 
-//TODO
+[Jade](http://jade-lang.com/) is a clean & simple template language that compiles to HTML. It will make your HTML documents way more readable with its features:
+
+* Variables
+* Control structures
+* Mixins
+* Template imports & inheritance
+* [..and so much more](http://jade-lang.com/reference/)
+
+Any file with a `.jade` extension will automatically get compile to HTML by Zerver.
+
+```jade
+doctype html
+html
+  head
+    title JadeIsConcise.com
+  body
+    ul
+      each val in ['Dog', 'Cat', 'Mouse']
+        li= val
+```
 
 ### Zerver APIs
 
