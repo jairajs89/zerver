@@ -167,9 +167,16 @@ html
 
 ### More plugins
 
-//TODO
-//TODO: CoffeeScript
-//TODO: making plugins
+Zerver is extensible and makes it possible to integrate any tool though Zerver plugins. For example, here is how you would use the CoffeeScript script plugin which will automatically compile files that end with `.coffee` to JavaScript.
+
+```
+npm install zerver-plugin-coffeescript --save
+zerver --plugins=zerver-plugin-coffeescript src
+```
+
+Simply add the name of the module to the `--plugins` command-line flag and Zerver will use it to process files.
+
+Creating a plugin is easy -- simply follow [this guide](PLUGINS.md).
 
 
 ## Always be shipping
