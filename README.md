@@ -165,7 +165,7 @@ html
 Building and integrating APIs with a backend can be a pain when you're focused on getting the frontend and user experience right. Zerver can let you expose APIs in the most natural way: JavaScript functions.
 
 ```js
-// in file /zerver/recipes.js
+// in file /zerver/recipes.js, running on the server
 exports.getRecipe = function (recipeId, callback) {
   // Go to my database and get the recipe
   callback(recipe);
@@ -173,7 +173,7 @@ exports.getRecipe = function (recipeId, callback) {
 ```
 
 ```html
-<!-- in file /index.html -->
+<!-- in file /index.html, running in the browser -->
 <script src="/zerver/recipes.js"></script>
 <script>
   recipes.getRecipe('butterchicken', function (recipe) {
@@ -182,7 +182,7 @@ exports.getRecipe = function (recipeId, callback) {
 </script>
 ```
 
-Simply write a function that will run on your server but will be called by your frontend code.
+Simply write a function that will run on your server but will be called by your frontend code. `/zerver/` is a magical directory in which scripts can export their functions to be called in the browser. Note that this only applies to the `/zerver/` directory itself and all subdirectories are effectively private server resources.
 
 **Error handling**
 
@@ -245,19 +245,113 @@ Zerver does as many optimizations under-the-hood for you, but it also has simple
 
 ### Automatic optimization mode
 
-//TODO
+In `--production` mode Zerver already minifies your HTML/CSS/JS code, gzips resources, etc. Some additional optimizations can also be applied.
+
+```bash
+zerver --production --auto-optimize src
+```
+
+When run in this mode Zerver will look for optimizations that it can automatically make on your webapps code:
+
+* Stylesheets and scripts will be bundled into single assets where possible
+* Linked images, stylesheets and scripts will be inlined if optimal
+* Else those asset URLs will be versioned for better cachability
 
 ### Manual optimizations
 
-//TODO
-//TODO: Bundle assets
-//TODO: Inline assets
-//TODO: Version assets
+Sometimes you want to get your hands dirty and optimize individual resources instead of having it automatically done for you.
+
+**Bundle assets**
+
+Reduce the number of requests the browser needs to make by bundling resources together.
+
+```html
+<!-- zerver:/js/bundled.js -->
+<script src="/js/one.js"></script>
+<script src="/js/two.js"></script>
+<script src="/js/three.js"></script>
+<!-- /zerver -->
+```
+
+This HTML will be rewriten as the following with `/js/bundled.js` served as those three files concatenated.
+
+```html
+<script src="/js/bundled.js"></script>
+```
+
+**Inline assets**
+
+Reduce the number of requests the browser needs to make by inlining resources.
+
+```css
+body {
+  background: url(/img/bg.jpg?inline=1);
+  /* will be rewritten to */
+  background: url(data:image/jpg;base64,imagedatawouldbehere);
+}
+```
+
+```html
+<link rel="stylesheet" href="/css/style.css?inline=1">
+<script src="/js/main.js?inline=1"></script>
+<!-- will be rewritten to -->
+<style>/* css in /css/style.css */</style>
+<script>/* js in /js/main.js */</script>
+```
+
+**Version assets**
+
+Reduce the number of requests the browser needs to make by versioning cachable resources.
+
+```css
+body {
+  background: url(/img/bg.jpg?version=1);
+  /* will be rewritten to */
+  background: url(/img/bg.jpg?version=hashofjpgfiledata);
+}
+```
+
+```html
+<link rel="stylesheet" href="/css/style.css?version=1">
+<script src="/js/main.js?version=1"></script>
+<!-- will be rewritten to -->
+<link rel="stylesheet" href="/css/style.css?version=hashofcssfiledata">
+<script src="/js/main.js?version=hashofjsfiledata"></script>
+```
 
 ### Caching
 
-//TODO: appcache
-//TODO: cache control
+Being configured for optimal caching is a key part of delivering a smooth user experience. One decision that generally needs to get made in regards to this is whether or not you want to support an offline mode.
+
+HTML5 AppCache allow you to declare files to be saved offline on the user's device. This is great for having those files be available when the device loses network access, but creates an awkwardice in regards to how up-to-date a browser client is. When you ship a new version of your frontend users will visit the app and be served the offline cached data and get the update in the background rather than on that visit. But at the end of the day this is the trade-off and you need to determine which is more important for your webapp.
+
+**Optimal caching without offline mode**
+
+Most of the time you don't need to support offline usage of your webapp but you still want to get fast of a load time as possible. The common approach to this is to take advantage of the asset versioning feature above and cache those assets for as long as possible.
+
+```bash
+zerver --cache=31536000,/index.html:0 --production src
+```
+
+```html
+<script src="/js/main.js?version=1"></script>
+```
+
+`/js/main.js` will get cached by the browser and only refetched if the contents of the JavaScript file itself change. This is optimal as we never fetch code that has already by fetched.
+
+Note that we entirely turn off caching for `index.html` so that it always gets fetched. This is the trade-off for getting great caching on all other resources. Basically make your `index.html` exteremely light-weight and reference other cachable resources from there. Zerver will already support ETags and other HTTP request-level caching so this trade-off isn't so bad when executed correctly.
+
+**Offline mode with HTML5 AppCache**
+
+An offline-capable webapp will have a manifest file, as [documented here](http://www.html5rocks.com/en/tutorials/appcache/beginner/). The browser fetches the manifest file to determine whether or not it needs to resynchronize the offline files. Since the browser simply checks if the manifest file is identical or not to the previous version it had, it is necessary to change some text in the manifest file every time you want them to update.
+
+Zerver automatically does this for you by appending a comment to the end of your manifest file:
+
+```
+# Zerver timestamp: Thu Dec 10 2015 23:55:26 GMT+0000 (UTC)
+```
+
+This timestamp will simply get updated to the last modified timestamp of your frontend code so that your clients are always updating to the latest version.
 
 
 
