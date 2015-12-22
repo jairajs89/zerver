@@ -229,7 +229,41 @@ Zerver does as many optimizations under-the-hood for you, but it also has simple
 
 ### CLI options
 
-//TODO
+```
+> zerver --help
+
+  Usage: zerver [options] [dir]
+
+  Options:
+
+    -h, --help                 output usage information
+    -v, --version              output the version number
+    -P, --port <n>             set server port to listen on
+    -p, --production           enable production mode (caching, concat, minfiy, gzip, etc)
+    -O, --auto-optimize        enable automatic optimizations
+    -M, --missing <paths>      set a custom 404 page
+    --cache <cachepaths>       set specific cache life for resources
+    --plugins <paths>          turn on specific plugins (comma separated list)
+    --es6                      enable ECMAScript 6 & JSX features
+    --es6-exclude <paths>      exclude paths from ECMAScript 6 & JSX compilation
+    -q, --quiet                turn off request logging
+    -V, --verbose              verbose request logging
+    --no-concat                disable file concatenation compression in production mode
+    --no-compile               disable js, css minification in production mode
+    --no-inline                disable file inlining in production mode
+    --no-versioning            disable file versioning in production mode
+    --no-less                  disable compilation of LESS to CSS
+    --no-jade                  disable compilation of Jade to HTML
+    --no-gzip                  disable gzip compression in production mode
+    --ignore-manifest <paths>  disable processing for a particular HTML5 appCache manifest file
+    --no-manifest              disable processing for ALL HTML5 appCache manifest files
+    --s3-deploy <path>         dump generated static output to S3
+    --build <path>             build static output to a directory
+    --origin <origin>          set api origin
+    --ssl-key <path>           SSL key for HTTPS handling
+    --ssl-cert <path>          SSL certificate for HTTPS handling
+    --env <assign>             set environment variables (name="value")
+```
 
 **Environment variables**
 
