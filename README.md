@@ -212,7 +212,7 @@ zerver --plugins=zerver-plugin-coffeescript src
 
 Simply add the name of the module to the `--plugins` command-line flag and Zerver will use it to process files.
 
-Creating a plugin is easy -- simply follow [this guide](PLUGINS.md).
+Creating a plugin is easy -- simply follow [this guide](PLUGINS.md#readme).
 
 
 ## Always be shipping
