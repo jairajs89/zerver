@@ -230,8 +230,29 @@ Zerver does as many optimizations under-the-hood for you, but it also has simple
 ### CLI options
 
 //TODO
-//TODO: environment variable
+
+**Environment variables**
+
+```bash
+export ZERVER_FLAGS="--production"
+zerver src # will run with --production flag on
+```
+
+The main usecase for this is having production specific flags or enabling debug plugins.
 
 ### Node.js usage
 
-//TODO
+```js
+var Zerver = require('zerver');
+var zerver = new Zerver({
+  dir        : 'src',
+  production : true,
+  quiet      : true,
+  // all CLI options work
+}, function () {
+  // zerver is running
+  zerver.stop(function () {
+    // zerver has stopped
+  });
+});
+```
