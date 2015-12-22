@@ -221,7 +221,7 @@ Along with the local development server, Zerver can be deployed in a bunch of di
 
 ### Using Heroku
 
-[Heroku](https://www.heroku.com/) is a modern hosting platform for webapps. Follow the intructions on their site for making an account if you don't have one already.
+[Heroku](https://www.heroku.com/) is a modern hosting platform for webapps. It is an excellent way to quickly deploy your webapp somewhere but not necessarily the most performant solution for large-scale production apps. Follow the intructions on their site for making an account if you don't have one already.
 
 Tell Heroku how to run your webapp by putting your Zerver command in a file `Profile`:
 
