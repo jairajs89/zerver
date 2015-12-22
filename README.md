@@ -162,8 +162,44 @@ html
 
 ### Zerver APIs
 
-//TODO
-//TODO: error handling
+Building and integrating APIs with a backend can be a pain when you're focused on getting the frontend and user experience right. Zerver can let you expose APIs in the most natural way: JavaScript functions.
+
+```js
+// in file /zerver/recipes.js
+exports.getRecipe = function (recipeId, callback) {
+  // Go to my database and get the recipe
+  callback(recipe);
+};
+```
+
+```html
+<!-- in file /index.html -->
+<script src="/zerver/recipes.js"></script>
+<script>
+  recipes.getRecipe('butterchicken', function (recipe) {
+    // do something with this data
+  });
+</script>
+```
+
+Simply write a function that will run on your server but will be called by your frontend code.
+
+**Error handling**
+
+```html
+<script src="/zerver/recipes.js"></script>
+<script>
+  recipes.getRecipe('butterchicken', function (recipe) {
+    // do something with this data
+  }).error(function (err) {
+    // network error occurred
+  });
+</script>
+```
+
+**Word of caution**
+
+These APIs are super-convenient, especially when making small server-side functionality to support a frontend. This does not translate well into building vast complex server-side functionality. Those kinds of services should be built in isolation of your frontend using the backend setup of your choice.
 
 ### More plugins
 
