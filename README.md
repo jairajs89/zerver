@@ -217,27 +217,82 @@ Creating a plugin is easy -- simply follow [this guide](PLUGINS.md).
 
 ## Always be shipping
 
-//TODO: intro
+Along with the local development server, Zerver can be deployed in a bunch of different ways.
 
 ### Using Heroku
 
-//TODO
+[Heroku](https://www.heroku.com/) is a modern hosting platform for webapps. Follow the intructions on their site for making an account if you don't have one already.
+
+Tell Heroku how to run your webapp by putting your Zerver command in a file `Profile`:
+
+```
+web: zerver src
+```
+
+Now you `git push heroku master` and Heroku does the rest.
+
+Additionally it is convenient to have Heroku configured in production mode so that you don't have to manually turn that on/off:
+
+```bash
+heroku config:set ZERVER_FLAGS="--production"
+```
 
 ### Using Amazon S3
 
-//TODO
+Many Zerver projects have exclusively frontend code. These kinds of projects can easily be dumped on Amazon S3 and have a CDN put in-front of it. This tends to be the most performant way to serve a modern webapp.
+
+1. //TODO: signup for aws, enable s3
+2. //TODO: create bucket
+3. //TODO: setup static serving
+4. //TODO: deploy command
+
+**CDNs are fast**
+
+Use Amazon Cloudfront as a CDN:
+
+1. //TODO: enable cloudfront
+2. //TODO: create distribution
+3. //TODO: configure distribution
 
 ### Using static builds
 
-//TODO
+Sometime you just need the generated static webapp code to dump on a server somewhere or in some custom configuration.
+
+```bash
+zerver --build mydir src
+# mydir now contains webapp static content
+```
 
 ### Other environments
 
-//TODO
-//TODO: HTTPS
-//TODO: Custom origins
-//TODO: CORS
+Sometimes you just need to host Zerver in a very custom way. The common patterns that we support for these cases are listed below.
 
+**HTTPS**
+
+While using a gateway that handles HTTPS for you is preferred, we also support HTTPS right in Zerver.
+
+```bash
+zerver --ssl-key=supersecret.key --ssl-cert=notsosecret.pem src
+```
+
+**Custom origins**
+
+Sometimes you host your frontend and backend separately and you need Zerver APIs to point at a different origin:
+
+```bash
+zerver --origin=https://othersite.com src
+```
+
+When [`/zerver/recipe.js`](#zerver-apis) gets used on the frontend it will go to othersite.com for API calls.
+
+**CORS**
+
+In the event that you have Zerver APIs hosted on different origin you'll also need to explicitely declare your cross-origin policy.
+
+```js
+exports._crossOrigin = '*'; // Allow all origins to access API
+exports.getRecipe = function () { /* my code */ };
+```
 
 ## Get better performance
 

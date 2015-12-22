@@ -130,7 +130,7 @@
         }, TIMEOUT);
 
         xhr.open('POST', apiOrigin+resource, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
         xhr.send( JSON.stringify(data) );
 
         function xhrComplete() {
