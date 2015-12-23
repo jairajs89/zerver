@@ -19,8 +19,8 @@ Zerver is not a frontend framework -- your existing HTML5 app is already good to
 
 Clone one of our starter kits or add Zerver to your Node.js project:
 
-* [ReactJS starter kit _(recommended)_](http://github.com/jairajs89/starter-kit-react)
-* [Barebones starter kit](http://github.com/jairajs89/starter-kit)
+* <a href="https://github.com/jairajs89/starter-kit-react" target="_blank">ReactJS starter kit _(recommended)_</a>
+* <a href="https://github.com/jairajs89/starter-kit" target="_blank">Barebones starter kit</a>
 * Add to existing Node.js project: `npm install zerver --save`
 
 If you're using a starter kit:
@@ -70,9 +70,9 @@ Don't let the browser tell you which tools and languages you should use. Zerver 
 
 ### ECMAScript 6
 
-Major updates to JavaScript are coming to browsers with [ECMAScript 6 (ES6)](https://github.com/lukehoban/es6features/blob/master/README.md#readme). These updates [aren't fully available across major browsers](https://kangax.github.io/compat-table/es6/) yet, but ES6 is definitely the future of JavaScript as a language.
+Major updates to JavaScript are coming to browsers with <a href="https://github.com/lukehoban/es6features/blob/master/README.md#readme" target="_blank">ECMAScript 6 (ES6)</a>. These updates <a href="https://kangax.github.io/compat-table/es6/" target="_blank">aren't fully available across major browsers</a> yet, but ES6 is definitely the future of JavaScript as a language.
 
-[ES6 contains so many awesome features](https://github.com/lukehoban/es6features/blob/master/README.md#readme) that other languages take for granted. You'll stop and think "wow, JavaScript is finally a real language" and you'll be right. Here is a short list:
+<a href="https://github.com/lukehoban/es6features/blob/master/README.md#readme" target="_blank">ES6 contains so many awesome features</a> that other languages take for granted. You'll stop and think "wow, JavaScript is finally a real language" and you'll be right. Here is a short list:
 
 * Modules
 * Classes
@@ -80,7 +80,7 @@ Major updates to JavaScript are coming to browsers with [ECMAScript 6 (ES6)](htt
 * Generator functions
 * Extended function parameter handling
 * Promises
-* [..and so much more goodness](https://github.com/lukehoban/es6features/blob/master/README.md#readme)
+* <a href="https://github.com/lukehoban/es6features/blob/master/README.md#readme" target="_blank">..and so much more goodness</a>
 
 With the `--es6` command-line flag Zerver automatically compiles ES6 code down to browser-supported ES5 code. You must also include the `/zerver/es6.js` script which shims a bunch of features that aren't included in the automatic compilation.
 
@@ -110,14 +110,14 @@ With the `--es6` command-line flag Zerver automatically compiles ES6 code down t
 
 ### LESS stylesheets
 
-[LESS](http://lesscss.org/) is a superset of CSS that gives you many additional features, such as:
+<a href="http://lesscss.org/" target="_blank">LESS</a> is a superset of CSS that gives you many additional features, such as:
 
 * Variables
 * Mixins
 * Functions
 * Nested rules
 * Arithmetic in rules
-* [..and so much more](http://lesscss.org/features/)
+* <a href="http://lesscss.org/features/" target="_blank">..and so much more</a>
 
 Any file with a `.less` extension will automatically get compiled to CSS by Zerver.
 
@@ -139,13 +139,13 @@ Any file with a `.less` extension will automatically get compiled to CSS by Zerv
 
 ### Jade markup
 
-[Jade](http://jade-lang.com/) is a clean & simple template language that compiles to HTML. It will make your HTML documents way more readable with its features:
+<a href="http://jade-lang.com/" target="_blank">Jade</a> is a clean & simple template language that compiles to HTML. It will make your HTML documents way more readable with its features:
 
 * Variables
 * Control structures
 * Mixins
 * Template imports & inheritance
-* [..and so much more](http://jade-lang.com/reference/)
+* <a href="http://jade-lang.com/reference/" target="_blank">..and so much more</a>
 
 Any file with a `.jade` extension will automatically get compile to HTML by Zerver.
 
@@ -221,7 +221,7 @@ Along with the local development server, Zerver can be deployed in a bunch of di
 
 ### Using Heroku
 
-[Heroku](https://www.heroku.com/) is a modern hosting platform for webapps. It is an excellent way to quickly deploy your webapp somewhere but not necessarily the most performant solution for large-scale production apps. Follow the intructions on their site for making an account if you don't have one already.
+<a href="https://www.heroku.com/" target="_blank">Heroku</a> is a modern hosting platform for webapps. It is an excellent way to quickly deploy your webapp somewhere but not necessarily the most performant solution for large-scale production apps. Follow the intructions on their site for making an account if you don't have one already.
 
 Tell Heroku how to run your webapp by putting your Zerver command in a file `Profile`:
 
@@ -241,18 +241,15 @@ heroku config:set ZERVER_FLAGS="--production"
 
 Many Zerver projects have exclusively frontend code. These kinds of projects can easily be dumped on Amazon S3 and have a CDN put in-front of it. This tends to be the most performant way to serve a modern webapp.
 
-1. //TODO: signup for aws, enable s3
-2. //TODO: create bucket
-3. //TODO: setup static serving
-4. //TODO: deploy command
+```bash
+zerver --s3-deploy=mybucketname src
+```
 
-**CDNs are fast**
+This will deploy the static servable output to the S3 bucket. Make sure to <a href="http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Credentials_from_the_Shared_Credentials_File_____aws_credentials_" target="_blank">setup your AWS credentials properly</a> and <a href="http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Using_Profiles_with_the_SDK" target="_blank">select the right profile if necessary</a>.
 
-Use Amazon Cloudfront as a CDN:
+**CDNs make things fast**
 
-1. //TODO: enable cloudfront
-2. //TODO: create distribution
-3. //TODO: configure distribution
+The easiest way to get the benefit of CDN is to [effectively manage caching and versioning](#caching), then simply <a href="http://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/GettingStarted.html" target="_blank">use Amazon Cloudfront</a>.
 
 ### Using static builds
 
@@ -398,7 +395,7 @@ Note that we entirely turn off caching for `index.html` so that it always gets f
 
 **Offline mode with HTML5 AppCache**
 
-An offline-capable webapp will have a manifest file, as [documented here](http://www.html5rocks.com/en/tutorials/appcache/beginner/). The browser fetches the manifest file to determine whether or not it needs to resynchronize the offline files. Since the browser simply checks if the manifest file is identical or not to the previous version it had, it is necessary to change some text in the manifest file every time you want them to update.
+An offline-capable webapp will have a manifest file, as <a href="http://www.html5rocks.com/en/tutorials/appcache/beginner/" target="_blank">documented here</a>. The browser fetches the manifest file to determine whether or not it needs to resynchronize the offline files. Since the browser simply checks if the manifest file is identical or not to the previous version it had, it is necessary to change some text in the manifest file every time you want them to update.
 
 Zerver automatically does this for you by appending a comment to the end of your manifest file:
 
