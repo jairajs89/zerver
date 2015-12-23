@@ -214,6 +214,11 @@ Simply add the name of the module to the `--plugins` command-line flag and Zerve
 
 Creating a plugin is easy -- simply follow [this guide](PLUGINS.md#readme).
 
+Here are some available plugins:
+
+* [Automatic CoffeeScript compliation](https://github.com/jairajs89/zerver-plugin-coffeescript)
+* [I really need to make some more plugins..](PLUGINS.md#readme)
+
 
 ## Always be shipping
 
