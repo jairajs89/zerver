@@ -17,7 +17,7 @@ Zerver no longer bundles CoffeeScript support by default. Migration can be seaml
 
 ### Remote debugging CLI mode deprecated
 
-This feature was including during a time when debugging webapps on mobile devices was difficult due to lack of support in major browser. Since then both Safari & Chrome have released features for remote debugging iPhone & Android devices. Thus it has become unnecessary to support this feature in Zerver itself.
+This feature was including during a time when debugging webapps on mobile devices was difficult due to lack of support in major browser. Since then both [Safari](https://developer.apple.com/library/safari/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/GettingStarted/GettingStarted.html#//apple_ref/doc/uid/TP40007874-CH2-SW8) & [Chrome](https://developers.google.com/web/tools/chrome-devtools/debug/remote-debugging/remote-debugging) have released features for remote debugging iPhone & Android devices. Thus it has become unnecessary to support this feature in Zerver itself.
 
 ### Device log streaming mode deprecated
 
