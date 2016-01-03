@@ -14,7 +14,7 @@ init();
 
 function init() {
     if (require.main !== module) {
-        throw Error('server/index.js must be run as main module');
+        throw Error('src/index.js must be run as main module');
     }
 
     var options = processOptions();

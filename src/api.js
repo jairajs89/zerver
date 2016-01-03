@@ -7,7 +7,7 @@ var Cookies = require(path.join(__dirname, 'lib', 'cookies'));
 
 module.exports = APICalls;
 
-APICalls.CLIENT_API = path.join(__dirname, '..', 'client', 'index.js');
+APICalls.CLIENT_API = path.join(__dirname, 'lib', 'client.js');
 APICalls.CLIENT_POLYFILL = path.join(path.dirname(require.resolve('core-js')), 'client', 'core.min.js');
 APICalls.INSERT_DIR = '{{__API_DIR__}}';
 APICalls.INSERT_NAME = '{{__API_NAME__}}';

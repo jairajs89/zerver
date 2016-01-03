@@ -2,8 +2,8 @@ var assert      = require('assert');
 var extend      = require('util')._extend;
 var zlib        = require('zlib');
 var test        = require(__dirname + '/index');
-var StaticFiles = require(__dirname + '/../server/static');
-var async       = require(__dirname + '/../server/lib/async');
+var StaticFiles = require(__dirname + '/../src/static');
+var async       = require(__dirname + '/../src/lib/async');
 
 var postfix = '\n# Zerver timestamp: ' + test.time;
 

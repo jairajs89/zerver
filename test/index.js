@@ -17,9 +17,9 @@ exports.runTest = runTest;
 
 // Preload dependencies
 // TODO: Why do I have to do this?!
-require(path.join(__dirname, '..', 'server', 'plugin', 'babel'));
-require(path.join(__dirname, '..', 'server', 'plugin', 'less'));
-require(path.join(__dirname, '..', 'server', 'plugin', 'jade'));
+require(path.join(__dirname, '..', 'src', 'plugin', 'babel'));
+require(path.join(__dirname, '..', 'src', 'plugin', 'less'));
+require(path.join(__dirname, '..', 'src', 'plugin', 'jade'));
 require('babel-core').transform('var sup = 10;', { presets: [require('babel-preset-es2015'), require('babel-preset-react')] });
 require('less');
 require('jade');

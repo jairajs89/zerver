@@ -30,14 +30,14 @@
   "devDependencies": {
     "eslint": "1.9.0"
   },
-  "main": "server/zerver.js",
+  "main": "src/zerver.js",
   "bin": {
-    "zerver": "server/index.js"
+    "zerver": "src/index.js"
   },
   "scripts": {
     "test": "npm run -s lint && npm run -s test-js",
     "test-js": "node test",
-    "lint": "eslint --quiet server/*.js server/**/*.js test/*.js test/**/*.js"
+    "lint": "eslint --quiet src/*.js src/**/*.js test/*.js test/**/*.js"
   },
   "spec_dir": "test",
   "spec_files": [

@@ -1,6 +1,6 @@
 var assert   = require('assert');
 var test     = require(__dirname + '/index');
-var APICalls = require(__dirname + '/../server/api');
+var APICalls = require(__dirname + '/../src/api');
 
 function testObj() {
     return function (root, callback) {
