@@ -13,6 +13,10 @@ Zerver is a web server built specifically for frontend developers, making it eas
 
 Zerver is not a frontend framework -- your existing HTML5 app is already good to go. While Zerver has great tools for backend API development, this is simply to supplement your frontend code -- if you're a backend engineer building a highly scalable REST API, this isn't the tool for you.
 
+**Migrate from pre-v1.0.0 Zerver**
+
+Projects using old versions of Zerver can [quickly update using this guide](MIGRATION.md).
+
 
 
 # Getting started
