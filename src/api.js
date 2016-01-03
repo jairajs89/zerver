@@ -9,11 +9,11 @@ module.exports = APICalls;
 
 APICalls.CLIENT_API = path.join(__dirname, 'lib', 'client.js');
 APICalls.CLIENT_POLYFILL = path.join(path.dirname(require.resolve('core-js')), 'client', 'core.min.js');
-APICalls.INSERT_DIR = '{{__API_DIR__}}';
-APICalls.INSERT_NAME = '{{__API_NAME__}}';
-APICalls.INSERT_API = '{{__API_OBJ__}}';
-APICalls.INSERT_FUNCTIONS = '{{__API_FUNCTIONS__}}';
-APICalls.INSERT_ORIGIN = '{{__API_ORIGIN__}}';
+APICalls.INSERT_DIR = '\'{{__API_DIR__}}\'';
+APICalls.INSERT_NAME = '\'{{__API_NAME__}}\'';
+APICalls.INSERT_API = '\'{{__API_OBJ__}}\'';
+APICalls.INSERT_FUNCTIONS = '\'{{__API_FUNCTIONS__}}\'';
+APICalls.INSERT_ORIGIN = '\'{{__API_ORIGIN__}}\'';
 
 
 
