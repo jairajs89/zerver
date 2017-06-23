@@ -185,8 +185,14 @@ Zerver.prototype._getFiles = function () {
         );
     }
     Object.keys(files).forEach(function (pathname) {
-        if (!pathname || pathname[pathname.length - 1] === '/') {
+        var file      = files[pathname];
+        var notFile   = file.status && file.status !== 200;
+        var isDirRoot = pathname[pathname.length - 1] === '/';
+        if (!pathname || notFile || isDirRoot) {
             delete files[pathname];
+        }
+        if (!notFile && isDirRoot && !files[pathname + 'index.html']) {
+            files[pathname + 'index.html'] = file;
         }
     });
     return files;
