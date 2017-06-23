@@ -1,8 +1,12 @@
 # Changelog
 
-### [v1.0.2](https://github.com/jairajs89/zerver/releases/tag/1.0.2)
+### [v1.0.3](https://github.com/jairajs89/zerver/releases/tag/1.0.3)
 
 - Fix issue with `--build`/`--s3deploy` commands when dealing with redirects and directory roots
+
+### [v1.0.2](https://github.com/jairajs89/zerver/releases/tag/1.0.2)
+
+- Gzip font files
 
 ### [v1.0.1](https://github.com/jairajs89/zerver/releases/tag/1.0.1)
 

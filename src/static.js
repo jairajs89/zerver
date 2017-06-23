@@ -26,12 +26,14 @@ StaticFiles.CONCAT_MATCH = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-
 StaticFiles.WHITESPACE_MATCH = /^[\s\n\t\r]*$/;
 
 StaticFiles.GZIPPABLE = {
-    'application/json'      : true,
-    'application/javascript': true,
-    'text/css'              : true,
-    'text/html'             : true,
-    'text/plain'            : true,
-    'text/cache-manifest'   : true,
+    'application/json'             : true,
+    'application/javascript'       : true,
+    'text/css'                     : true,
+    'text/html'                    : true,
+    'text/plain'                   : true,
+    'text/cache-manifest'          : true,
+    'application/x-font-ttf'       : true,
+    'application/vnd.ms-fontobject': true,
 };
 
 
