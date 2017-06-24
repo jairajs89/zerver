@@ -18,6 +18,7 @@ StaticFiles.INDEX_FILES = ['index.html'];
 
 //TODO: use parsers
 StaticFiles.CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
+StaticFiles.HTML_IMAGE = /(?:src|href)\=[\'\"]\s*([^\'\"\>]+)\s*[\'\"]/g;
 StaticFiles.MANIFEST_CONCAT = /\s*\#\s*zerver\:(\S+)\s*/g;
 StaticFiles.MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
 StaticFiles.SCRIPT_MATCH = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g;
@@ -955,13 +956,15 @@ StaticFiles.prototype._versionStyles = function (pathname, headers, body, callba
 };
 
 StaticFiles.prototype._versionImages = function (pathname, headers, body, callback) {
-    if (!this._options.versioning || headers['Content-Type'] !== 'text/css') {
+    var isCSS = headers['Content-Type'] === 'text/css';
+    var isHTML = headers['Content-Type'] === 'text/html';
+    if (!this._options.versioning || !(isCSS || isHTML)) {
         callback(headers, body);
         return;
     }
 
     var self = this;
-    async.replace(body.toString(), StaticFiles.CSS_IMAGE, function (imgPath, respond, matches) {
+    async.replace(body.toString(), isCSS ? StaticFiles.CSS_IMAGE : StaticFiles.HTML_IMAGE, function (imgPath, respond, matches) {
         if (imgPath.substr(0, 5) === 'data:') {
             respond();
             return;
@@ -1081,13 +1084,15 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
 };
 
 StaticFiles.prototype._inlineImages = function (pathname, headers, body, callback) {
-    if (!this._options.inline || headers['Content-Type'] !== 'text/css') {
+    var isCSS = headers['Content-Type'] === 'text/css';
+    var isHTML = headers['Content-Type'] === 'text/html';
+    if (!this._options.inline || !(isCSS || isHTML)) {
         callback(headers, body);
         return;
     }
 
     var self = this;
-    async.replace(body.toString(), StaticFiles.CSS_IMAGE, function (imgPath, respond) {
+    async.replace(body.toString(), isCSS ? StaticFiles.CSS_IMAGE : StaticFiles.HTML_IMAGE, function (imgPath, respond, matches) {
         if (imgPath.substr(0, 5) === 'data:') {
             respond();
             return;
@@ -1101,7 +1106,8 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
             if (!Buffer.isBuffer(body)) {
                 body = new Buffer(body, 'binary');
             }
-            respond('url(data:' + headers['Content-Type'] + ';base64,' + body.toString('base64') + ')');
+            var dataURL = 'data:' + headers['Content-Type'] + ';base64,' + body.toString('base64');
+            respond(matches[0].replace(matches[1], dataURL));
         });
     }, function (body) {
         callback(headers, body);

@@ -1,5 +1,9 @@
 # Changelog
 
+### [v1.0.4](https://github.com/jairajs89/zerver/releases/tag/1.0.4)
+
+- Allow inlined/versioned images in HTML files
+
 ### [v1.0.3](https://github.com/jairajs89/zerver/releases/tag/1.0.3)
 
 - Fix issue with `--build`/`--s3deploy` commands when dealing with redirects and directory roots
