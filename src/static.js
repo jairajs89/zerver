@@ -483,6 +483,7 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
 
     var self = this;
     async.sequence(
+        //TODO: inline/version images in HTML
         function inlineOrVersionImages(next) {
             var $ = require('cheerio').load(body.toString());
             var changedHTML = false;

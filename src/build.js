@@ -1,7 +1,6 @@
 var fs     = require('fs');
 var mkpath = require('mkpath');
 var path   = require('path');
-var zlib   = require('zlib');
 
 module.exports = function (buildDir, files, callback) {
     var buildPath = path.resolve(process.cwd(), buildDir);
