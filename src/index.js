@@ -79,6 +79,7 @@ function processOptions() {
     commands.dir = dir;
     if (commands.s3Deploy || commands.build) {
         commands.production = true;
+        commands.gzip = false;
     }
     if (!commands.production) {
         commands.gzip = false;

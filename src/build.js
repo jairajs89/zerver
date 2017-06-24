@@ -16,12 +16,7 @@ module.exports = function (buildDir, files, callback) {
         var file     = files[pathname];
 
         mkpath.sync(path.dirname(filePath));
-
-        var body = file.body;
-        if (file.headers['Content-Encoding'] === 'gzip') {
-            body = zlib.gunzipSync(body);
-        }
-        fs.writeFileSync(filePath, body, { encoding: 'utf8' });
+        fs.writeFileSync(filePath, file.body, { encoding: 'utf8' });
     });
 
     if (callback) {

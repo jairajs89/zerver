@@ -1,5 +1,9 @@
 # Changelog
 
+### [v1.0.6](https://github.com/jairajs89/zerver/releases/tag/1.0.6)
+
+- Gzip disabled for `--build`/`--s3deploy`
+
 ### [v1.0.5](https://github.com/jairajs89/zerver/releases/tag/1.0.5)
 
 - Fix bug regarding corrupt metadata in `s3deploy`
