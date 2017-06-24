@@ -1,5 +1,9 @@
 # Changelog
 
+### [v1.0.5](https://github.com/jairajs89/zerver/releases/tag/1.0.5)
+
+- Fix bug regarding corrupt metadata in `s3deploy`
+
 ### [v1.0.4](https://github.com/jairajs89/zerver/releases/tag/1.0.4)
 
 - Allow inlined/versioned images in HTML files

@@ -64,21 +64,22 @@ function uploadFile(s3, params, pathname, headers, body, callback) {
         ACL   : 'public-read',
         Body  : body,
     };
-    if (headers['Content-Type']) {
-        s3params.ContentType = headers['Content-Type'];
-        delete headers['Content-Type'];
+    var metadata = Object.assign({}, headers);
+    if (metadata['Content-Type']) {
+        s3params.ContentType = metadata['Content-Type'];
+        delete metadata['Content-Type'];
     }
-    if (headers['Content-Encoding']) {
-        s3params.ContentEncoding = headers['Content-Encoding'];
-        delete headers['Content-Encoding'];
+    if (metadata['Content-Encoding']) {
+        s3params.ContentEncoding = metadata['Content-Encoding'];
+        delete metadata['Content-Encoding'];
     }
-    if (headers['Cache-Control']) {
-        s3params.CacheControl = headers['Cache-Control'];
-        delete headers['Cache-Control'];
+    if (metadata['Cache-Control']) {
+        s3params.CacheControl = metadata['Cache-Control'];
+        delete metadata['Cache-Control'];
     }
-    delete headers.ETag;
-    delete headers.Vary;
-    s3params.Metadata = headers;
+    delete metadata.ETag;
+    delete metadata.Vary;
+    s3params.Metadata = metadata;
 
     s3.putObject(s3params, function (err, data) {
         if (err) {
