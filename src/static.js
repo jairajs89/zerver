@@ -490,13 +490,16 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                 $('*').map(function () {
                     var $elem = $(this);
                     return function (done) {
+                        var type     = ($elem.attr('type') || '').trim();
+                        var code     = $elem.html();
+                        var href     = versionedUrl($elem.attr('href'));
+                        var src      = versionedUrl($elem.attr('src'));
+                        var fullPath = relativePath(pathname, (href || src).split('?')[0]);
                         if ($elem[0].tagName === 'style') {
-                            var type = ($elem.attr('type') || '').trim();
                             if (type && type !== 'text/css') {
                                 done();
                                 return;
                             }
-                            var code = $elem.html();
                             self._prepareAutomaticCSSOptimisations(
                                 pathname, { 'Content-Type': 'text/css' }, code,
                                 function (_, newCode) {
@@ -508,10 +511,7 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                                 }
                             );
                         } else if (['a', 'script'].indexOf($elem[0].tagName) === -1) {
-                            var href = versionedUrl($elem.attr('href'));
-                            var src = versionedUrl($elem.attr('src'));
                             if (href || src) {
-                                var fullPath = relativePath(pathname, (href || src).split('?')[0]);
                                 self._cacheFileOrConcat(fullPath, function (headers, body) {
                                     if (headers['Content-Type'] && headers['Content-Type'].startsWith('image/')) {
                                         if (href) {
@@ -531,9 +531,8 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                         }
 
                         function versionedUrl(url) {
-                            url = (url || '').trim();
-                            if (url && url.indexOf(':') === -1 && url.substr(0, 2) !== '//' && !url.endsWith('/') && url.indexOf('#') === -1) {
-                                var parsed = urllib.parse(url, true);
+                            var parsed = urllib.parse((url || '').trim(), true);
+                            if (!parsed.protocol && !parsed.host && !parsed.hash && parsed.pathname && !parsed.pathname.endsWith('/')) {
                                 if (!parsed.query.inline && !parsed.query.version) {
                                     parsed.query.version = 1;
                                     return urllib.format(parsed);
