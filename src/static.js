@@ -21,8 +21,8 @@ StaticFiles.CSS_IMAGE = /url\([\'\"]?([^\)]+)[\'\"]?\)/g;
 StaticFiles.HTML_IMAGE = /(?:src|href)\=[\'\"]\s*([^\'\"\>]+)\s*[\'\"]/g;
 StaticFiles.MANIFEST_CONCAT = /\s*\#\s*zerver\:(\S+)\s*/g;
 StaticFiles.MANIFEST_CONCAT_END = /\s*\#\s*\/zerver\s*/g;
-StaticFiles.SCRIPT_MATCH = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g;
-StaticFiles.STYLES_MATCH = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g;
+StaticFiles.SCRIPT_MATCH = /\<script(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+src\=[\'\"]\s*([^\'\"\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\>\<\/script\>/g;
+StaticFiles.STYLES_MATCH = /\<link(?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s+href\=[\'\"]\s*([^\'\"\>]+)\s*[\'\"](?:\s+\w+\=[\'\"][^\>]+[\'\"])*\s*\/?\>/g;
 StaticFiles.CONCAT_MATCH = /\<\!\-\-\s*zerver\:(\S+)\s*\-\-\>((\s|\S)*?)\<\!\-\-\s*\/zerver\s*\-\-\>/g;
 StaticFiles.WHITESPACE_MATCH = /^[\s\n\t\r]*$/;
 
@@ -483,30 +483,63 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
 
     var self = this;
     async.sequence(
-        //TODO: inline/version images in HTML
         function inlineOrVersionImages(next) {
             var $ = require('cheerio').load(body.toString());
             var changedHTML = false;
             async.join(
-                $('style').map(function () {
-                    var $style = $(this);
+                $('*').map(function () {
+                    var $elem = $(this);
                     return function (done) {
-                        var type = ($style.attr('type') || '').trim();
-                        if (type && type !== 'text/css') {
-                            done();
-                            return;
-                        }
-                        var code = $style.html();
-                        self._prepareAutomaticCSSOptimisations(
-                            pathname, { 'Content-Type': 'text/css' }, code,
-                            function (_, newCode) {
-                                if (newCode !== code) {
-                                    $style.html(newCode);
-                                    changedHTML = true;
+                        if ($elem[0].tagName === 'style') {
+                            var type = ($elem.attr('type') || '').trim();
+                            if (type && type !== 'text/css') {
+                                done();
+                                return;
+                            }
+                            var code = $elem.html();
+                            self._prepareAutomaticCSSOptimisations(
+                                pathname, { 'Content-Type': 'text/css' }, code,
+                                function (_, newCode) {
+                                    if (newCode !== code) {
+                                        $elem.html(newCode);
+                                        changedHTML = true;
+                                    }
+                                    done();
                                 }
+                            );
+                        } else if (['a', 'script'].indexOf($elem[0].tagName) === -1) {
+                            var href = versionedUrl($elem.attr('href'));
+                            var src = versionedUrl($elem.attr('src'));
+                            if (href || src) {
+                                var fullPath = relativePath(pathname, (href || src).split('?')[0]);
+                                self._cacheFileOrConcat(fullPath, function (headers, body) {
+                                    if (headers['Content-Type'] && headers['Content-Type'].startsWith('image/')) {
+                                        if (href) {
+                                            $elem.attr('href', href);
+                                        } else if (src) {
+                                            $elem.attr('src', src);
+                                        }
+                                        changedHTML = true;
+                                    }
+                                    done();
+                                });
+                            } else {
                                 done();
                             }
-                        );
+                        } else {
+                            done();
+                        }
+
+                        function versionedUrl(url) {
+                            url = (url || '').trim();
+                            if (url && url.indexOf(':') === -1 && url.substr(0, 2) !== '//' && !url.endsWith('/') && url.indexOf('#') === -1) {
+                                var parsed = urllib.parse(url, true);
+                                if (!parsed.query.inline && !parsed.query.version) {
+                                    parsed.query.version = 1;
+                                    return urllib.format(parsed);
+                                }
+                            }
+                        }
                     };
                 }),
                 function () {
@@ -536,7 +569,7 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                     var fullPath = relativePath(pathname, stylePath.split('?')[0]);
                     self._cacheFileOrConcat(fullPath, function (headers, body) {
                         var newFileSize = fileSize + body.toString().length;
-                        if (newFileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_CSS_FILE_SIZE) {
+                        if (headers['Content-Type'] !== 'text/css' || newFileSize > StaticFiles.MAX_AUTO_HTML_FILE_SIZE || body.toString().length > StaticFiles.MAX_AUTO_CSS_FILE_SIZE) {
                             versionStylesheet();
                         } else {
                             fileSize = newFileSize;
@@ -635,13 +668,13 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                         var inConcat = false;
                         original.replace(StaticFiles.STYLES_MATCH, function (stylesheetTag, stylePath) {
                             var parsed = urllib.parse(stylePath, true);
-                            var localUrl = parsed.host === null && !parsed.query.inline;
+                            var validUrl = parsed.host === null && !parsed.query.inline && ['text/css', 'text/less'].indexOf(mime.lookup(stylePath)) !== -1;
                             var fullPath;
                             var hash;
-                            if (inConcat && !localUrl) {
+                            if (inConcat && !validUrl) {
                                 inConcat = false;
                                 concatted += '\n<!-- /zerver -->';
-                            } else if (!inConcat && localUrl) {
+                            } else if (!inConcat && validUrl) {
                                 inConcat = true;
                                 fullPath = relativePath(pathname, stylePath.split('?')[0]);
                                 hash = crypto.createHash('md5').update(
@@ -1063,7 +1096,9 @@ StaticFiles.prototype._inlineStyles = function (pathname, headers, body, callbac
         }
         var fullPath = relativePath(pathname, stylePath.split('?')[0]);
         self._cacheFile(fullPath, function (headers, body) {
-            if (headers['Content-Encoding'] === 'gzip') {
+            if (headers['Content-Type'] !== 'text/css') {
+                next();
+            } else if (headers['Content-Encoding'] === 'gzip') {
                 zlib.gunzip(body, function (err, newBody) {
                     if (err) {
                         next();
@@ -1104,6 +1139,10 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
         }
         var fullPath = relativePath(pathname, imgPath.split('?')[0]);
         self._cacheFile(fullPath, function (headers, body) {
+            if (!headers['Content-Type'] || !headers['Content-Type'].startsWith('image/')) {
+                respond();
+                return;
+            }
             if (!Buffer.isBuffer(body)) {
                 body = new Buffer(body, 'binary');
             }
