@@ -1,5 +1,9 @@
 # Changelog
 
+### [v1.0.9](https://github.com/jairajs89/zerver/releases/tag/1.0.9)
+
+- Fix for broken Node v0.x support
+
 ### [v1.0.8](https://github.com/jairajs89/zerver/releases/tag/1.0.8)
 
 - Fix sort order of uploaded files with `--s3-deploy`
