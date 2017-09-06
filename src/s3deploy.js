@@ -3,22 +3,24 @@ var mime   = require('mime');
 var urllib = require('url');
 var async  = require(path.join(__dirname, 'lib', 'async'));
 
+var SORT_ORDER = {
+    'text/cache-manifest'   : 4,
+    'text/html'             : 3,
+    'text/jade'             : 3,
+    'text/jsx'              : 2,
+    'application/javascript': 2,
+    'text/css'              : 1,
+    'text/less'             : 1,
+};
+
 module.exports = function (s3Url, uploads, callback) {
     var params = parseS3Url(s3Url);
     var S3     = require('aws-sdk').S3;
     var s3     = new S3();
 
     async.join(
-        Object.keys(uploads).sort(function (pathname) {
-            return {
-                'text/cache-manifest'   : 4,
-                'text/html'             : 3,
-                'text/jade'             : 3,
-                'text/jsx'              : 2,
-                'application/javascript': 2,
-                'text/css'              : 1,
-                'text/less'             : 1,
-            }[mime.lookup(pathname)] || 0;
+        Object.keys(uploads).sort(function (a, b) {
+            return (SORT_ORDER[mime.lookup(a)] || 0) - (SORT_ORDER[mime.lookup(b)] || 0);
         }).map(function (pathname) {
             return function (next) {
                 uploadFile(
