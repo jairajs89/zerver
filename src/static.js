@@ -513,7 +513,7 @@ StaticFiles.prototype._prepareAutomaticHTMLOptimisations = function (pathname, h
                         } else if (['a', 'script'].indexOf($elem[0].tagName) === -1) {
                             if (href || src) {
                                 self._cacheFileOrConcat(fullPath, function (headers, body) {
-                                    if (headers['Content-Type'] && headers['Content-Type'].startsWith('image/')) {
+                                    if (headers['Content-Type'] && headers['Content-Type'].substr(0,6) === 'image/') {
                                         if (href) {
                                             $elem.attr('href', href);
                                         } else if (src) {
@@ -1138,7 +1138,7 @@ StaticFiles.prototype._inlineImages = function (pathname, headers, body, callbac
         }
         var fullPath = relativePath(pathname, imgPath.split('?')[0]);
         self._cacheFile(fullPath, function (headers, body) {
-            if (!headers['Content-Type'] || !headers['Content-Type'].startsWith('image/')) {
+            if (!headers['Content-Type'] || headers['Content-Type'].substr(0,6) !== 'image/') {
                 respond();
                 return;
             }
