@@ -18,25 +18,43 @@ module.exports = function (s3Url, uploads, callback) {
     var S3     = require('aws-sdk').S3;
     var s3     = new S3();
 
-    async.join(
-        Object.keys(uploads).sort(function (a, b) {
-            return (SORT_ORDER[mime.lookup(a)] || 0) - (SORT_ORDER[mime.lookup(b)] || 0);
-        }).map(function (pathname) {
-            return function (next) {
-                uploadFile(
-                    s3, params,
-                    pathname,
-                    uploads[pathname].headers,
-                    uploads[pathname].body,
-                    next
+    var buckets = Object.keys(uploads)
+        .map(function (pathname) {
+            return [pathname, SORT_ORDER[mime.lookup(pathname)] || 0];
+        })
+        .reduce(function (buckets, file) {
+            buckets[file[1]] = buckets[file[1]] || [];
+            buckets[file[1]].push(file[0]);
+            return buckets;
+        }, {});
+
+    async.sequence.apply(
+        null,
+        Object.keys(buckets).sort().map(function (bucketName) {
+            var bucket = buckets[bucketName];
+            return function (cb) {
+                async.forEach(
+                    bucket,
+                    function (pathname, next) {
+                        uploadFile(
+                            s3, params,
+                            pathname,
+                            uploads[pathname].headers,
+                            uploads[pathname].body,
+                            next
+                        );
+                    },
+                    function () {
+                        cb();
+                    }
                 );
             };
-        }),
-        function () {
+        }).concat([function (cb) {
+            cb();
             if (callback) {
                 callback();
             }
-        }
+        }])
     );
 };
 
