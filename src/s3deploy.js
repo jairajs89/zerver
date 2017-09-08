@@ -33,17 +33,18 @@ module.exports = function (s3Url, uploads, callback) {
         Object.keys(buckets).sort().map(function (bucketName) {
             var bucket = buckets[bucketName];
             return function (cb) {
-                async.forEach(
-                    bucket,
-                    function (pathname, next) {
-                        uploadFile(
-                            s3, params,
-                            pathname,
-                            uploads[pathname].headers,
-                            uploads[pathname].body,
-                            next
-                        );
-                    },
+                async.join(
+                    bucket.map(function (pathname) {
+                        return function (next) {
+                            uploadFile(
+                                s3, params,
+                                pathname,
+                                uploads[pathname].headers,
+                                uploads[pathname].body,
+                                next
+                            );
+                        };
+                    }),
                     function () {
                         cb();
                     }
