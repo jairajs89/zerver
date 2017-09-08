@@ -50,7 +50,7 @@ module.exports = function (s3Url, uploads, callback) {
                     }
                 );
             };
-        }).concat([function (cb) {
+        }).concat([function (cb) { // eslint-disable-line space-before-keywords
             cb();
             if (callback) {
                 callback();
